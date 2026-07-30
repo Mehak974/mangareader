@@ -3,8 +3,10 @@
 import React, { use, useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import Footer from "@/components/Footer";
+import Loader, { MiniLoader } from "@/components/Loader";
+import ExoClickBanner from "@/components/ExoClickBanner";
 import { useApp } from "@/context/AppContext";
-import Loader from "@/components/Loader";
 import Image from "next/image";
 import { API_BASE } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
@@ -410,6 +412,9 @@ const handleChapterSelect = (e) => {
           <div className="brightness-label" style={{ marginTop: "140px" }}>{100 - brightness}%</div>
         </div>
       )}
+
+      {/* Top Banner Ad */}
+      <ExoClickBanner />
 
       {/* Manga Pages List */}
       <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: viewMode === "webtoon" ? "10px" : "0", alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: "10px 0" }}>

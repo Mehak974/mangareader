@@ -7,6 +7,7 @@ import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
+import ExoClickBanner from "@/components/ExoClickBanner";
 import { MANGA } from "@/data/mockData";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -263,7 +264,9 @@ useEffect(() => {
         </div>
       </div>
 
-<div className="section" style={{ minHeight: "400px" }}>
+      <ExoClickBanner />
+
+      <div className="section" style={{ minHeight: "400px" }}>
          {loading ? (
            <Loader />
          ) : error && !mangaList.length ? (

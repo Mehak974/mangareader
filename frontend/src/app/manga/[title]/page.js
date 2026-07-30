@@ -11,6 +11,7 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
+import ExoClickBanner from "@/components/ExoClickBanner";
 import { MANGA, ALL_CHAPTERS } from "@/data/mockData";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -447,6 +448,9 @@ const [chPage, setChPage] = useState(1);
               ))}
             </select>
           </div>
+
+          {/* Top Banner Ad */}
+          <ExoClickBanner />
 
           <div className="detail-actions">
             {chapters.length > 0 ? (
