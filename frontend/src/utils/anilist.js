@@ -111,6 +111,10 @@ export async function getMangaList(variables) {
     let jikanUrl = "https://api.jikan.moe/v4/manga";
     if (variables.search) {
       jikanUrl += `?q=${encodeURIComponent(variables.search)}&limit=${variables.perPage || 12}`;
+    } else if (variables.sort && variables.sort.includes("UPDATED_AT_DESC")) {
+      jikanUrl += `?order_by=start_date&sort=desc&status=publishing&limit=${variables.perPage || 12}`;
+    } else if (variables.sort && variables.sort.includes("TRENDING_DESC")) {
+      jikanUrl += `?order_by=score&sort=desc&status=publishing&limit=${variables.perPage || 12}`;
     } else {
       jikanUrl += `?order_by=popularity&limit=${variables.perPage || 12}`;
     }

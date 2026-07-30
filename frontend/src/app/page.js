@@ -49,7 +49,7 @@ export default async function Home() {
   }
 
   if (recentlyAdded.length < 20) {
-    const recentFallback = await getMangaList({ perPage: 20, sort: ["ID_DESC"] }).catch(() => ({ media: [] }));
+    const recentFallback = await getMangaList({ perPage: 20, sort: ["UPDATED_AT_DESC"] }).catch(() => ({ media: [] }));
     const fallbackMedia = recentFallback?.media?.length > 0 
       ? recentFallback.media 
       : [];
