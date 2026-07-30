@@ -11,6 +11,7 @@ const DynamicMarkdown = dynamicImport(() => import("@/components/Markdown"), {
 
 import BlogSidebarWrapper from "@/components/BlogSidebarWrapper";
 import JsonLd from "@/components/JsonLd";
+import ExoClickBanner from "@/components/ExoClickBanner";
 import CommentSection from "@/components/CommentSection";
 import { getPublishedArticle, listPublishedArticles } from "@/lib/editorial";
 import {
@@ -137,6 +138,8 @@ export default async function BlogPost({ params }) {
               {article.excerpt}
             </p>
           )}
+
+          <ExoClickBanner />
 
           <div
             style={{
