@@ -11,6 +11,7 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
+import { Analytics } from '@vercel/analytics/next';
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -88,6 +89,7 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   );
