@@ -416,7 +416,7 @@ const handleChapterSelect = (e) => {
       <ExoClickBanner />
 
       {/* Manga Pages List */}
-      <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: viewMode === "webtoon" ? "10px" : "0", alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: "10px 0" }}>
+      <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: "10px 0" }}>
         {images.map((imgUrl, i) => {
           if (viewMode === "paged" && i !== page - 1) return null;
           const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
