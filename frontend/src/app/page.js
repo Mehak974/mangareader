@@ -295,7 +295,7 @@ export default async function Home() {
           </div>
           <div className="recent-list">
             {filteredRecentlyAdded.map((r, idx) => (
-              <Link href={`/manga/${slugify(r.t || r.title)}`} key={r.id} className="rc-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={`/manga/${slugify(r.t || r.title)}${r.cover ? `?cover=${encodeURIComponent(r.cover)}` : ''}`} key={r.id} className="rc-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="rc-cov"
                   style={
@@ -321,7 +321,7 @@ export default async function Home() {
                   <div className="rc-sub">{r.ch} · {r.g}</div>
                 </div>
                 {r.latest_source ? (
-                  <div className="rc-new" style={{ textTransform: "uppercase" }}>{r.latest_source}</div>
+                  <div className="rc-new">NEW</div>
                 ) : (
                   r.hot && <div className="rc-new">HOT</div>
                 )}

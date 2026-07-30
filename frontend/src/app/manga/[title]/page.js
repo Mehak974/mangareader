@@ -176,6 +176,20 @@ const [chPage, setChPage] = useState(1);
 
         if (!normalizedManga) {
           console.warn("AniList detail fetch missed or returned no results for:", searchTitle);
+          const fallbackCover = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cover') : '';
+          
+          normalizedManga = {
+            id: `fallback-${slugify(searchTitle)}`,
+            title: searchTitle,
+            cover: fallbackCover || "",
+            description: "Detailed description is not available in our database. You can still read the chapters below.",
+            status: "RELEASING",
+            rating: 4.5,
+            genres: ["Ongoing"],
+            year: "Unknown",
+            popularity: 0,
+          };
+          resolvedId = normalizedManga.id;
         }
 
         setManga(normalizedManga);
