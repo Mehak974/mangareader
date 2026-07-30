@@ -449,9 +449,6 @@ const [chPage, setChPage] = useState(1);
             </select>
           </div>
 
-          {/* Top Banner Ad */}
-          <ExoClickBanner />
-
           <div className="detail-actions">
             {chapters.length > 0 ? (
               <>
@@ -529,6 +526,9 @@ const [chPage, setChPage] = useState(1);
 
       <div className={`manga-detail-grid ${activeTab === 'chapters' ? 'active-chapters' : 'active-discussion'}`}>
         <div className="manga-detail-chapters">
+          {/* Top Banner Ad */}
+          <ExoClickBanner />
+
           {/* CHAPTER LIST HEADER */}
           <div className="ch-list-header">
             <div className="s-title">
