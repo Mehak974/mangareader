@@ -460,7 +460,7 @@ const handleChapterSelect = (e) => {
                 </div>
               ) : (
                 <Image 
-                  src={`${API_BASE}/api/proxy-image?url=${encodeURIComponent(imgUrl)}`} 
+                  src={`https://manga.mehakiqbal974.workers.dev/?url=${encodeURIComponent(imgUrl)}`} 
                   alt={`Page ${i + 1}`} 
                   width={800}
                   height={1200}
