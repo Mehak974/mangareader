@@ -164,6 +164,24 @@ function ReaderContent({ params }) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
+  const goToNextChapter = () => {
+    const currentIdx = chapters.findIndex(ch => ch.href === url);
+    if (currentIdx > 0) {
+      const next = chapters[currentIdx - 1];
+      router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
+    }
+  };
+
+  const goToPrevChapter = () => {
+    const currentIdx = chapters.findIndex(ch => ch.href === url);
+    if (currentIdx < chapters.length - 1 && currentIdx !== -1) {
+      const prev = chapters[currentIdx + 1];
+      router.push(`/reader/${chapters.length - currentIdx - 1}?url=${encodeURIComponent(prev.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
+    } else {
+      router.push(`/manga/${encodeURIComponent(title)}`);
+    }
+  };
+
 const handleChapterSelect = (e) => {
      const selectedIndex = parseInt(e.target.value);
      const ch = chapters[selectedIndex];
@@ -176,17 +194,14 @@ const handleChapterSelect = (e) => {
    const handleKeyDown = (e) => {
      if (brightnessPop) return;
      switch (e.key) {
-       case "ArrowLeft":
-         e.preventDefault();
-         router.back();
-         break;
        case "ArrowRight": {
          e.preventDefault();
-         const currentIdx = chapters.findIndex(ch => ch.href === url);
-         if (currentIdx > 0) {
-           const next = chapters[currentIdx - 1];
-           router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
-         }
+         goToNextChapter();
+         break;
+       }
+       case "ArrowLeft": {
+         e.preventDefault();
+         goToPrevChapter();
          break;
        }
        case "Home":
@@ -212,18 +227,14 @@ const handleChapterSelect = (e) => {
        if (viewMode === "paged" && page < TOTAL_PAGES) {
          setPage(p => p + 1);
        } else {
-         const currentIdx = chapters.findIndex(ch => ch.href === url);
-         if (currentIdx > 0) {
-           const next = chapters[currentIdx - 1];
-           router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
-         }
+         goToNextChapter();
        }
      } else if (swipeX === 1) {
        // Swipe right
        if (viewMode === "paged" && page > 1) {
          setPage(p => p - 1);
        } else {
-         router.back();
+         goToPrevChapter();
        }
      }
    });
@@ -318,26 +329,14 @@ const handleChapterSelect = (e) => {
         </span>
 
         <div className="rt-sep"></div>
-        <button className="rt-btn" onClick={handleScrollTop} aria-label="Scroll to top">
+        <button className="rt-btn" onClick={goToPrevChapter} aria-label="Previous chapter" disabled={chapters.findIndex(ch => ch.href === url) >= chapters.length - 1 || chapters.findIndex(ch => ch.href === url) === -1}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 19V5M5 12l7-7 7 7"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <button className="rt-btn" onClick={handleScrollBot} aria-label="Scroll to bottom">
+        <button className="rt-btn" onClick={goToNextChapter} aria-label="Next chapter" disabled={chapters.findIndex(ch => ch.href === url) <= 0}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 5v14M19 12l-7 7-7-7"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
 
@@ -488,16 +487,24 @@ const handleChapterSelect = (e) => {
       {/* Bottom Footer Actions */}
       {showNav && (
       <div className="reader-footer">
-        <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px" }}>
+        <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: "12px" }}>
           End of Chapter {id}
         </div>
-        <div className="reader-footer-btns">
+        <div className="reader-footer-btns" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
           <button
             className="rt-btn"
             style={{ padding: "8px 16px", height: "auto" }}
             onClick={() => router.back()}
           >
             ← Back to Detail
+          </button>
+          <button
+            className="rt-btn"
+            style={{ padding: "8px 16px", height: "auto", background: "var(--accent)", color: "#fff", opacity: chapters.findIndex(ch => ch.href === url) <= 0 ? 0.5 : 1 }}
+            onClick={goToNextChapter}
+            disabled={chapters.findIndex(ch => ch.href === url) <= 0}
+          >
+            Next Chapter →
           </button>
         </div>
       </div>
