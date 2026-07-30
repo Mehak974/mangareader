@@ -21,7 +21,7 @@ export default async function Home() {
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
     getMangaList({ perPage: 24, sort: ["TRENDING_DESC"] }),
     getMangaList({ perPage: 24, sort: ["POPULARITY_DESC"] }),
-    fetch(`${apiBase}/api/manga/recent?limit=20`).then(r => r.json()).catch(() => ({ data: [] }))
+    fetch(`${apiBase}/api/home`).then(r => r.json()).catch(() => ({ data: [] }))
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0 
@@ -38,13 +38,21 @@ export default async function Home() {
 
   let recentlyAdded = [];
   if (recentRes?.data && recentRes.data.length > 0) {
-    recentlyAdded = recentRes.data.map(m => ({
-      id: m.id,
+    const allRecentItems = [];
+    for (const section of recentRes.data) {
+       if (section.items) {
+          section.items.forEach(item => {
+             allRecentItems.push({ ...item, sourceId: section.sourceId });
+          });
+       }
+    }
+    recentlyAdded = allRecentItems.slice(0, 20).map(m => ({
+      id: m.href || m.title,
       t: m.title,
       cover: m.cover,
-      ch: m.latest_chapter_number ? `Ch ${m.latest_chapter_number}` : 'Ch 1',
-      g: m.status || 'Ongoing',
-      latest_source: m.latest_source,
+      ch: m.chapter || 'Ch 1',
+      g: 'Ongoing',
+      latest_source: m.sourceId,
       hot: true
     }));
   }
