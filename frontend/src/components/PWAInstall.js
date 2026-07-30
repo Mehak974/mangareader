@@ -40,8 +40,8 @@ export default function PWAInstall() {
   return (
     <div style={{
       position: "fixed",
-      bottom: "80px", // moved up to avoid MobileNav
-      left: "50%",
+      bottom: "20px", // moved up to avoid MobileNav
+      left: "10%",
       transform: "translateX(-50%)",
       background: "rgba(30, 30, 30, 0.9)",
       backdropFilter: "blur(12px)",
@@ -65,13 +65,13 @@ export default function PWAInstall() {
         <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "var(--text2)" }}>Install MangaReader for a faster, full-screen app experience.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", flexShrink: 0 }}>
-        <button 
+        <button
           onClick={install}
           style={{ background: "var(--primary)", color: "white", border: "none", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "0.9rem" }}
         >
           Install
         </button>
-        <button 
+        <button
           onClick={dismiss}
           style={{ background: "transparent", color: "var(--text2)", border: "none", padding: "4px", cursor: "pointer", fontSize: "0.85rem" }}
         >
