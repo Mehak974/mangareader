@@ -13,3 +13,6 @@ build/
 step*.txt
 *_history.txt
 fix_all.js
+
+.vercel
+.env*
