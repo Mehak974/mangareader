@@ -70,7 +70,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://graphql.anilist.co" />
         <link rel="preconnect" href="https://s4.anilist.co" />
         <link rel="dns-prefetch" href="https://cdn.myanimelist.net" />
-        <meta name="monetag" content="593234fb687f6211242f3870282da496" />
+        <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
       <body suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
