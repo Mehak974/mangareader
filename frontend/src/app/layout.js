@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import InkDots from "@/components/InkDots";
+import { Analytics } from "@vercel/analytics/react";
 import JsonLd from "@/components/JsonLd";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import AchievementToast from "@/components/AchievementToast";
@@ -89,6 +90,7 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   );
