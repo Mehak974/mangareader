@@ -268,7 +268,14 @@ const [chPage, setChPage] = useState(1);
   };
 
   if (loading) {
-    return <Loader />;
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", border: 0 }}>
+          {decodeURIComponent(titleSlug).replace(/-/g, " ")}
+        </h1>
+        <Loader />
+      </div>
+    );
   }
 
   if (!manga) {

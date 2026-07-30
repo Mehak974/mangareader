@@ -352,7 +352,12 @@ useEffect(() => {
 
 export default function Browse() {
   return (
-    <Suspense fallback={<div style={{ textAlign: "center", padding: "40px" }}>Loading...</div>}>
+    <Suspense fallback={
+      <div style={{ textAlign: "center", padding: "40px" }}>
+        <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", border: 0 }}>Browse Manga</h1>
+        Loading...
+      </div>
+    }>
       <BrowseContent />
     </Suspense>
   );
