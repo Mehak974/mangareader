@@ -321,7 +321,7 @@ export default async function Home() {
                   <div className="rc-sub">{r.ch} · {r.g}</div>
                 </div>
                 {r.latest_source ? (
-                  <div className="rc-new" style={{ background: "var(--accent)", textTransform: "uppercase" }}>{r.latest_source}</div>
+                  <div className="rc-new" style={{ textTransform: "uppercase" }}>{r.latest_source}</div>
                 ) : (
                   r.hot && <div className="rc-new">HOT</div>
                 )}
