@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+.next/
+dist/
+build/
+
+# Editor/agent session artifacts — these have leaked into the repo before
+# (local file paths, usernames) and have zero product value.
+step*.txt
+*_history.txt
+fix_all.js
