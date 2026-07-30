@@ -43,6 +43,7 @@ export default function AboutPage() {
             <li><strong>Massive Library:</strong> A wide range of titles aggregated across the web, updated as fast as possible.</li>
             <li><strong>Seamless Tracking:</strong> Built-in library management so you always know exactly which chapter you are on.</li>
           </ul>
+          <p>
             This site is my attempt to fix the manga reading experience. If you feel like I missed a feature or if you're facing any issues, please do let me know through the <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link> page!
           </p>
         </section>
