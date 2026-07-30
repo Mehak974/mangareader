@@ -60,6 +60,32 @@ export default function Settings() {
     router.push("/");
   };
 
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  React.useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      setIsStandalone(true);
+    }
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        setDeferredPrompt(null);
+      });
+    } else {
+      alert("To install the app, tap the Share icon on your browser and select 'Add to Home Screen'.");
+    }
+  };
+
   return (
     <div>
       <div className="section" style={{ paddingBottom: "16px" }}>
@@ -114,6 +140,23 @@ export default function Settings() {
             <div className="s-panel active">
               <div className="s-panel-title">Appearance</div>
               <div className="s-panel-sub">Customise how MangaReader looks.</div>
+              
+              {!isStandalone && (
+                <div className="setting-row">
+                  <div className="s-label">
+                    <h4>Install App</h4>
+                    <p>Add MangaReader to your home screen</p>
+                  </div>
+                  <button
+                    onClick={handleInstallClick}
+                    className="btn btn-primary"
+                    style={{ fontSize: "13px", padding: "6px 14px" }}
+                  >
+                    Install App
+                  </button>
+                </div>
+              )}
+
               <div className="setting-row">
                 <div className="s-label">
                   <h4>Dark mode</h4>
