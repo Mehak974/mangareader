@@ -1,4 +1,5 @@
 import { buildMetadata } from "@/lib/seo";
+import Link from "next/link";
 import Image from "next/image";
 import LegalNav from "@/components/LegalNav";
 
@@ -42,15 +43,14 @@ export default function AboutPage() {
             <li><strong>Massive Library:</strong> A wide range of titles aggregated across the web, updated as fast as possible.</li>
             <li><strong>Seamless Tracking:</strong> Built-in library management so you always know exactly which chapter you are on.</li>
           </ul>
-          <p>
-            This site is my attempt to fix the manga reading experience. If you feel like I missed a feature or if you're facing any issues, please do let me know through the <a href="/contact" style={{ color: "var(--primary)" }}>Contact</a> page!
+            This site is my attempt to fix the manga reading experience. If you feel like I missed a feature or if you're facing any issues, please do let me know through the <Link href="/contact" style={{ color: "var(--primary)" }}>Contact</Link> page!
           </p>
         </section>
 
         <section style={{ marginTop: "2rem" }}>
           <h2>Disclaimer & Data Ownership</h2>
           <p>
-            I do not claim any of the manga, manhwa, or manhua data on this site as my own. All comic content belongs to their respective publishers, creators, and translators. This platform acts purely as an aggregator to provide a better reading interface. The only content I claim ownership of are the original articles posted on our <a href="/blog" style={{ color: "var(--primary)" }}>Blog</a>.
+            I do not claim any of the manga, manhwa, or manhua data on this site as my own. All comic content belongs to their respective publishers, creators, and translators. This platform acts purely as an aggregator to provide a better reading interface. The only content I claim ownership of are the original articles posted on our <Link href="/blog" style={{ color: "var(--primary)" }}>Blog</Link>.
           </p>
         </section>
 
@@ -59,9 +59,9 @@ export default function AboutPage() {
           <p>
             Running a site of this scale is incredibly expensive due to server costs. If you love what I'm doing and want to help keep the site alive, consider supporting me! Even $1 means the world to me and helps keep the servers running.
           </p>
-          <a href="/support" className="btn btn-p" style={{ display: "inline-block", marginTop: "1rem", color: "black", textDecoration: "none" }}>
+          <Link href="/support" className="btn btn-p" style={{ display: "inline-block", marginTop: "1rem", color: "black", textDecoration: "none" }}>
             Learn How to Support
-          </a>
+          </Link>
         </section>
       </div>
     </div>
