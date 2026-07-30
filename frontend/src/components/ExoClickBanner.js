@@ -15,11 +15,11 @@ export default function ExoClickBanner({ zoneId = "5990958", className = "eas6a9
   }, []);
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", margin: "24px 0", minHeight: "90px", width: "100%" }}>
+    <div style={{ display: "flex", justifyContent: "center", margin: "24px 0", minHeight: "90px", width: "100%", overflow: "hidden", maxWidth: "100vw" }}>
       {/* Load ExoClick Provider script once globally */}
       <Script src="https://a.magsrv.com/ad-provider.js" strategy="afterInteractive" />
       {/* The Ad Container */}
-      <ins className={className} data-zoneid={zoneId}></ins>
+      <ins className={className} data-zoneid={zoneId} style={{ maxWidth: "100%", overflow: "hidden" }}></ins>
     </div>
   );
 }
