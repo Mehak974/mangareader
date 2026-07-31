@@ -21,6 +21,7 @@ function ReaderContent({ params }) {
   const source = searchParams.get("source") || "";
   const title = searchParams.get("title") || "";
   const mangaId = searchParams.get("mangaId") || "";
+  const cover = searchParams.get("cover") || "";
 
   const [images, setImages] = useState([]);
   const [chapters, setChapters] = useState([]);
@@ -91,7 +92,7 @@ function ReaderContent({ params }) {
           setImages(res.data.images);
           setLoading(false);
           // Log to reading history
-          addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId);
+          addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId, cover);
         } else {
           throw new Error("No images found in server response");
         }

@@ -62,7 +62,22 @@ export default function History() {
                     }
                   }}
                 >
-                  <div className="hist-cov">{abbr(h.t)}</div>
+                  <div 
+                    className="hist-cov"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/manga/${slugify(h.t)}`);
+                    }}
+                    style={{ overflow: "hidden", padding: 0 }}
+                  >
+                    {h.cover ? (
+                      <img src={h.cover} alt={h.t} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+                        {abbr(h.t)}
+                      </div>
+                    )}
+                  </div>
                   <div className="hist-body">
                     <div className="hist-title">{h.t}</div>
                     <div className="hist-ch">{h.ch}</div>

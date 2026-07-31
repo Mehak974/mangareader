@@ -70,13 +70,13 @@ export default function MobileNav() {
         </Link>
 
         <Link
-          href="/blog"
-          className={`mob-tab ${pathname?.startsWith("/blog") ? "active" : ""}`}
+          href="/history"
+          className={`mob-tab ${pathname?.startsWith("/history") ? "active" : ""}`}
         >
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="mob-tab-label">Blog</span>
+          <span className="mob-tab-label">History</span>
           <div className="mob-tab-dot" />
         </Link>
 
@@ -84,8 +84,7 @@ export default function MobileNav() {
           href="/profile"
           className={`mob-tab ${
             pathname === "/profile" ||
-            pathname === "/settings" ||
-            pathname === "/history"
+            pathname === "/settings"
               ? "active"
               : ""
           }`}

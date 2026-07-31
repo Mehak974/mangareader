@@ -318,8 +318,8 @@ const [chPage, setChPage] = useState(1);
 
   const handleReadChapterClick = (ch, idx) => {
     const chNum = totalChapters - idx;
-    addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum, ch.href, sourceId, mangaId);
-    router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}`);
+    addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum, ch.href, sourceId, mangaId, manga.cover);
+    router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(manga.cover || "")}`);
   };
 
   // The tick beside a chapter toggles exactly that one chapter's read state.

@@ -189,11 +189,11 @@ export const AppProvider = ({ children }) => {
     );
   };
 
-  const addToHistory = (title, ch, chNum, url, source, mangaId) => {
+  const addToHistory = (title, ch, chNum, url, source, mangaId, cover) => {
     if (isIncognito) return;
     setReadingHistory((prev) => {
       const filtered = prev.filter((h) => h.t !== title);
-      return [{ t: title, ch, chNum, url, source, mangaId, time: new Date() }, ...filtered];
+      return [{ t: title, ch, chNum, url, source, mangaId, cover, time: new Date() }, ...filtered];
     });
   };
 
