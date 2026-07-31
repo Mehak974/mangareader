@@ -12,6 +12,7 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
+import Script from "next/script";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -72,12 +73,6 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://s4.anilist.co" />
         <link rel="dns-prefetch" href="https://cdn.myanimelist.net" />
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
-        <script type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
-        <script type="text/javascript" dangerouslySetInnerHTML={{ __html: `
-            aclib.runAutoTag({
-                zoneId: 'bucmp2mrhr',
-            });
-        ` }} />
       </head>
       <body suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
@@ -96,6 +91,28 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
+        <Script src="//acscdn.com/script/aclib.js" strategy="lazyOnload" />
+        <Script id="adcash-autotag" strategy="lazyOnload">
+          {`
+            const runAdCashAutoTag = () => {
+              if (typeof window.aclib !== "undefined") {
+                try {
+                  aclib.runAutoTag({ zoneId: 'bucmp2mrhr' });
+                } catch(e) {}
+              } else {
+                const interval = setInterval(() => {
+                  if (typeof window.aclib !== "undefined") {
+                    clearInterval(interval);
+                    try {
+                      aclib.runAutoTag({ zoneId: 'bucmp2mrhr' });
+                    } catch(e) {}
+                  }
+                }, 500);
+              }
+            };
+            runAdCashAutoTag();
+          `}
+        </Script>
         <Analytics />
       </body>
     </html>
