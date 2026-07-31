@@ -51,6 +51,7 @@ export async function POST(req, { params }) {
   }
 
   const content = (body.content || "").trim();
+  console.log(`[API POST /api/notes/${mangaId}] Extracted content:`, content);
 
   // If content is completely empty and they hit save, let's delete the note.
   if (!content) {
@@ -79,6 +80,19 @@ export async function POST(req, { params }) {
   }
 
   try {
+    // Ensure the table exists, just in case Prisma or the backend hasn't created it yet
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS manga_notes (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        manga_id VARCHAR(255) REFERENCES manga(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, manga_id)
+      );
+    `);
+
     const note = await prisma.mangaNote.upsert({
       where: {
         userId_mangaId: {
@@ -99,7 +113,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ data: note });
   } catch (err) {
     console.error("Failed to save note:", err);
-    return NextResponse.json({ error: "Failed to save note" }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Failed to save note" }, { status: 500 });
   }
 }
 

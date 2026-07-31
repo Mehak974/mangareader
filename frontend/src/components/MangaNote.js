@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import sanitizeHtml from "sanitize-html";
+import { toast } from "react-hot-toast";
 
 export default function MangaNote({ mangaId }) {
   const { isLoggedIn, user, setSigninSheetOpen } = useApp();
@@ -41,6 +42,7 @@ export default function MangaNote({ mangaId }) {
     setIsSaving(true);
     
     let content = editorRef.current.innerHTML;
+    console.log("Raw editor content:", content);
     
     content = sanitizeHtml(content, {
       allowedTags: ['b', 'i', 'em', 'strong', 'u', 'span', 'p', 'br', 'div', 'font'],
@@ -67,9 +69,15 @@ export default function MangaNote({ mangaId }) {
         const data = await res.json();
         setNote(data.data?.content || "");
         setIsEditing(false);
+        toast.success("Note saved!");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        toast.error(`Failed to save: ${errorData.error || res.status}`);
+        console.error("Save error:", errorData);
       }
     } catch (err) {
       console.error("Failed to save note:", err);
+      toast.error("An error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
