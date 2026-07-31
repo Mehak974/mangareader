@@ -81,6 +81,7 @@ export default function MangaDetail({ params }) {
   const [loading, setLoading] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
 const [chPage, setChPage] = useState(1);
+   const [chSearchQuery, setChSearchQuery] = useState("");
    const [descExpanded, setDescExpanded] = useState(false);
    const [selectMode, setSelectMode] = useState(false);
    const [activeTab, setActiveTab] = useState('chapters');
@@ -200,7 +201,8 @@ const [chPage, setChPage] = useState(1);
         // 2. Fetch mapped chapters from backend on the fly using the title
         setLoadingChapters(true);
         try {
-          const mapRes = await fetch(`${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
+          const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
+          const mapRes = await fetch(prefSource ? `${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
           if (mapRes.ok) {
             const mapData = await mapRes.json();
             if (mapData.data) {
@@ -242,6 +244,7 @@ const [chPage, setChPage] = useState(1);
   }, [titleSlug]);
 
   const handleSourceChange = async (newSourceId) => {
+    localStorage.setItem(`preferred_source_${mangaId}`, newSourceId);
     if (!manga) return;
     setLoadingChapters(true);
     setChPage(1);

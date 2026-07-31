@@ -60,7 +60,11 @@ function ReaderContent({ params }) {
   // Fetch chapters list on mount
   useEffect(() => {
     if (title) {
-      fetch(`${API_BASE}/api/manga/map?title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`)
+      const fetchUrl = source 
+        ? `${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${source}`
+        : `${API_BASE}/api/manga/map?title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`;
+        
+      fetch(fetchUrl)
         .then((res) => res.json())
         .then((res) => {
           if (res.data && res.data.chapters) {
@@ -69,7 +73,7 @@ function ReaderContent({ params }) {
         })
         .catch((err) => console.warn("Failed to fetch chapters in reader:", err.message));
     }
-  }, [title, mangaId]);
+  }, [title, mangaId, source]);
 
   // Fetch chapter images
   useEffect(() => {
@@ -169,7 +173,13 @@ function ReaderContent({ params }) {
   };
 
   const goToNextChapter = () => {
-    const currentIdx = chapters.findIndex(ch => ch.href === url);
+    // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
+    let currentIdx = chapters.findIndex(ch => ch.href === url);
+    if (currentIdx === -1 && params.id) {
+      const chNumFromUrl = parseInt(params.id);
+      currentIdx = chapters.length - chNumFromUrl;
+    }
+    
     if (currentIdx > 0) {
       const next = chapters[currentIdx - 1];
       router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
@@ -177,7 +187,12 @@ function ReaderContent({ params }) {
   };
 
   const goToPrevChapter = () => {
-    const currentIdx = chapters.findIndex(ch => ch.href === url);
+    let currentIdx = chapters.findIndex(ch => ch.href === url);
+    if (currentIdx === -1 && params.id) {
+      const chNumFromUrl = parseInt(params.id);
+      currentIdx = chapters.length - chNumFromUrl;
+    }
+    
     if (currentIdx < chapters.length - 1 && currentIdx !== -1) {
       const prev = chapters[currentIdx + 1];
       router.push(`/reader/${chapters.length - currentIdx - 1}?url=${encodeURIComponent(prev.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
@@ -300,7 +315,12 @@ const handleChapterSelect = (e) => {
         <div className="rt-sep" style={{ flexShrink: 0 }}></div>
         {chapters.length > 0 ? (
           <select
-            value={chapters.findIndex(ch => ch.href === url)}
+            value={(() => {
+              const idx = chapters.findIndex(ch => ch.href === url);
+              if (idx !== -1) return idx;
+              if (params.id) return chapters.length - parseInt(params.id);
+              return 0;
+            })()}
             onChange={handleChapterSelect}
             style={{
               background: "var(--bg3)",

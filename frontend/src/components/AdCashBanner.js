@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export default function AdCashBanner({ zoneId = '11873586' }) {
+export default function AdCashBanner({ zoneId = '11874874' }) {
   const bannerRef = useRef(null);
 
   useEffect(() => {
