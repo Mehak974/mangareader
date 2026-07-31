@@ -1,66 +1,54 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export default function AdCashBanner({ zoneId = '11874874' }) {
-  const bannerRef = useRef(null);
+  const iframeRef = useRef(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!bannerRef.current) return;
+    if (!iframeRef.current) return;
     
-    // Clear container to prevent duplicate ads
-    bannerRef.current.innerHTML = "";
+    // Create the HTML content for the iframe
+    const iframeContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; }
+          </style>
+          <script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
+        </head>
+        <body>
+          <script type="text/javascript">
+            aclib.runBanner({
+                zoneId: '${zoneId}',
+            });
+          </script>
+        </body>
+      </html>
+    `;
     
-    const runAd = () => {
-      if (!bannerRef.current) return;
-      const script = document.createElement("script");
-      script.type = "text/javascript";
-      script.text = `
-        try {
-          aclib.runBanner({
-              zoneId: '${zoneId}',
-          });
-        } catch(e) {}
-      `;
-      bannerRef.current.appendChild(script);
-    };
-
-    const loadAclib = () => {
-      return new Promise((resolve) => {
-        if (typeof window.aclib !== "undefined") {
-          resolve();
-          return;
-        }
-        
-        let script = document.getElementById("aclib-script");
-        if (!script) {
-          script = document.createElement("script");
-          script.id = "aclib-script";
-          script.src = "//acscdn.com/script/aclib.js";
-          script.type = "text/javascript";
-          document.head.appendChild(script);
-        }
-        
-        script.onload = () => resolve();
-        
-        // Polling fallback
-        const interval = setInterval(() => {
-          if (typeof window.aclib !== "undefined") {
-            clearInterval(interval);
-            resolve();
-          }
-        }, 500);
-      });
-    };
-
-    loadAclib().then(() => runAd());
-  }, [zoneId]);
+    // Write the content directly to the iframe document
+    const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(iframeContent);
+      doc.close();
+    }
+  }, [zoneId, pathname, searchParams]);
 
   return (
-    <div 
-      ref={bannerRef} 
-      className="adcash-banner-container" 
-      style={{ textAlign: "center", margin: "16px auto", minHeight: "90px", display: "flex", justifyContent: "center" }} 
-    />
+    <div className="adcash-banner-container" style={{ textAlign: "center", margin: "16px auto", minHeight: "90px", display: "flex", justifyContent: "center", width: "100%" }}>
+      <iframe 
+        ref={iframeRef}
+        title="AdCash Banner"
+        style={{ width: "100%", height: "90px", border: "none", overflow: "hidden" }}
+        scrolling="no"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      />
+    </div>
   );
 }
