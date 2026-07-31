@@ -12,7 +12,6 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
-import Script from "next/script";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -93,8 +92,6 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
-        <Script src="//acscdn.com/script/aclib.js" strategy="afterInteractive" />
-
         <Analytics />
       </body>
     </html>
