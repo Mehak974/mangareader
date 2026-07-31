@@ -11,10 +11,11 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
   useEffect(() => {
     if (!bannerRef.current) return;
     
-    bannerRef.current.innerHTML = "";
+    let refreshInterval;
     
     const runAd = () => {
       if (!bannerRef.current) return;
+      bannerRef.current.innerHTML = ""; // Clear old ad
       const script = document.createElement("script");
       script.type = "text/javascript";
       script.text = `
@@ -55,14 +56,35 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
       });
     };
 
-    loadAclib().then(() => runAd());
+    loadAclib().then(() => {
+      runAd();
+      
+      // Auto-refresh the ad every 60 seconds (60000 ms) so readers see new ads while spending 5 mins on a chapter
+      refreshInterval = setInterval(() => {
+        runAd();
+      }, 60000);
+    });
+    
+    return () => {
+      if (refreshInterval) clearInterval(refreshInterval);
+    };
   }, [zoneId, pathname, searchParams]);
 
   return (
-    <div 
-      ref={bannerRef} 
-      className="adcash-banner-container" 
-      style={{ textAlign: "center", margin: "16px auto", minHeight: "90px", display: "flex", justifyContent: "center" }} 
-    />
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", margin: "20px 0" }}>
+      <div 
+        ref={bannerRef}
+        style={{ 
+          minWidth: "300px", 
+          minHeight: "250px", 
+          background: "rgba(0,0,0,0.1)",
+          borderRadius: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden"
+        }}
+      />
+    </div>
   );
 }
