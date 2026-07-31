@@ -13,7 +13,11 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch('https://graphql.anilist.co', options);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      const res = await fetch('https://graphql.anilist.co', { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.status === 429) {
         const retryAfter = res.headers.get("Retry-After");
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay * Math.pow(2, i);

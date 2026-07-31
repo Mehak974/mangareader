@@ -16,12 +16,17 @@ export const revalidate = 300; // Revalidate every 5 minutes
 
 // Server components can be async
 export default async function Home() {
-  // Fetch all initial data concurrently on the server
+  // Set a 5-second timeout for the backend fetch so it doesn't hang the Vercel build
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
   const [popularNowRes, trendingRes, popularOverallRes, recentRes] = await Promise.all([
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
     getMangaList({ perPage: 24, sort: ["TRENDING_DESC"] }),
     getMangaList({ perPage: 24, sort: ["POPULARITY_DESC"] }),
-    fetch(`${apiBase}/api/home`).then(r => r.json()).catch(() => ({ data: [] }))
+    fetch(`${apiBase}/api/home`, { signal: controller.signal })
+      .then(r => { clearTimeout(timeoutId); return r.json(); })
+      .catch((err) => { clearTimeout(timeoutId); console.warn("Backend fetch failed/timed out:", err.message); return { data: [] }; })
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0 

@@ -8,7 +8,8 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { mangaId } = params;
+  const resolvedParams = await params;
+  const { mangaId } = resolvedParams;
   if (!mangaId) {
     return NextResponse.json({ error: "mangaId is required" }, { status: 400 });
   }
@@ -36,7 +37,8 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { mangaId } = params;
+  const resolvedParams = await params;
+  const { mangaId } = resolvedParams;
   if (!mangaId) {
     return NextResponse.json({ error: "mangaId is required" }, { status: 400 });
   }
@@ -107,7 +109,8 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { mangaId } = params;
+  const resolvedParams = await params;
+  const { mangaId } = resolvedParams;
   
   try {
     await prisma.mangaNote.delete({
