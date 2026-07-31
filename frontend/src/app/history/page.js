@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { abbr } from "@/data/mockData";
 import Footer from "@/components/Footer";
 import { slugify } from "@/utils/slugify";
+import Image from "next/image";
 
 export default function History() {
   const router = useRouter();
@@ -68,10 +69,17 @@ export default function History() {
                       e.stopPropagation();
                       router.push(`/manga/${slugify(h.t)}`);
                     }}
-                    style={{ overflow: "hidden", padding: 0 }}
+                    style={{ position: "relative", overflow: "hidden", padding: 0 }}
                   >
-                    {h.cover ? (
-                      <img src={h.cover} alt={h.t} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {h.cover && h.cover !== "undefined" && h.cover !== "null" && h.cover.startsWith("http") ? (
+                      <Image 
+                        src={h.cover} 
+                        alt={h.t} 
+                        fill
+                        sizes="80px"
+                        style={{ objectFit: "cover" }} 
+                        unoptimized={true}
+                      />
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
                         {abbr(h.t)}
