@@ -12,6 +12,7 @@ import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
 import AdCashBanner from "@/components/AdCashBanner";
+import MangaNote from "@/components/MangaNote";
 import { MANGA, ALL_CHAPTERS } from "@/data/mockData";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -512,6 +513,10 @@ const [chPage, setChPage] = useState(1);
               <span>Server</span>
             </div>
           </div>
+        </div>
+        
+        <div className="detail-note-wrapper">
+          <MangaNote mangaId={mangaId} />
         </div>
       </div>
 

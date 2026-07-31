@@ -6,6 +6,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import AdCashBanner from "@/components/AdCashBanner";
+import MangaNote from "@/components/MangaNote";
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 import { API_BASE } from "@/utils/api";
@@ -438,7 +439,13 @@ const handleChapterSelect = (e) => {
       )}
       {/* Top Banner Ad */}
       <AdCashBanner />
-
+      
+      {/* Manga Note (if user has one) */}
+      {mangaId && (
+        <div style={{ maxWidth: '800px', margin: '16px auto', padding: '0 16px', width: '100%' }}>
+          <MangaNote mangaId={mangaId} />
+        </div>
+      )}
 
       {/* Manga Pages List */}
       <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: 0 }}>

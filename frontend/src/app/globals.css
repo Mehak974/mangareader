@@ -2356,7 +2356,7 @@ body:not(.logged-in) .guest-flex {
 .detail-hero {
   padding: 36px 44px;
   display: grid;
-  grid-template-columns: 195px 1fr;
+  grid-template-columns: 195px 1fr 300px;
   gap: 32px;
   position: relative;
   z-index: 1
@@ -3859,6 +3859,10 @@ body:not(.logged-in) .guest-flex {
   .detail-hero {
     grid-template-columns: 140px 1fr;
     gap: 20px
+  }
+  .detail-note-wrapper {
+    grid-column: 1 / -1;
+    margin-top: 10px;
   }
 
   .detail-cover {

@@ -43,6 +43,7 @@ model User {
   editorProfile EditorialAuthor?
   comments      Comment[]
   libraries     Library[]
+  notes         MangaNote[]
 
   @@index([role])
   @@map("users")
@@ -347,4 +348,24 @@ model LibraryManga {
   @@unique([libraryId, mangaId])
   @@index([libraryId])
   @@map("library_manga")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER NOTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MangaNote {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  mangaId   String   @map("manga_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mangaId])
+  @@index([userId])
+  @@index([mangaId])
+  @@map("manga_notes")
 }
