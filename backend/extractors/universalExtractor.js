@@ -700,8 +700,18 @@ const SOURCE_SCRAPERS = {
         const description = m.attributes.description ? Object.values(m.attributes.description)[0] : '';
         const status = m.attributes.status;
 
-        const feedRes = await axios.get(`https://api.mangadex.org/manga/${uuid}/feed?translatedLanguage[]=en&limit=100&order[chapter]=desc`);
-        const chapters = (feedRes.data.data || []).map(ch => {
+        let allChapters = [];
+        let offset = 0;
+        let limit = 500;
+        while (true) {
+          const feedRes = await axios.get(`https://api.mangadex.org/manga/${uuid}/feed?translatedLanguage[]=en&limit=${limit}&offset=${offset}&order[chapter]=desc`);
+          const data = feedRes.data.data || [];
+          allChapters = allChapters.concat(data);
+          if (data.length < limit) break;
+          offset += limit;
+        }
+
+        const chapters = allChapters.map(ch => {
           const chNum = ch.attributes.chapter;
           const chTitle = ch.attributes.title ? `Chapter ${chNum} — ${ch.attributes.title}` : `Chapter ${chNum}`;
           
@@ -762,7 +772,7 @@ const SOURCE_SCRAPERS = {
         const description = $('.summary p').first().text().trim();
         const status = $('.status').text().trim();
         const chapters = [];
-        $('.chapters tr').each((_, tr) => {
+        $('tr').each((_, tr) => {
           const $tr = $(tr);
           const $a = $tr.find('.chapter a').first();
           const href = $a.attr('href') || '';
