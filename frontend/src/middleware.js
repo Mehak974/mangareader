@@ -35,7 +35,7 @@ export function middleware(request) {
 
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com;
@@ -45,6 +45,7 @@ export function middleware(request) {
     form-action 'self';
     frame-ancestors 'none';
     frame-src 'self' https: http:;
+    worker-src 'self' blob:;
     upgrade-insecure-requests;
   `;
   const contentSecurityPolicyHeaderValue = cspHeader.replace(/\s{2,}/g, " ").trim();

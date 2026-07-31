@@ -81,9 +81,8 @@ export default function History() {
                   <div className="hist-body">
                     <div className="hist-title">{h.t}</div>
                     <div className="hist-ch">{h.ch}</div>
-                    <div className="hist-time">{formatTime(h.time)}</div>
                   </div>
-                  <div className="hist-badge">Latest read</div>
+                  <div className="hist-badge">Last read: {formatTime(h.time)}</div>
                 </div>
               ))
             ) : (

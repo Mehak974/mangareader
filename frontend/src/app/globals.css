@@ -1894,7 +1894,7 @@ body:not(.logged-in) .guest-flex {
   flex-wrap: wrap
 }
 
-.nudge h4 {
+.nudge h2 {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 3px
@@ -1907,7 +1907,7 @@ body:not(.logged-in) .guest-flex {
 }
 
 .nudge-btn {
-  background: var(--accent);
+  background: #9333ea; /* Passes WCAG contrast with white */
   color: #fff;
   border: none;
   padding: 8px 16px;

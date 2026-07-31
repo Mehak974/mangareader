@@ -172,7 +172,7 @@ function ReaderContent({ params }) {
     const currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx > 0) {
       const next = chapters[currentIdx - 1];
-      router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
+      router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
     }
   };
 
@@ -180,7 +180,7 @@ function ReaderContent({ params }) {
     const currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx < chapters.length - 1 && currentIdx !== -1) {
       const prev = chapters[currentIdx + 1];
-      router.push(`/reader/${chapters.length - currentIdx - 1}?url=${encodeURIComponent(prev.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
+      router.push(`/reader/${chapters.length - currentIdx - 1}?url=${encodeURIComponent(prev.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
     } else {
       router.push(`/manga/${encodeURIComponent(title)}`);
     }
@@ -191,7 +191,7 @@ const handleChapterSelect = (e) => {
      const ch = chapters[selectedIndex];
      if (ch) {
        const chNum = chapters.length - selectedIndex;
-       router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`);
+       router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
      }
    };
 

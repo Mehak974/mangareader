@@ -11,7 +11,7 @@ export default function HomeAuthNudge() {
   return (
     <div className="nudge">
       <div>
-        <h4>Get recommendations tailored to you</h4>
+        <h2>Get recommendations tailored to you</h2>
         <p>Sign in to see picks based on what you've read.</p>
       </div>
       <button className="nudge-btn" onClick={() => setSigninSheetOpen(true)}>

@@ -65,6 +65,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={dmSans.variable} suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/icon-192.png" />
+        <link rel="shortcut icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -91,7 +93,7 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
-        <Script src="//acscdn.com/script/aclib.js" strategy="lazyOnload" />
+        <Script src="//acscdn.com/script/aclib.js" strategy="afterInteractive" />
 
         <Analytics />
       </body>
