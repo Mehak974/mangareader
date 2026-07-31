@@ -25,20 +25,35 @@ export default function AdCashBanner({ zoneId = '11874874' }) {
       bannerRef.current.appendChild(script);
     };
 
-    if (typeof window.aclib !== "undefined") {
-      runAd();
-    } else {
-      // Wait for the global aclib script to finish loading
-      const interval = setInterval(() => {
+    const loadAclib = () => {
+      return new Promise((resolve) => {
         if (typeof window.aclib !== "undefined") {
-          clearInterval(interval);
-          runAd();
+          resolve();
+          return;
         }
-      }, 500);
-      
-      // Cleanup interval on unmount
-      return () => clearInterval(interval);
-    }
+        
+        let script = document.getElementById("aclib-script");
+        if (!script) {
+          script = document.createElement("script");
+          script.id = "aclib-script";
+          script.src = "//acscdn.com/script/aclib.js";
+          script.type = "text/javascript";
+          document.head.appendChild(script);
+        }
+        
+        script.onload = () => resolve();
+        
+        // Polling fallback
+        const interval = setInterval(() => {
+          if (typeof window.aclib !== "undefined") {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 500);
+      });
+    };
+
+    loadAclib().then(() => runAd());
   }, [zoneId]);
 
   return (
