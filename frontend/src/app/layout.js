@@ -92,27 +92,7 @@ export default function RootLayout({ children }) {
           </MaintenanceGuard>
         </AppProvider>
         <Script src="//acscdn.com/script/aclib.js" strategy="lazyOnload" />
-        <Script id="adcash-autotag" strategy="lazyOnload">
-          {`
-            const runAdCashAutoTag = () => {
-              if (typeof window.aclib !== "undefined") {
-                try {
-                  aclib.runAutoTag({ zoneId: 'bucmp2mrhr' });
-                } catch(e) {}
-              } else {
-                const interval = setInterval(() => {
-                  if (typeof window.aclib !== "undefined") {
-                    clearInterval(interval);
-                    try {
-                      aclib.runAutoTag({ zoneId: 'bucmp2mrhr' });
-                    } catch(e) {}
-                  }
-                }, 500);
-              }
-            };
-            runAdCashAutoTag();
-          `}
-        </Script>
+
         <Analytics />
       </body>
     </html>
