@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export default function AdCashBanner({ zoneId = '11874874' }) {
+export default function AdCashBanner({ zoneId = '11879666' }) {
   const bannerRef = useRef(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -35,16 +35,16 @@ export default function AdCashBanner({ zoneId = '11874874' }) {
         }
         
         let script = document.getElementById("aclib");
-        // Removed aclib.js injection as requested to stop onclick popovers
-        // const script = document.createElement("script");
-        // script.id = "aclib";
-        // script.type = "text/javascript";
-        // script.src = "//acscdn.com/script/aclib.js";
-        // document.head.appendChild(script);
         
-        if (script) {
-          script.onload = () => resolve();
+        if (!script) {
+          script = document.createElement("script");
+          script.id = "aclib";
+          script.type = "text/javascript";
+          script.src = "//acscdn.com/script/aclib.js";
+          document.head.appendChild(script);
         }
+        
+        script.onload = () => resolve();
         
         const interval = setInterval(() => {
           if (typeof window.aclib !== "undefined") {
