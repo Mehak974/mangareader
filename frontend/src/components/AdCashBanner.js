@@ -35,15 +35,16 @@ export default function AdCashBanner({ zoneId = '11874874' }) {
         }
         
         let script = document.getElementById("aclib");
-        if (!script) {
-          script = document.createElement("script");
-          script.id = "aclib";
-          script.src = "//acscdn.com/script/aclib.js";
-          script.type = "text/javascript";
-          document.head.appendChild(script);
-        }
+        // Removed aclib.js injection as requested to stop onclick popovers
+        // const script = document.createElement("script");
+        // script.id = "aclib";
+        // script.type = "text/javascript";
+        // script.src = "//acscdn.com/script/aclib.js";
+        // document.head.appendChild(script);
         
-        script.onload = () => resolve();
+        if (script) {
+          script.onload = () => resolve();
+        }
         
         const interval = setInterval(() => {
           if (typeof window.aclib !== "undefined") {

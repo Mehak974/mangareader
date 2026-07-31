@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 
 export default function Profile() {
   const router = useRouter();
-  const { isLoggedIn, setSigninSheetOpen } = useApp();
+  const { isLoggedIn, user, readChapters, libraries, setSigninSheetOpen } = useApp();
 
   return (
     <div>
@@ -17,38 +17,34 @@ export default function Profile() {
         <div className="auth-only">
           <div className="profile-header">
             <h1 className="sr-only">Profile</h1>
-            <div className="profile-avatar">長</div>
-            <div className="profile-name">Tsukasa</div>
-            <div className="profile-handle">@tsukasa · Member since 2023</div>
+            <div className="profile-avatar">{user?.username ? user.username.substring(0,1).toUpperCase() : (user?.email ? user.email.substring(0,1).toUpperCase() : "U")}</div>
+            <div className="profile-name">{user?.name || user?.username || (user?.email ? user.email.split('@')[0] : "User")}</div>
+            <div className="profile-handle">@{user?.username || (user?.email ? user.email.split('@')[0] : "user")}</div>
             <div className="profile-stats">
               <div className="p-stat">
-                <b>312</b>
+                <b>{readChapters?.length || 0}</b>
                 <span>Chapters</span>
               </div>
               <div className="p-stat">
-                <b>28</b>
+                <b>{libraries?.reduce((sum, lib) => sum + (lib.manga?.length || 0), 0) || 0}</b>
                 <span>Series</span>
               </div>
               <div className="p-stat">
-                <b>7</b>
+                <b>{libraries?.length || 0}</b>
                 <span>Collections</span>
-              </div>
-              <div className="p-stat">
-                <b>142h</b>
-                <span>Read time</span>
               </div>
             </div>
           </div>
 
           <div className="section">
             <div className="s-hd">
-              <h2 className="s-title">Currently Reading</h2>
+              <h2 className="s-title">My Manga</h2>
               <span className="s-link" onClick={() => router.push("/library")}>
                 Library →
               </span>
             </div>
             <div className="manga-grid">
-              {MANGA.slice(0, 4).map((m, idx) => (
+              {(libraries?.find(l => l.name === "default")?.manga || libraries?.[0]?.manga || []).slice(0, 4).map((m, idx) => (
                 <MangaCard key={m.id} manga={m} index={idx} />
               ))}
             </div>
