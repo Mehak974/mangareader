@@ -85,13 +85,22 @@ export async function POST(req, { params }) {
       CREATE TABLE IF NOT EXISTS manga_notes (
         id VARCHAR(255) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
-        manga_id VARCHAR(255) REFERENCES manga(id) ON DELETE CASCADE,
+        manga_id VARCHAR(255) NOT NULL,
         content TEXT NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, manga_id)
       );
     `);
+
+    // Drop the problematic foreign key constraint if it exists (from a previous broken migration)
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE manga_notes DROP CONSTRAINT IF EXISTS manga_notes_manga_id_fkey;
+      `);
+    } catch(e) {
+      // ignore
+    }
 
     const note = await prisma.mangaNote.upsert({
       where: {
