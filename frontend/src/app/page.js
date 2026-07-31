@@ -8,7 +8,7 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
-import ExoClickBanner from "@/components/ExoClickBanner";
+
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -242,7 +242,7 @@ export default async function Home() {
 
       {filteredPopularNow.length > 0 && <div className="divider"></div>}
 
-      <ExoClickBanner zoneId="5990958" className="eas6a97888e2" />
+
 
       {/* TRENDING SECTION (12 ITEMS) */}
       {filteredTrending.length > 0 && (

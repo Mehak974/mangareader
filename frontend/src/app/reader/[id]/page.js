@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
-import ExoClickBanner from "@/components/ExoClickBanner";
+
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 import { API_BASE } from "@/utils/api";
@@ -15,7 +15,7 @@ function ReaderContent({ params }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { id } = use(params);
-  const { addToHistory } = useApp();
+  const { addToHistory, markChapterRead } = useApp();
 
   const url = searchParams.get("url") || "";
   const source = searchParams.get("source") || "";
@@ -91,7 +91,7 @@ function ReaderContent({ params }) {
           setImages(res.data.images);
           setLoading(false);
           // Log to reading history
-          addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1);
+          addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId);
         } else {
           throw new Error("No images found in server response");
         }
@@ -141,6 +141,9 @@ function ReaderContent({ params }) {
              const idx = Array.from(pageEls).indexOf(entry.target);
              if (idx >= 0) {
                setPage(idx + 1);
+               if (idx + 1 === images.length && mangaId) {
+                 markChapterRead(mangaId, parseInt(id) || 1);
+               }
              }
            }
          });
@@ -412,8 +415,7 @@ const handleChapterSelect = (e) => {
         </div>
       )}
 
-      {/* Top Banner Ad */}
-      <ExoClickBanner />
+
 
       {/* Manga Pages List */}
       <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: "10px 0" }}>

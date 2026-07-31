@@ -11,7 +11,7 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
-import ExoClickBanner from "@/components/ExoClickBanner";
+
 import { MANGA, ALL_CHAPTERS } from "@/data/mockData";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -318,8 +318,7 @@ const [chPage, setChPage] = useState(1);
 
   const handleReadChapterClick = (ch, idx) => {
     const chNum = totalChapters - idx;
-    addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum);
-    markChapterRead(mangaId, chNum);
+    addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum, ch.href, sourceId, mangaId);
     router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}`);
   };
 
@@ -533,8 +532,7 @@ const [chPage, setChPage] = useState(1);
 
       <div className={`manga-detail-grid ${activeTab === 'chapters' ? 'active-chapters' : 'active-discussion'}`}>
         <div className="manga-detail-chapters">
-          {/* Top Banner Ad */}
-          <ExoClickBanner />
+
 
           {/* CHAPTER LIST HEADER */}
           <div className="ch-list-header">

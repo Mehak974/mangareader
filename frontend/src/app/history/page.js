@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { abbr } from "@/data/mockData";
 import Footer from "@/components/Footer";
+import { slugify } from "@/utils/slugify";
 
 export default function History() {
   const router = useRouter();
@@ -53,7 +54,13 @@ export default function History() {
                 <div
                   key={idx}
                   className="history-row"
-                  onClick={() => router.push(`/reader/${h.chNum || 203}`)}
+                  onClick={() => {
+                    if (h.url && h.mangaId) {
+                      router.push(`/reader/${h.chNum || 1}?url=${encodeURIComponent(h.url)}&source=${h.source || ""}&title=${encodeURIComponent(h.t)}&mangaId=${encodeURIComponent(h.mangaId)}`);
+                    } else {
+                      router.push(`/manga/${slugify(h.t)}`);
+                    }
+                  }}
                 >
                   <div className="hist-cov">{abbr(h.t)}</div>
                   <div className="hist-body">
