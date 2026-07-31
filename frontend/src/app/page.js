@@ -8,6 +8,7 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
+import AdCashBanner from "@/components/AdCashBanner";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -240,6 +241,7 @@ export default async function Home() {
       )}
 
       {filteredPopularNow.length > 0 && <div className="divider"></div>}
+      <AdCashBanner />
 
 
       {/* TRENDING SECTION (12 ITEMS) */}

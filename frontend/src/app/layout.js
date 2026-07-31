@@ -93,6 +93,7 @@ export default function RootLayout({ children }) {
             </div>
           </MaintenanceGuard>
         </AppProvider>
+        <Script src="//acscdn.com/script/aclib.js" strategy="afterInteractive" />
 
         <Analytics />
       </body>
