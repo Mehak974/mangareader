@@ -7,6 +7,7 @@ import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
+import AdCashBanner from "@/components/AdCashBanner";
 
 import { MANGA } from "@/data/mockData";
 
@@ -263,9 +264,7 @@ useEffect(() => {
           ))}
         </div>
       </div>
-
-
-
+      <AdCashBanner />
       <div className="section" style={{ minHeight: "400px" }}>
          {loading ? (
            <Loader />

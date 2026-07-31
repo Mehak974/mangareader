@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
+import AdCashBanner from "@/components/AdCashBanner";
 
 import { listPublishedArticles } from "@/lib/editorial";
 import { buildMetadata, websiteSchema, breadcrumbSchema, SITE_URL } from "@/lib/seo";
@@ -89,6 +90,7 @@ export default async function Blog({ searchParams }) {
           </Link>
         ))}
       </div>
+      <AdCashBanner />
 
 
 

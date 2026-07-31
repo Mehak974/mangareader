@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
-
+import AdCashBanner from "@/components/AdCashBanner";
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 import { API_BASE } from "@/utils/api";
@@ -414,7 +414,8 @@ const handleChapterSelect = (e) => {
           <div className="brightness-label" style={{ marginTop: "140px" }}>{100 - brightness}%</div>
         </div>
       )}
-
+      {/* Top Banner Ad */}
+      <AdCashBanner />
 
 
       {/* Manga Pages List */}
