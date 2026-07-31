@@ -1,6 +1,7 @@
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { Toaster } from "react-hot-toast";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
@@ -75,9 +76,10 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://cdn.myanimelist.net" />
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
-      <body suppressHydrationWarning>
+      <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
+        <Toaster position="bottom-right" />
         <AppProvider>
           <MaintenanceGuard>
             <div id="app">

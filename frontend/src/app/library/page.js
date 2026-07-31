@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 function LibraryContent() {
   const searchParams = useSearchParams();
   const { isLoggedIn, bookmarks, libraries, readChapters, setSigninSheetOpen } = useApp();
-  const [activeTab, setActiveTab] = useState("collections");
+  const [selectedLibraryId, setSelectedLibraryId] = useState(null);
 
   // Read initial tab parameter
   useEffect(() => {
@@ -21,7 +21,10 @@ function LibraryContent() {
     }
   }, [searchParams]);
 
-  // Collections are now real libraries mapped from Context.
+  // Find selected library
+  const selectedLibrary = selectedLibraryId 
+    ? libraries.find(l => l.id === selectedLibraryId) 
+    : null;
 
   return (
     <div>
@@ -31,20 +34,31 @@ function LibraryContent() {
           <div className="lib-tabs">
             <button
               className={`lib-tab active`}
+              onClick={() => setSelectedLibraryId(null)}
             >
               Collections
             </button>
+            {selectedLibrary && (
+              <button className="lib-tab active" style={{ marginLeft: "8px", background: "var(--surface2)" }}>
+                {selectedLibrary.name === "default" ? "Default Library" : selectedLibrary.name}
+              </button>
+            )}
           </div>
 
           <div className="section">
-
+            {!selectedLibrary ? (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
                   <div className="s-title">My Collections</div>
                 </div>
                 <div className="coll-grid">
                   {libraries.map((c) => (
-                    <div key={c.id} className="coll-card">
+                    <div 
+                      key={c.id} 
+                      className="coll-card" 
+                      onClick={() => setSelectedLibraryId(c.id)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <div className="coll-covers">
                         {c.manga?.slice(0, 4).map((m, i) => (
                           <div key={i} className="coll-cov">
@@ -72,6 +86,27 @@ function LibraryContent() {
                   ))}
                 </div>
               </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" }}>
+                  <button onClick={() => setSelectedLibraryId(null)} className="btn" style={{ padding: "6px 12px", background: "var(--surface2)", borderRadius: "var(--rm)", border: "none", color: "var(--text2)", cursor: "pointer" }}>
+                    &larr; Back
+                  </button>
+                  <div className="s-title">{selectedLibrary.name === "default" ? "Default Library" : selectedLibrary.name}</div>
+                </div>
+                {selectedLibrary.manga && selectedLibrary.manga.length > 0 ? (
+                  <div className="manga-grid">
+                    {selectedLibrary.manga.map(m => (
+                      <MangaCard key={m.id} manga={m} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "40px", color: "var(--text3)" }}>
+                    This collection is empty.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
