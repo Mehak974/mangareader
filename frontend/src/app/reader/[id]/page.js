@@ -175,8 +175,8 @@ function ReaderContent({ params }) {
   const goToNextChapter = () => {
     // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
     let currentIdx = chapters.findIndex(ch => ch.href === url);
-    if (currentIdx === -1 && params.id) {
-      const chNumFromUrl = parseInt(params.id);
+    if (currentIdx === -1 && id) {
+      const chNumFromUrl = parseInt(id);
       currentIdx = chapters.length - chNumFromUrl;
     }
     
@@ -188,8 +188,8 @@ function ReaderContent({ params }) {
 
   const goToPrevChapter = () => {
     let currentIdx = chapters.findIndex(ch => ch.href === url);
-    if (currentIdx === -1 && params.id) {
-      const chNumFromUrl = parseInt(params.id);
+    if (currentIdx === -1 && id) {
+      const chNumFromUrl = parseInt(id);
       currentIdx = chapters.length - chNumFromUrl;
     }
     
@@ -275,6 +275,7 @@ const handleChapterSelect = (e) => {
   }
 
   const TOTAL_PAGES = images.length;
+  const mappedChapters = chapters.map((c, index) => ({ ...c, originalIndex: index, chNum: chapters.length - index }));
 
   const handleReaderClick = (e) => {
     if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.brightness-slider') || e.target.closest('.brightness-pop')) return;
@@ -318,7 +319,7 @@ const handleChapterSelect = (e) => {
             value={(() => {
               const idx = chapters.findIndex(ch => ch.href === url);
               if (idx !== -1) return idx;
-              if (params.id) return chapters.length - parseInt(params.id);
+              if (id) return chapters.length - parseInt(id);
               return 0;
             })()}
             onChange={handleChapterSelect}
@@ -353,12 +354,12 @@ const handleChapterSelect = (e) => {
         </span>
 
         <div className="rt-sep"></div>
-        <button className="rt-btn" onClick={goToPrevChapter} aria-label="Previous chapter" disabled={chapters.findIndex(ch => ch.href === url) >= chapters.length - 1 || chapters.findIndex(ch => ch.href === url) === -1}>
+        <button className="rt-btn" onClick={goToPrevChapter} aria-label="Previous chapter" disabled={!mappedChapters.some(c => c.chNum === parseInt(id) - 1)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <button className="rt-btn" onClick={goToNextChapter} aria-label="Next chapter" disabled={chapters.findIndex(ch => ch.href === url) <= 0}>
+        <button className="rt-btn" onClick={goToNextChapter} aria-label="Next chapter" disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
             <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -440,7 +441,7 @@ const handleChapterSelect = (e) => {
 
 
       {/* Manga Pages List */}
-      <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: "10px 0" }}>
+      <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: 0 }}>
         {images.map((imgUrl, i) => {
           if (viewMode === "paged" && i !== page - 1) return null;
           const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
@@ -526,7 +527,7 @@ const handleChapterSelect = (e) => {
             className="rt-btn"
             style={{ padding: "8px 16px", height: "auto", background: "var(--accent)", color: "#fff", opacity: chapters.findIndex(ch => ch.href === url) <= 0 ? 0.5 : 1 }}
             onClick={goToNextChapter}
-            disabled={chapters.findIndex(ch => ch.href === url) <= 0}
+            disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1)}
           >
             Next Chapter →
           </button>
