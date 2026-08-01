@@ -64,8 +64,8 @@ export function middleware(request) {
 
 export const config = {
   matcher: [
-    // Apply to everything except static assets and Next's own internals,
+    // Apply to everything except API routes, static assets and Next's own internals,
     // where a CSP header is irrelevant overhead.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
