@@ -76,7 +76,7 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
         ref={bannerRef}
         style={{ 
           minWidth: "300px", 
-          minHeight: "250px", 
+          minHeight: "60px", 
           background: "rgba(0,0,0,0.1)",
           borderRadius: "8px",
           display: "flex",
