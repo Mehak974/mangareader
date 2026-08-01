@@ -52,6 +52,9 @@ export const metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  other: {
+    "google-adsense-account": "ca-pub-4938022536946038",
+  },
 };
 
 export const viewport = {
