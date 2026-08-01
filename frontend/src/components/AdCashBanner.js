@@ -3,16 +3,16 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-export default function AdCashBanner({ zoneId = '11879666' }) {
+export default function AdCashBanner({ zoneId = '11885514' }) {
   const bannerRef = useRef(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!bannerRef.current) return;
-    
+
     let refreshInterval;
-    
+
     const runAd = () => {
       if (!bannerRef.current) return;
       bannerRef.current.innerHTML = ""; // Clear old ad
@@ -34,9 +34,9 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
           resolve();
           return;
         }
-        
+
         let script = document.getElementById("aclib");
-        
+
         if (!script) {
           script = document.createElement("script");
           script.id = "aclib";
@@ -44,9 +44,9 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
           script.src = "//acscdn.com/script/aclib.js";
           document.head.appendChild(script);
         }
-        
+
         script.onload = () => resolve();
-        
+
         const interval = setInterval(() => {
           if (typeof window.aclib !== "undefined") {
             clearInterval(interval);
@@ -58,13 +58,13 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
 
     loadAclib().then(() => {
       runAd();
-      
+
       // Auto-refresh the ad every 60 seconds (60000 ms) so readers see new ads while spending 5 mins on a chapter
       refreshInterval = setInterval(() => {
         runAd();
       }, 60000);
     });
-    
+
     return () => {
       if (refreshInterval) clearInterval(refreshInterval);
     };
@@ -72,11 +72,11 @@ export default function AdCashBanner({ zoneId = '11879666' }) {
 
   return (
     <div style={{ width: "100%", display: "flex", justifyContent: "center", margin: "20px 0" }}>
-      <div 
+      <div
         ref={bannerRef}
-        style={{ 
-          minWidth: "300px", 
-          minHeight: "60px", 
+        style={{
+          minWidth: "300px",
+          minHeight: "90px",
           background: "rgba(0,0,0,0.1)",
           borderRadius: "8px",
           display: "flex",
