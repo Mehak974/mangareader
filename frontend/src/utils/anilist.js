@@ -120,34 +120,27 @@ export async function getMangaList(variables) {
       };
     }
 
-    // Fallback: Official MyAnimeList API v2
+    // Fallback: Official MyAnimeList API v2 via Next.js proxy
     console.warn("AniList unavailable. Falling back to official MAL API...");
-    const malClientId = process.env.MAL_CLIENT_ID;
-    if (!malClientId) {
-      console.warn("MAL_CLIENT_ID not set, skipping MAL fallback.");
-      return { pageInfo: { total: 0, currentPage: 1, lastPage: 1, hasNextPage: false, perPage: 10 }, media: [] };
-    }
 
     const limit = variables.perPage || 12;
-    const malHeaders = { 'X-MAL-CLIENT-ID': malClientId };
-    let malUrl;
+    let malUrl = '';
 
     if (variables.search) {
-      malUrl = `https://api.myanimelist.net/v2/manga?q=${encodeURIComponent(variables.search)}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+      malUrl = `/api/mal?q=${encodeURIComponent(variables.search)}&limit=${limit}`;
     } else {
-      // Map AniList sort to MAL ranking_type
       let rankingType = 'all';
       if (variables.sort?.includes('TRENDING_DESC') || variables.sort?.includes('POPULARITY_DESC')) {
         rankingType = 'bypopularity';
       }
       if (variables.sort?.includes('SCORE_DESC')) {
-        rankingType = 'all'; // MAL default = by score
+        rankingType = 'all'; 
       }
-      malUrl = `https://api.myanimelist.net/v2/manga/ranking?ranking_type=${rankingType}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+      malUrl = `/api/mal?ranking_type=${rankingType}&limit=${limit}`;
     }
 
     try {
-      const malRes = await fetch(malUrl, { headers: malHeaders });
+      const malRes = await (isServer ? fetch(`http://localhost:${process.env.PORT || 3000}${malUrl}`) : fetch(malUrl));
       if (malRes.ok) {
         const malData = await malRes.json();
         const items = malData.data || [];
