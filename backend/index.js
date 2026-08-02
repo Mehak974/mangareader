@@ -641,7 +641,7 @@ app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
     if (parsed.hostname.includes('metadata')) return res.status(400).send('URL not allowed');
     
     // Strict SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|coffeemanga\.ink|hadesscans\.com|isekaiscans\.org|mgeko\.cc|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|pinimg\.com|coffeemanga\.ink|hadesscans\.com|isekaiscans\.org|mgeko\.cc|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
