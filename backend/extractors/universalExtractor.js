@@ -503,7 +503,7 @@ const SOURCE_SCRAPERS = {
       $('img').each((_, el) => {
         const src = $(el).attr('src') || $(el).attr('data-src') || '';
         if (src && (src.includes('uploads') || src.includes('chapter') || src.includes('manga')) &&
-            !isThumbnailOrIcon(src)) {
+          !isThumbnailOrIcon(src)) {
           images.push(toAbsolute(src.trim(), 'https://www.mgeko.cc'));
         }
       });
@@ -578,10 +578,10 @@ const SOURCE_SCRAPERS = {
       {
         // Extract the numeric post ID from the page (data-id attribute on .rating-post-id or similar)
         const mangaId = $('[id^="manga-chapters-holder"]').attr('data-id') ||
-                        $('input#manga-chapters-holder').attr('data-id') ||
-                        $('div#manga-chapters-holder').attr('data-id') ||
-                        $('script:contains("manga_id")').html()?.match(/"manga_id"\s*:\s*"?(\d+)"?/)?.[1] ||
-                        $('body').attr('class')?.match(/postid-(\d+)/)?.[1];
+          $('input#manga-chapters-holder').attr('data-id') ||
+          $('div#manga-chapters-holder').attr('data-id') ||
+          $('script:contains("manga_id")').html()?.match(/"manga_id"\s*:\s*"?(\d+)"?/)?.[1] ||
+          $('body').attr('class')?.match(/postid-(\d+)/)?.[1];
 
         if (mangaId) {
           try {
@@ -637,7 +637,7 @@ const SOURCE_SCRAPERS = {
                 chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
               }
             });
-          } catch (_) {}
+          } catch (_) { }
         }
       }
 
@@ -714,7 +714,7 @@ const SOURCE_SCRAPERS = {
         const chapters = allChapters.map(ch => {
           const chNum = ch.attributes.chapter;
           const chTitle = ch.attributes.title ? `Chapter ${chNum} — ${ch.attributes.title}` : `Chapter ${chNum}`;
-          
+
           let date = ch.attributes.publishAt || ch.attributes.createdAt || null;
           if (date) {
             const d = new Date(date);
@@ -772,7 +772,7 @@ const SOURCE_SCRAPERS = {
         const description = $('.summary p').first().text().trim();
         const status = $('.status').text().trim();
         const chapters = [];
-        $('tr').each((_, tr) => {
+        $('.chapters tr').each((_, tr) => {
           const $tr = $(tr);
           const $a = $tr.find('.chapter a').first();
           const href = $a.attr('href') || '';
@@ -803,7 +803,7 @@ const SOURCE_SCRAPERS = {
         const rv46 = (s) =>
           Buffer.from(s.split('').reverse().join(''), 'base64').toString('utf-8');
 
-        let thzq   = [];
+        let thzq = [];
         let kc1Raw = null;
         let kc2Raw = null;
 
@@ -827,10 +827,10 @@ const SOURCE_SCRAPERS = {
         });
 
         if (thzq.length > 0) {
-          let hostMap  = {};
+          let hostMap = {};
           let rangeMap = {};
-          if (kc1Raw) { try { hostMap  = JSON.parse(rv46(kc1Raw)); } catch (_) {} }
-          if (kc2Raw) { try { const d  = JSON.parse(rv46(kc2Raw)); if (d && d.m) rangeMap = d.m; } catch (_) {} }
+          if (kc1Raw) { try { hostMap = JSON.parse(rv46(kc1Raw)); } catch (_) { } }
+          if (kc2Raw) { try { const d = JSON.parse(rv46(kc2Raw)); if (d && d.m) rangeMap = d.m; } catch (_) { } }
 
           const decoded = thzq.map((raw, i) => {
             let u = raw;

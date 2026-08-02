@@ -34,27 +34,27 @@ export default async function Home() {
       .catch((err) => { clearTimeout(timeoutId); console.warn("Backend fetch failed/timed out:", err.message); return { data: [] }; })
   ]);
 
-  let popularNow = popularNowRes?.media?.length > 0 
-    ? popularNowRes.media 
+  let popularNow = popularNowRes?.media?.length > 0
+    ? popularNowRes.media
     : [];
 
-  let trending = trendingRes?.media?.length > 0 
-    ? trendingRes.media 
+  let trending = trendingRes?.media?.length > 0
+    ? trendingRes.media
     : [];
 
-  let popularOverall = popularOverallRes?.media?.length > 0 
-    ? popularOverallRes.media 
+  let popularOverall = popularOverallRes?.media?.length > 0
+    ? popularOverallRes.media
     : [];
 
   let recentlyAdded = [];
   if (recentRes?.data && recentRes.data.length > 0) {
     const allRecentItems = [];
     for (const section of recentRes.data) {
-       if (section.items) {
-          section.items.forEach(item => {
-             allRecentItems.push({ ...item, sourceId: section.sourceId });
-          });
-       }
+      if (section.items) {
+        section.items.forEach(item => {
+          allRecentItems.push({ ...item, sourceId: section.sourceId });
+        });
+      }
     }
     recentlyAdded = allRecentItems.slice(0, 20).map(m => ({
       id: m.href || m.title,
@@ -69,10 +69,10 @@ export default async function Home() {
 
   if (recentlyAdded.length < 20) {
     const recentFallback = await getMangaList({ perPage: 20, sort: ["UPDATED_AT_DESC"] }).catch(() => ({ media: [] }));
-    const fallbackMedia = recentFallback?.media?.length > 0 
-      ? recentFallback.media 
+    const fallbackMedia = recentFallback?.media?.length > 0
+      ? recentFallback.media
       : [];
-    
+
     const existingTitles = new Set(recentlyAdded.map(m => (m.t || m.title || "").toLowerCase()));
     const uniqueFallback = fallbackMedia.filter(m => !existingTitles.has((m.t || m.title || "").toLowerCase()));
     recentlyAdded = [...recentlyAdded, ...uniqueFallback].slice(0, 20);
@@ -80,7 +80,7 @@ export default async function Home() {
 
   // Filter out NSFW
   const nsfwCheck = (m) => isExplicitNSFW(m.genres || (m.g ? [m.g] : []), m.t || m.title || "", { tags: m.tags, isAdult: m.isAdult });
-  
+
   let finalPopularNow = popularNow.filter(m => !nsfwCheck(m)).slice(0, 9);
   let finalTrending = trending.filter(m => !nsfwCheck(m)).slice(0, 12);
   let finalPopularOverall = popularOverall.filter(m => !nsfwCheck(m)).slice(0, 12);
@@ -90,7 +90,7 @@ export default async function Home() {
     id: "fallback-solo-leveling",
     t: "Solo Leveling",
     title: "Solo Leveling",
-    cover: "https://cdn.myanimelist.net/images/manga/3/222295l.jpg",
+    cover: "https://i.pinimg.com/736x/55/be/88/55be884b487e78bf1f329d9927a3ffb2.jpg",
     rating: 9.8,
     ch: "Ch 200",
     ongoing: false,
@@ -99,7 +99,7 @@ export default async function Home() {
     id: "fallback-one-piece",
     t: "One Piece",
     title: "One Piece",
-    cover: "https://cdn.myanimelist.net/images/manga/2/253146l.jpg",
+    cover: "https://i.pinimg.com/736x/15/26/bb/1526bb11c465be3119bb71279f4e750b.jpg",
     rating: 9.9,
     ch: "Ch 1100",
     ongoing: true,
@@ -197,7 +197,7 @@ export default async function Home() {
             </div>
           </div>
         </div>
-        
+
         {desktopHero && (
           <Link href={`/manga/${slugify(desktopHero.t || desktopHero.title)}`} className="hero-stack" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="hc-back"></div>
@@ -291,14 +291,14 @@ export default async function Home() {
           </div>
           <div className="manga-grid">
             {finalTrending.map((m, idx) => (
-               <MangaCard key={m.id} manga={m} index={idx} />
+              <MangaCard key={m.id} manga={m} index={idx} />
             ))}
           </div>
         </div>
       )}
 
       {finalTrending.length > 0 && <div className="divider"></div>}
-      
+
       <HomeGenreFilter />
 
       <div className="divider"></div>
@@ -314,7 +314,7 @@ export default async function Home() {
           </div>
           <div className="manga-grid">
             {finalPopularOverall.map((m, idx) => (
-               <MangaCard key={m.id} manga={m} index={idx} />
+              <MangaCard key={m.id} manga={m} index={idx} />
             ))}
           </div>
           <HomeAuthNudge />

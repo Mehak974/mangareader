@@ -2,6 +2,7 @@ node_modules/
 .env
 .env.local
 .env.production
+.env.example
 *.log
 .DS_Store
 .next/
@@ -13,6 +14,3 @@ build/
 step*.txt
 *_history.txt
 fix_all.js
-
-.vercel
-.env*
