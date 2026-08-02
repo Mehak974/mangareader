@@ -140,9 +140,33 @@ export async function getMangaList(variables) {
     }
 
     try {
-      const malRes = await (isServer ? fetch(`http://localhost:${process.env.PORT || 3000}${malUrl}`) : fetch(malUrl));
-      if (malRes.ok) {
-        const malData = await malRes.json();
+      let malData = null;
+
+      if (isServer) {
+        // Server components: fetch directly from MAL (no CORS issues)
+        const malClientId = process.env.MAL_CLIENT_ID;
+        if (!malClientId) {
+          console.warn("MAL_CLIENT_ID not set on server, skipping MAL fallback.");
+          return { pageInfo: { total: 0, currentPage: 1, lastPage: 1, hasNextPage: false, perPage: 10 }, media: [] };
+        }
+        let directUrl = '';
+        if (variables.search) {
+          directUrl = `https://api.myanimelist.net/v2/manga?q=${encodeURIComponent(variables.search)}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+        } else {
+          let rankingType = 'all';
+          if (variables.sort?.includes('TRENDING_DESC') || variables.sort?.includes('POPULARITY_DESC')) rankingType = 'bypopularity';
+          if (variables.sort?.includes('SCORE_DESC')) rankingType = 'all'; 
+          directUrl = `https://api.myanimelist.net/v2/manga/ranking?ranking_type=${rankingType}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+        }
+        const malRes = await fetch(directUrl, { headers: { 'X-MAL-CLIENT-ID': malClientId } });
+        if (malRes.ok) malData = await malRes.json();
+      } else {
+        // Client components: fetch via our Next.js API proxy to avoid CORS
+        const malRes = await fetch(malUrl);
+        if (malRes.ok) malData = await malRes.json();
+      }
+
+      if (malData) {
         const items = malData.data || [];
         const mapped = items.map(entry => {
           const item = entry.node || entry;
