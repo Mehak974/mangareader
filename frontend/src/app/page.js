@@ -20,6 +20,11 @@ export default async function Home() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+  const proxyImage = (url) => {
+    if (!url || url.includes('anilist.co') || url.startsWith('/')) return url;
+    return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  };
+
   const [popularNowRes, trendingRes, popularOverallRes, recentRes] = await Promise.all([
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
     getMangaList({ perPage: 24, sort: ["TRENDING_DESC"] }),
@@ -125,7 +130,7 @@ export default async function Home() {
             >
               {featuredHero.cover ? (
                 <Image
-                  src={featuredHero.cover}
+                  src={proxyImage(featuredHero.cover)}
                   alt={`Cover for ${featuredHero.t}`}
                   fill
                   sizes="100vw"
@@ -208,7 +213,7 @@ export default async function Home() {
               >
                 {desktopHero.cover ? (
                   <Image
-                    src={desktopHero.cover}
+                    src={proxyImage(desktopHero.cover)}
                     alt={`Cover for ${desktopHero.t}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
@@ -247,11 +252,12 @@ export default async function Home() {
                 >
                   {r.cover ? (
                     <Image
-                      src={r.cover}
+                      src={proxyImage(r.cover)}
                       alt={`Cover for ${r.t}`}
                       fill
                       sizes="60px"
                       style={{ objectFit: "cover", objectPosition: "center" }}
+                      unoptimized={true}
                     />
                   ) : (
                     abbr(r.t)
@@ -336,11 +342,12 @@ export default async function Home() {
                 >
                   {r.cover ? (
                     <Image
-                      src={r.cover}
+                      src={proxyImage(r.cover)}
                       alt={`Cover for ${r.t}`}
                       fill
                       sizes="48px"
                       style={{ objectFit: "cover", objectPosition: "center" }}
+                      unoptimized={true}
                     />
                   ) : (
                     abbr(r.t)
