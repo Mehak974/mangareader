@@ -170,6 +170,7 @@ export async function getMangaList(variables) {
         const items = malData.data || [];
         const mapped = items.map(entry => {
           const item = entry.node || entry;
+          const genres = (item.genres || []).map(g => g.name);
           return {
             id: `mal-${item.id}`,
             t: item.title,
@@ -178,7 +179,8 @@ export async function getMangaList(variables) {
             rating: item.mean ? item.mean / 2 : 4.0,
             ongoing: item.status === 'currently_publishing',
             cover: item.main_picture?.large || item.main_picture?.medium || "",
-            genres: (item.genres || []).map(g => g.name),
+            genres: genres,
+            g: genres.length > 0 ? genres[0] : "Action",
           };
         });
         return {
