@@ -120,41 +120,60 @@ export async function getMangaList(variables) {
       };
     }
 
-    // Fallback: Query MyAnimeList (Jikan API)
-    console.warn("AniList returned empty/rate-limited. Falling back to MyAnimeList Jikan API...");
-    let jikanUrl = "https://api.jikan.moe/v4/manga";
-    if (variables.search) {
-      jikanUrl += `?q=${encodeURIComponent(variables.search)}&limit=${variables.perPage || 12}`;
-    } else if (variables.sort && variables.sort.includes("UPDATED_AT_DESC")) {
-      jikanUrl += `?order_by=start_date&sort=desc&status=publishing&limit=${variables.perPage || 12}`;
-    } else if (variables.sort && variables.sort.includes("TRENDING_DESC")) {
-      jikanUrl += `?order_by=score&sort=desc&status=publishing&limit=${variables.perPage || 12}`;
-    } else {
-      jikanUrl += `?order_by=popularity&limit=${variables.perPage || 12}`;
+    // Fallback: Official MyAnimeList API v2
+    console.warn("AniList unavailable. Falling back to official MAL API...");
+    const malClientId = process.env.MAL_CLIENT_ID;
+    if (!malClientId) {
+      console.warn("MAL_CLIENT_ID not set, skipping MAL fallback.");
+      return { pageInfo: { total: 0, currentPage: 1, lastPage: 1, hasNextPage: false, perPage: 10 }, media: [] };
     }
 
-    const jikanRes = await fetch(jikanUrl);
-    if (jikanRes.ok) {
-      const jikanData = await jikanRes.json();
-      if (jikanData.data) {
-        const mapped = jikanData.data.map(item => ({
-          id: `mal-${item.mal_id}`,
-          t: item.title_english || item.title,
-          ch: item.chapters ? `Ch ${item.chapters}` : "Ongoing",
-          hot: item.popularity < 1000,
-          rating: item.score ? item.score / 2 : 4.0,
-          ongoing: item.publishing,
-          cover: item.images?.jpg?.image_url || "",
-          genres: (item.genres || []).map(g => g.name),
-        }));
+    const limit = variables.perPage || 12;
+    const malHeaders = { 'X-MAL-CLIENT-ID': malClientId };
+    let malUrl;
+
+    if (variables.search) {
+      malUrl = `https://api.myanimelist.net/v2/manga?q=${encodeURIComponent(variables.search)}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+    } else {
+      // Map AniList sort to MAL ranking_type
+      let rankingType = 'all';
+      if (variables.sort?.includes('TRENDING_DESC') || variables.sort?.includes('POPULARITY_DESC')) {
+        rankingType = 'bypopularity';
+      }
+      if (variables.sort?.includes('SCORE_DESC')) {
+        rankingType = 'all'; // MAL default = by score
+      }
+      malUrl = `https://api.myanimelist.net/v2/manga/ranking?ranking_type=${rankingType}&limit=${limit}&fields=id,title,main_picture,mean,num_chapters,status,genres`;
+    }
+
+    try {
+      const malRes = await fetch(malUrl, { headers: malHeaders });
+      if (malRes.ok) {
+        const malData = await malRes.json();
+        const items = malData.data || [];
+        const mapped = items.map(entry => {
+          const item = entry.node || entry;
+          return {
+            id: `mal-${item.id}`,
+            t: item.title,
+            ch: item.num_chapters ? `Ch ${item.num_chapters}` : "Ongoing",
+            hot: false,
+            rating: item.mean ? item.mean / 2 : 4.0,
+            ongoing: item.status === 'currently_publishing',
+            cover: item.main_picture?.large || item.main_picture?.medium || "",
+            genres: (item.genres || []).map(g => g.name),
+          };
+        });
         return {
-          pageInfo: { total: jikanData.pagination?.items?.total || 100, currentPage: 1, lastPage: 1, hasNextPage: false },
+          pageInfo: { total: mapped.length, currentPage: 1, lastPage: 1, hasNextPage: false },
           media: mapped
         };
       }
+    } catch (malErr) {
+      console.warn("MAL fallback failed:", malErr.message);
     }
   } catch (err) {
-    console.warn("Jikan MyAnimeList fallback failed:", err.message);
+    console.warn("getMangaList failed:", err.message);
   }
 
   return {
