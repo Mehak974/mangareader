@@ -76,13 +76,38 @@ export default async function Home() {
   // Filter out NSFW
   const nsfwCheck = (m) => isExplicitNSFW(m.genres || (m.g ? [m.g] : []), m.t || m.title || "", { tags: m.tags, isAdult: m.isAdult });
   
-  const filteredPopularNow = popularNow.filter(m => !nsfwCheck(m)).slice(0, 9);
-  const filteredTrending = trending.filter(m => !nsfwCheck(m)).slice(0, 12);
-  const filteredPopularOverall = popularOverall.filter(m => !nsfwCheck(m)).slice(0, 12);
-  const filteredRecentlyAdded = recentlyAdded.filter(m => !nsfwCheck(m)).slice(0, 10);
+  let finalPopularNow = popularNow.filter(m => !nsfwCheck(m)).slice(0, 9);
+  let finalTrending = trending.filter(m => !nsfwCheck(m)).slice(0, 12);
+  let finalPopularOverall = popularOverall.filter(m => !nsfwCheck(m)).slice(0, 12);
+  const finalRecentlyAdded = recentlyAdded.filter(m => !nsfwCheck(m)).slice(0, 10);
 
-  const featuredHero = filteredPopularNow[0];
-  const desktopHero = filteredTrending[0];
+  const fallbackHero1 = {
+    id: "fallback-solo-leveling",
+    t: "Solo Leveling",
+    title: "Solo Leveling",
+    cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105398-b673VhlXeNY2.jpg",
+    rating: 9.8,
+    ch: "Ch 200",
+    ongoing: false,
+  };
+  const fallbackHero2 = {
+    id: "fallback-one-piece",
+    t: "One Piece",
+    title: "One Piece",
+    cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-o1zEEAI3OAAk.jpg",
+    rating: 9.9,
+    ch: "Ch 1100",
+    ongoing: true,
+  };
+
+  const emergencyFallbacks = [fallbackHero1, fallbackHero2, ...finalRecentlyAdded];
+
+  if (finalPopularNow.length === 0) finalPopularNow = emergencyFallbacks.slice(0, 9);
+  if (finalTrending.length === 0) finalTrending = emergencyFallbacks.slice(0, 12);
+  if (finalPopularOverall.length === 0) finalPopularOverall = emergencyFallbacks.slice(0, 12);
+
+  const featuredHero = finalPopularNow[0];
+  const desktopHero = finalTrending[0];
 
   return (
     <div>
@@ -206,11 +231,11 @@ export default async function Home() {
       </section>
 
       {/* CONTINUOUS STRIP ROW (POPULAR RIGHT NOW - 7 ITEMS) */}
-      {filteredPopularNow.length > 0 && (
+      {finalPopularNow.length > 0 && (
         <div className="now-bar">
           <div className="bar-label">Popular Right Now</div>
           <div className="reading-list">
-            {filteredPopularNow.map((r) => (
+            {finalPopularNow.map((r) => (
               <Link href={`/manga/${slugify(r.t || r.title)}`} key={r.id} className="r-item" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="r-cov"
@@ -245,12 +270,12 @@ export default async function Home() {
         </div>
       )}
 
-      {filteredPopularNow.length > 0 && <div className="divider"></div>}
+      {finalPopularNow.length > 0 && <div className="divider"></div>}
       <AdCashBanner />
 
 
       {/* TRENDING SECTION (12 ITEMS) */}
-      {filteredTrending.length > 0 && (
+      {finalTrending.length > 0 && (
         <div className="section">
           <div className="s-hd">
             <div className="s-title">Trending This Week</div>
@@ -259,21 +284,21 @@ export default async function Home() {
             </Link>
           </div>
           <div className="manga-grid">
-            {filteredTrending.map((m, idx) => (
+            {finalTrending.map((m, idx) => (
                <MangaCard key={m.id} manga={m} index={idx} />
             ))}
           </div>
         </div>
       )}
 
-      {filteredTrending.length > 0 && <div className="divider"></div>}
+      {finalTrending.length > 0 && <div className="divider"></div>}
       
       <HomeGenreFilter />
 
       <div className="divider"></div>
 
       {/* READERS ALSO LOVE (12 ITEMS) */}
-      {filteredPopularOverall.length > 0 && (
+      {finalPopularOverall.length > 0 && (
         <div className="section">
           <div className="s-hd">
             <div className="s-title">Readers Also Love</div>
@@ -282,7 +307,7 @@ export default async function Home() {
             </Link>
           </div>
           <div className="manga-grid">
-            {filteredPopularOverall.map((m, idx) => (
+            {finalPopularOverall.map((m, idx) => (
                <MangaCard key={m.id} manga={m} index={idx} />
             ))}
           </div>
