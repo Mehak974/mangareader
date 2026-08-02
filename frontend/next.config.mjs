@@ -27,12 +27,11 @@ const nextConfig = {
 
   // Remote image sources — backend proxy + known CDNs
   images: {
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],
-    formats: ["image/avif", "image/webp"],
-    minimumCacheTTL: 31536000,
   },
 
   async headers() {

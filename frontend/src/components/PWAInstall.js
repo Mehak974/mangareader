@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { track } from "@vercel/analytics";
 
 export default function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -17,8 +18,18 @@ export default function PWAInstall() {
       setTimeout(() => setShow(true), 3000);
     };
 
+    const installedHandler = () => {
+      track('App Installed');
+      localStorage.setItem("pwa_installed", "1");
+    };
+
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   const install = async () => {
