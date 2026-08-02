@@ -133,7 +133,7 @@ const limiter = rateLimit(15 * 60 * 1000, 200);
 
 app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
   try {
-    const r = await axios.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 10000 });
+    const r = await axios.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' }, timeout: 10000 });
     res.json(r.data);
   } catch (err) {
     if (err.response) res.status(err.response.status).json(err.response.data);
