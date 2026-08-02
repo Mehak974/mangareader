@@ -315,16 +315,16 @@ export default async function Home() {
         </div>
       )}
 
-      {filteredPopularOverall.length > 0 && <div className="divider"></div>}
+      {finalPopularOverall.length > 0 && <div className="divider"></div>}
 
       {/* RECENTLY ADDED (10 ITEMS) */}
-      {filteredRecentlyAdded.length > 0 && (
+      {finalRecentlyAdded.length > 0 && (
         <div className="section">
           <div className="s-hd">
             <div className="s-title">Recently Added</div>
           </div>
           <div className="recent-list">
-            {filteredRecentlyAdded.map((r, idx) => (
+            {finalRecentlyAdded.map((r, idx) => (
               <Link href={`/manga/${slugify(r.t || r.title)}${r.cover ? `?cover=${encodeURIComponent(r.cover)}` : ''}`} key={r.id} className="rc-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="rc-cov"
