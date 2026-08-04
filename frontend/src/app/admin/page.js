@@ -17,7 +17,6 @@ async function getStats() {
   const [
     totalUsers,
     newUsersWeek,
-    activeSessions,
     publishedArticles,
     draftArticles,
     totalReviews,
@@ -28,7 +27,6 @@ async function getStats() {
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
-    prisma.session.count({ where: { expiresAt: { gte: now } } }),
     prisma.article.count({ where: { status: "PUBLISHED" } }),
     prisma.article.count({ where: { status: "DRAFT" } }),
     prisma.review.count(),
@@ -50,7 +48,6 @@ async function getStats() {
   return {
     totalUsers,
     newUsersWeek,
-    activeSessions,
     publishedArticles,
     draftArticles,
     totalReviews,
@@ -71,7 +68,6 @@ export default async function AdminDashboard() {
 
   const cards = [
     { label: "Total Users", value: stats.totalUsers, sub: `+${stats.newUsersWeek} this week`, accent: "var(--accent)" },
-    { label: "Active Sessions", value: stats.activeSessions, sub: "currently signed in", accent: "var(--green)" },
     { label: "Published Articles", value: stats.publishedArticles, sub: `${stats.draftArticles} drafts`, accent: "var(--blue)" },
     { label: "Reviews", value: stats.totalReviews, sub: "editorial reviews", accent: "var(--gold)" },
     { label: "Unread Messages", value: stats.unreadMessages, sub: "awaiting reply", accent: "var(--red)" },

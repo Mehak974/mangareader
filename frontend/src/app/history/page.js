@@ -57,7 +57,7 @@ export default function History() {
                   className="history-row"
                   onClick={() => {
                     if (h.url && h.mangaId) {
-                      router.push(`/reader/${h.chNum || 1}?url=${encodeURIComponent(h.url)}&source=${h.source || ""}&title=${encodeURIComponent(h.t)}&mangaId=${encodeURIComponent(h.mangaId)}`);
+                      router.push(`/reader/${h.chNum || 1}?url=${encodeURIComponent(h.url)}&source=${h.source || ""}&title=${encodeURIComponent(h.t)}&mangaId=${encodeURIComponent(h.mangaId)}&cover=${encodeURIComponent(h.cover || "")}`);
                     } else {
                       router.push(`/manga/${slugify(h.t)}`);
                     }
@@ -71,7 +71,7 @@ export default function History() {
                     }}
                     style={{ position: "relative", overflow: "hidden", padding: 0 }}
                   >
-                    {h.cover && h.cover !== "undefined" && h.cover !== "null" && h.cover.startsWith("http") ? (
+                    {h.cover && h.cover !== "undefined" && h.cover !== "null" && (h.cover.startsWith("http") || h.cover.startsWith("/")) ? (
                       <Image 
                         src={h.cover} 
                         alt={h.t} 

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, hasRole } from "@/lib/auth";
 import UserRowActions from "@/components/admin/UserRowActions";
+import UserRowName from "@/components/admin/UserRowName";
 
 export const metadata = { title: "Users · Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -29,7 +30,14 @@ export default async function AdminUsersPage() {
       role: true,
       banned: true,
       bannedReason: true,
+      readingHistory: true,
+      readChapters: true,
       createdAt: true,
+      sessions: {
+        where: { expiresAt: { gt: new Date() } },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
@@ -48,9 +56,11 @@ export default async function AdminUsersPage() {
         <table className="admin-table">
           <thead>
             <tr>
-              <th>User</th>
+              <th>Name / Email</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Read Hours</th>
+              <th>Chapters Read</th>
               <th>Joined</th>
               <th aria-label="Actions" />
             </tr>
@@ -59,11 +69,7 @@ export default async function AdminUsersPage() {
             {users.map((u) => (
               <tr key={u.id}>
                 <td>
-                  <div className="cell-strong">
-                    {u.displayName}
-                    {u.id === current.id && <span className="admin-table-sub"> (you)</span>}
-                  </div>
-                  <div className="admin-table-sub">{u.email}</div>
+                  <UserRowName user={u} isSelf={u.id === current.id} />
                 </td>
                 <td>
                   <span className="admin-badge admin-badge-scheduled">{u.role}</span>
@@ -73,9 +79,17 @@ export default async function AdminUsersPage() {
                     <span className="admin-badge admin-badge-archived" title={u.bannedReason || ""}>
                       Banned
                     </span>
+                  ) : u.sessions.length > 0 ? (
+                    <span className="admin-badge admin-badge-published">Online</span>
                   ) : (
-                    <span className="admin-badge admin-badge-published">Active</span>
+                    <span className="admin-badge admin-badge-draft">Offline</span>
                   )}
+                </td>
+                <td>
+                  {u.readChapters ? Math.round(Object.values(u.readChapters).flat().length * 3 / 60) : 0}h
+                </td>
+                <td>
+                  {u.readChapters ? Object.values(u.readChapters).flat().length : 0}
                 </td>
                 <td>{fmt(u.createdAt)}</td>
                 <td>

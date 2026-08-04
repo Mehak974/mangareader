@@ -45,22 +45,25 @@ export const AppProvider = ({ children }) => {
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
   const [libraryPickerManga, setLibraryPickerManga] = useState(null);
 
-  // Hydrate persisted state from localStorage once on mount (browser storage for anonymous data)
-  useEffect(() => {
+  const loadLocalState = (uid) => {
     try {
-      const raw = localStorage.getItem("mr:state");
+      const key = uid ? `mr:state:${uid}` : "mr:state:guest";
+      let raw = localStorage.getItem(key);
+      
+      // Migrate old data if guest and no new key exists
+      if (!uid && !raw) {
+        raw = localStorage.getItem("mr:state");
+        if (raw) localStorage.setItem(key, raw);
+      }
+      
       if (raw) {
         const s = JSON.parse(raw);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Array.isArray(s.bookmarks)) setBookmarks(s.bookmarks);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Array.isArray(s.readManga)) setReadManga(s.readManga);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Array.isArray(s.readingHistory)) setReadingHistory(s.readingHistory);
         if (s.readChapters && typeof s.readChapters === "object") {
           setReadChapters(s.readChapters);
         } else if (s.chapterProgress && typeof s.chapterProgress === "object") {
-          // Migrate legacy highwater model ({ id: N }) → set model ({ id: [1..N] }).
           const migrated = {};
           for (const [id, n] of Object.entries(s.chapterProgress)) {
             const high = Number(n) || 0;
@@ -69,11 +72,8 @@ export const AppProvider = ({ children }) => {
           setReadChapters(migrated);
         }
       }
-    } catch (_) {
-      // corrupt storage — ignore and start fresh
-    }
-    setHydrated(true);
-  }, []);
+    } catch (_) {}
+  };
 
   const fetchLibraries = async () => {
     try {
@@ -100,12 +100,24 @@ export const AppProvider = ({ children }) => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (cancelled || !data?.user) return;
-        setUser(data.user);
-        setIsLoggedIn(true);
-        fetchLibraries();
+        if (cancelled) return;
+        if (data?.user) {
+          setUser(data.user);
+          setIsLoggedIn(true);
+          // If the backend has history, we can load it. For now we load local state.
+          loadLocalState(data.user.id);
+          fetchLibraries();
+        } else {
+          loadLocalState(null);
+        }
+        setHydrated(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) {
+          loadLocalState(null);
+          setHydrated(true);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -115,14 +127,27 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (!hydrated) return;
     try {
+      const key = user ? `mr:state:${user.id}` : "mr:state:guest";
       localStorage.setItem(
-        "mr:state",
+        key,
         JSON.stringify({ bookmarks, readManga, readingHistory, readChapters })
       );
+      
+      // Debounce and sync to backend if logged in
+      if (user) {
+        const timeout = setTimeout(() => {
+          fetch("/api/history/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ readingHistory, readChapters })
+          }).catch(() => {});
+        }, 3000);
+        return () => clearTimeout(timeout);
+      }
     } catch (_) {
       // quota or serialization failure — non-fatal
     }
-  }, [hydrated, bookmarks, readManga, readingHistory, readChapters]);
+  }, [hydrated, bookmarks, readManga, readingHistory, readChapters, user]);
 
   // Sync theme to root html element
   useEffect(() => {
@@ -369,6 +394,7 @@ export const AppProvider = ({ children }) => {
     setIsLoggedIn(false);
     setLibraries([]);
     setBookmarks([]);
+    loadLocalState(null); // Load guest history
   };
 
   return (

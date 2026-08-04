@@ -3838,6 +3838,22 @@ body:not(.logged-in) .guest-flex {
   color: var(--text3)
 }
 
+.footer-bottom-links {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+}
+
+.footer-bottom-links a {
+  text-decoration: none;
+  color: var(--text3);
+}
+
+.footer-bottom-links a:hover {
+  color: var(--text);
+}
+
 /* ── RESPONSIVE ── */
 @media(max-width:900px) {
   .hero {

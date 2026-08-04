@@ -11,6 +11,18 @@ export default function Profile() {
   const router = useRouter();
   const { isLoggedIn, user, readChapters, libraries, setSigninSheetOpen } = useApp();
 
+  const totalChapters = Object.values(readChapters || {}).flat().length;
+  const totalSeries = Object.keys(readChapters || {}).length;
+  const totalHours = Math.round((totalChapters * 3) / 60);
+
+  const computedAchievements = achievements.map(a => {
+    let earned = a.earned;
+    if (a.name === 'First Chapter') earned = totalChapters >= 1;
+    if (a.name === 'Bookworm') earned = totalChapters >= 100;
+    if (a.name === 'Explorer') earned = totalSeries >= 10;
+    return { ...a, earned };
+  });
+
   return (
     <div>
       {isLoggedIn ? (
@@ -22,12 +34,16 @@ export default function Profile() {
             <div className="profile-handle">@{user?.username || (user?.email ? user.email.split('@')[0] : "user")}</div>
             <div className="profile-stats">
               <div className="p-stat">
-                <b>{readChapters?.length || 0}</b>
+                <b>{totalChapters}</b>
                 <span>Chapters</span>
               </div>
               <div className="p-stat">
-                <b>{libraries?.reduce((sum, lib) => sum + (lib.manga?.length || 0), 0) || 0}</b>
-                <span>Series</span>
+                <b>{totalHours}</b>
+                <span>Hours Read</span>
+              </div>
+              <div className="p-stat">
+                <b>{totalSeries}</b>
+                <span>Series Read</span>
               </div>
               <div className="p-stat">
                 <b>{libraries?.length || 0}</b>
@@ -57,7 +73,7 @@ export default function Profile() {
               <h2 className="s-title">Achievements</h2>
             </div>
             <div className="achievement-grid">
-              {achievements.map((a, idx) => (
+              {computedAchievements.map((a, idx) => (
                 <div key={idx} className={`achievement ${a.earned ? "earned" : ""}`}>
                   <div className="ach-icon" style={{ opacity: a.earned ? 1 : 0.3 }}>
                     {a.icon}

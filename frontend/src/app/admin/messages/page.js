@@ -110,7 +110,7 @@ export default async function AdminMessagesPage({ searchParams }) {
                   </td>
                   <td>{fmt(m.createdAt)}</td>
                   <td>
-                    <MessageRowActions id={m.id} status={m.status} />
+                    <MessageRowActions id={m.id} status={m.status} message={m} />
                   </td>
                 </tr>
               ))}

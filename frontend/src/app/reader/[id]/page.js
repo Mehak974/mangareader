@@ -34,9 +34,12 @@ function ReaderContent({ params }) {
   const [imgErrors, setImgErrors] = useState({});
   const [viewMode, setViewMode] = useState("webtoon");
   const [showNav, setShowNav] = useState(true);
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   const readerPagesRef = useRef(null);
+  const endRef = useRef(null);
   const brightnessTimerRef = useRef(null);
+  const isNavigatingRef = useRef(false);
 
   const resetBrightnessTimer = () => {
     if (brightnessTimerRef.current) {
@@ -156,14 +159,26 @@ function ReaderContent({ params }) {
        },
        { root: el, rootMargin: "-50% 0px", threshold: 0 }
      );
+     // Also observe the end element for marking read and showing nav automatically
+     const endObserver = new IntersectionObserver(
+       (entries) => {
+         if (entries[0].isIntersecting) {
+           if (mangaId) markChapterRead(mangaId, parseInt(id) || 1);
+           setShowNav(true);
+         }
+       },
+       { rootMargin: "0px", threshold: 0 }
+     );
+     if (endRef.current) endObserver.observe(endRef.current);
 
      pageEls.forEach((pg) => observer.observe(pg));
      observerRef.current = observer;
 
      return () => {
        observer.disconnect();
+       endObserver.disconnect();
      };
-   }, [images]);
+   }, [images, mangaId, id, markChapterRead]);
 
   const handleScrollTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -174,6 +189,9 @@ function ReaderContent({ params }) {
   };
 
   const goToNextChapter = () => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    
     // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
     let currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx === -1 && id) {
@@ -184,10 +202,15 @@ function ReaderContent({ params }) {
     if (currentIdx > 0) {
       const next = chapters[currentIdx - 1];
       router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+    } else {
+      isNavigatingRef.current = false;
     }
   };
 
   const goToPrevChapter = () => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    
     let currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx === -1 && id) {
       const chNumFromUrl = parseInt(id);
@@ -311,6 +334,11 @@ const handleChapterSelect = (e) => {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+          </svg>
+        </button>
+        <button className="rt-btn" onClick={() => window.location.reload()} style={{ flexShrink: 0 }} aria-label="Reload chapter">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M4 4v5h5M20 20v-5h-5M4.93 19.07A10 10 0 102.12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
         
@@ -488,18 +516,29 @@ const handleChapterSelect = (e) => {
                   </div>
                 </div>
               ) : (
-                <Image 
-                  src={`https://manga.mehakiqbal974.workers.dev/?url=${encodeURIComponent(imgUrl)}`} 
-                  alt={`Page ${i + 1}`} 
-                  width={800}
-                  height={1200}
-                  style={{ width: viewMode === "paged" ? "auto" : "100%", height: viewMode === "paged" ? "100%" : "auto", maxHeight: viewMode === "paged" ? "100vh" : "none", objectFit: "contain", display: "block" }} 
-                  priority={i < 2 || (viewMode === "paged" && i === page - 1)}
-                  unoptimized={true}
-                  onError={() => setImgErrors(prev => ({ ...prev, [i]: true }))}
-                />
-              )}
-              {viewMode === "webtoon" && (
+                  <Image 
+                    src={`https://manga.mehakiqbal974.workers.dev/?url=${encodeURIComponent(imgUrl)}`} 
+                    alt={`Page ${i + 1}`} 
+                    width={800}
+                    height={1200}
+                    style={{ 
+                      width: viewMode === "paged" ? "auto" : "100%", 
+                      height: viewMode === "paged" ? "100%" : "auto", 
+                      maxHeight: viewMode === "paged" ? "100vh" : "none", 
+                      objectFit: "contain", 
+                      display: "block",
+                      transform: zoomedImage === i ? "scale(1.5)" : "none",
+                      transformOrigin: "top center",
+                      transition: "transform 0.25s ease-in-out",
+                      cursor: "zoom-in"
+                    }} 
+                    priority={i < 2 || (viewMode === "paged" && i === page - 1)}
+                    unoptimized={true}
+                    onError={() => setImgErrors(prev => ({ ...prev, [i]: true }))}
+                    onDoubleClick={() => setZoomedImage(zoomedImage === i ? null : i)}
+                  />
+                )}
+                {viewMode === "webtoon" && (
                 <div className="reader-page-num" aria-live="polite" style={{ position: "absolute", bottom: "10px", right: "10px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "2px 8px", borderRadius: "10px", fontSize: "10px" }}>
                   {i + 1}/{TOTAL_PAGES}
                 </div>
@@ -507,6 +546,7 @@ const handleChapterSelect = (e) => {
             </div>
           );
         })}
+        <div ref={endRef} style={{ width: '100%', height: '1px' }} />
       </div>
 
       {/* Bottom Footer Actions */}

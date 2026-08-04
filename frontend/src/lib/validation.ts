@@ -57,7 +57,7 @@ export const articleSchema = z.object({
   slug: z.string().trim().max(80).optional().or(z.literal("")),
   excerpt: z.string().trim().max(300).optional().or(z.literal("")),
   body: z.string().trim().min(1, "Body cannot be empty."),
-  coverImage: z.string().trim().url("Cover image must be a URL.").optional().or(z.literal("")),
+  coverImage: z.string().trim().regex(/^(https?:\/\/|\/)/, "Cover image must be a valid URL or absolute path").optional().or(z.literal("")),
   contentType: z.enum(CONTENT_TYPES).default("BLOG"),
   status: z.enum(CONTENT_STATUSES).default("DRAFT"),
   bylineId: z.string().trim().optional().or(z.literal("")),
