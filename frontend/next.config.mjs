@@ -27,7 +27,7 @@ const nextConfig = {
 
   // Remote image sources — backend proxy + known CDNs
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },

@@ -409,6 +409,7 @@ const [chPage, setChPage] = useState(1);
               sizes="(max-width: 768px) 100vw, 350px"
               style={{ objectFit: "cover", objectPosition: "center" }}
               priority
+              fetchPriority="high"
             />
           ) : (
             "表紙"
@@ -679,6 +680,7 @@ const [chPage, setChPage] = useState(1);
                 className="pg-btn"
                 onClick={() => setChPage((p) => Math.max(1, p - 1))}
                 disabled={chPage === 1}
+                aria-label="Previous page"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                   <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -706,6 +708,7 @@ const [chPage, setChPage] = useState(1);
                 className="pg-btn"
                 onClick={() => setChPage((p) => Math.min(CH_TOTAL_PAGES, p + 1))}
                 disabled={chPage === CH_TOTAL_PAGES}
+                aria-label="Next page"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                   <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

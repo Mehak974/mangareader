@@ -136,7 +136,7 @@ export default async function Home() {
                   sizes="100vw"
                   style={{ objectFit: "cover", objectPosition: "center" }}
                   priority
-                  unoptimized={true}
+                  
                 />
               ) : (
                 "表"
@@ -219,7 +219,7 @@ export default async function Home() {
                     sizes="(max-width: 768px) 100vw, 50vw"
                     style={{ objectFit: "cover", objectPosition: "center" }}
                     priority
-                    unoptimized={true}
+                    
                   />
                 ) : (
                   "表紙"
@@ -257,7 +257,7 @@ export default async function Home() {
                       fill
                       sizes="60px"
                       style={{ objectFit: "cover", objectPosition: "center" }}
-                      unoptimized={true}
+                      
                     />
                   ) : (
                     abbr(r.t)
@@ -347,7 +347,7 @@ export default async function Home() {
                       fill
                       sizes="48px"
                       style={{ objectFit: "cover", objectPosition: "center" }}
-                      unoptimized={true}
+                      
                     />
                   ) : (
                     abbr(r.t)

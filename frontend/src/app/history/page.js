@@ -78,7 +78,7 @@ export default function History() {
                         fill
                         sizes="80px"
                         style={{ objectFit: "cover" }} 
-                        unoptimized={true}
+                        
                       />
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>

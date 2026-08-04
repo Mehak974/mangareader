@@ -72,7 +72,6 @@ export default function MangaCard({ manga, index }) {
             sizes="(max-width: 768px) 50vw, 230px"
             style={{ objectFit: "cover" }}
             priority={index < 8}
-            unoptimized={true}
           />
         )}
         <div className="m-shimmer" />
