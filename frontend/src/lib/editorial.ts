@@ -322,9 +322,5 @@ export const getPublishedArticle = cache(async function getPublishedArticle(slug
     },
   });
   if (!article) return null;
-  // Fire-and-forget view increment; never blocks the render.
-  prisma.article
-    .update({ where: { id: article.id }, data: { viewCount: { increment: 1 } } })
-    .catch(() => {});
   return article;
 });
