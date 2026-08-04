@@ -50,10 +50,22 @@ export const AppProvider = ({ children }) => {
       const key = uid ? `mr:state:${uid}` : "mr:state:guest";
       let raw = localStorage.getItem(key);
       
-      // Migrate old data if guest and no new key exists
-      if (!uid && !raw) {
-        raw = localStorage.getItem("mr:state");
-        if (raw) localStorage.setItem(key, raw);
+      // Migrate old data if the new key doesn't exist, OR if it was accidentally wiped
+      // and contains no reading history/bookmarks (fixing the previous reset bug).
+      let needsMigration = !raw;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (!parsed.readingHistory?.length && !Object.keys(parsed.readChapters || {}).length && !parsed.bookmarks?.length) {
+          needsMigration = true;
+        }
+      }
+
+      if (needsMigration) {
+        const legacy = localStorage.getItem("mr:state");
+        if (legacy) {
+          raw = legacy;
+          localStorage.setItem(key, raw);
+        }
       }
       
       if (raw) {
