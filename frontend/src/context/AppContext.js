@@ -116,8 +116,55 @@ export const AppProvider = ({ children }) => {
         if (data?.user) {
           setUser(data.user);
           setIsLoggedIn(true);
-          // If the backend has history, we can load it. For now we load local state.
-          loadLocalState(data.user.id);
+          
+          // Merge local history with remote history from database
+          const localKey = `mr:state:${data.user.id}`;
+          const localRaw = localStorage.getItem(localKey) || localStorage.getItem("mr:state:guest") || localStorage.getItem("mr:state");
+          let localState = {};
+          if (localRaw) {
+            try { localState = JSON.parse(localRaw); } catch (e) {}
+          }
+          
+          // Remote state
+          const remoteHistory = Array.isArray(data.user.readingHistory) ? data.user.readingHistory : [];
+          const remoteChapters = (typeof data.user.readChapters === 'object' && data.user.readChapters) ? data.user.readChapters : {};
+          
+          // Merge history (deduplicate by manga title, prefer most recent time)
+          const mergedHistoryMap = new Map();
+          const allHistory = [...remoteHistory, ...(localState.readingHistory || [])];
+          allHistory.forEach(item => {
+            const existing = mergedHistoryMap.get(item.t);
+            if (!existing || new Date(item.time) > new Date(existing.time)) {
+              mergedHistoryMap.set(item.t, item);
+            }
+          });
+          const mergedHistory = Array.from(mergedHistoryMap.values()).sort((a, b) => new Date(b.time) - new Date(a.time));
+          
+          // Merge chapters
+          const mergedChapters = { ...remoteChapters };
+          if (localState.readChapters) {
+            Object.keys(localState.readChapters).forEach(mangaId => {
+              const localArr = localState.readChapters[mangaId] || [];
+              const remoteArr = mergedChapters[mangaId] || [];
+              mergedChapters[mangaId] = Array.from(new Set([...localArr, ...remoteArr])).sort((a, b) => a - b);
+            });
+          }
+          
+          // Set to state
+          setReadingHistory(mergedHistory);
+          setReadChapters(mergedChapters);
+          if (localState.bookmarks) setBookmarks(localState.bookmarks);
+          if (localState.readManga) setReadManga(localState.readManga);
+          
+          // Sync merged data back immediately so it's persisted in DB
+          if (mergedHistory.length > 0 || Object.keys(mergedChapters).length > 0) {
+            fetch("/api/history/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ readingHistory: mergedHistory, readChapters: mergedChapters })
+            }).catch(() => {});
+          }
+
           fetchLibraries();
         } else {
           loadLocalState(null);
