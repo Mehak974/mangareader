@@ -13,7 +13,7 @@ import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
 import AdCashBanner from "@/components/AdCashBanner";
 import MangaNote from "@/components/MangaNote";
-import { MANGA, ALL_CHAPTERS } from "@/data/mockData";
+import { MANGA, ALL_CHAPTERS, abbr, COVER_GRADS } from "@/data/mockData";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -179,12 +179,11 @@ const [chPage, setChPage] = useState(1);
 
         if (!normalizedManga) {
           console.warn("AniList detail fetch missed or returned no results for:", searchTitle);
-          const fallbackCover = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cover') : '';
           
           normalizedManga = {
             id: `fallback-${slugify(searchTitle)}`,
             title: searchTitle,
-            cover: fallbackCover || "",
+            cover: "",
             description: "Detailed description is not available in our database. You can still read the chapters below.",
             status: "RELEASING",
             rating: 4.5,
@@ -412,7 +411,21 @@ const [chPage, setChPage] = useState(1);
               fetchPriority="high"
             />
           ) : (
-            "表紙"
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: COVER_GRADS[0],
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--serif)",
+              fontSize: "18px",
+              color: "rgba(232, 222, 255, .4)",
+              textAlign: "center",
+              padding: "8px",
+            }}>
+              {abbr(manga.title)}
+            </div>
           )}
           <div className="detail-cover-shimmer" style={{ position: "relative", zIndex: 1 }} />
         </div>

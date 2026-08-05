@@ -147,7 +147,15 @@ export default function BlogSidebar({ body, relatedBlogs = [] }) {
                       aspectRatio: '16 / 9',
                       borderRadius: 'var(--r)',
                       background: 'linear-gradient(135deg, var(--accent-bg), var(--bg3))',
-                    }} />
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--serif)',
+                      fontSize: '18px',
+                      color: 'rgba(232, 222, 255, .3)',
+                    }}>
+                      表
+                    </div>
                   )}
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>
                     {b.title}

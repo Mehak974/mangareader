@@ -178,8 +178,8 @@ export default async function BlogPost({ params }) {
           </div>
 
           {/* Cover image */}
-          {article.coverImage && (
-            <div className="blog-cover-image" style={{ position: 'relative', width: '100%', aspectRatio: '16/9', marginBottom: '28px' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', marginBottom: '28px', borderRadius: 'var(--rl)', overflow: 'hidden' }}>
+            {article.coverImage ? (
               <Image
                 src={article.coverImage}
                 alt={article.title}
@@ -191,8 +191,22 @@ export default async function BlogPost({ params }) {
                 }}
                 priority
               />
-            </div>
-          )}
+            ) : (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(135deg, var(--accent-bg), var(--bg3))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--serif)',
+                fontSize: '24px',
+                color: 'rgba(232, 222, 255, .3)',
+              }}>
+                表紙
+              </div>
+            )}
+          </div>
 
           {/* Review scorecard (only for REVIEW articles with structured data) */}
           {review && (

@@ -128,6 +128,59 @@ async function fetchFromMAL(searchQuery, malId = null) {
   return null;
 }
 
+function normalizeMALData(manga) {
+  if (!manga) return null;
+
+  const title = manga.title || 'Untitled Manga';
+  const cover = manga.main_picture?.large || manga.main_picture?.medium || '';
+  const description = manga.synopsis || '';
+  const status = manga.status === 'Publishing' ? 'RELEASING' : (manga.status === 'Finished' ? 'FINISHED' : 'RELEASING');
+  const rating = manga.score ? manga.score / 2 : 4.0;
+  const popularity = manga.members || 0;
+  const genres = (manga.genres || []).map(g => g.name || g).filter(Boolean);
+  const authorsList = (manga.authors || []).map(a => ({
+    name: a.name,
+    role: a.role || 'author'
+  }));
+
+  const formatPartDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const startDate = formatPartDate(manga.published?.from);
+  const endDate = formatPartDate(manga.published?.to);
+
+  return {
+    ...manga,
+    _source: 'mal',
+    id: manga.mal_id,
+    idMal: manga.mal_id,
+    title: {
+      english: title,
+      romaji: null,
+      native: null,
+      userPreferred: title,
+    },
+    coverImage: cover ? { large: cover, extraLarge: cover } : null,
+    description,
+    status,
+    averageScore: rating * 20,
+    score: rating,
+    popularity,
+    genres,
+    startDate: startDate ? { year: parseInt(startDate.split('-')[0]), month: parseInt(startDate.split('-')[1]), day: parseInt(startDate.split('-')[2]) } : null,
+    endDate: endDate ? { year: parseInt(endDate.split('-')[0]), month: parseInt(endDate.split('-')[1]), day: parseInt(endDate.split('-')[2]) } : null,
+    staff: authorsList.length > 0 ? { edges: authorsList.map(a => ({ role: a.role, node: { name: { full: a.name } } })) } : null,
+    authors: authorsList,
+    chapters: manga.chapters || null,
+    countryOfOrigin: manga.country_of_origin || (manga.title?.match(/[\uac00-\ud7a3]/) ? 'KR' : 'JP'),
+    format: manga.type ? manga.type.toUpperCase() : 'MANGA',
+    favourites: manga.favorites || 0,
+    synonyms: manga.synonyms || [],
+  };
+}
+
 /**
  * Normalize and save/upsert a manga record in the canonical database
  */
@@ -135,7 +188,10 @@ async function saveCanonicalManga(media, sourceId = null, sourceSlug = null) {
   if (!media) return null;
 
   // Generate canonical ID
-  const canonicalId = media.id ? `anilist-${media.id}` : `mal-${media.mal_id || Math.random().toString(36).substr(2, 9)}`;
+  const isMalSource = media._source === 'mal';
+  const canonicalId = isMalSource
+    ? `mal-${media.mal_id || media.id || Math.random().toString(36).substr(2, 9)}`
+    : `anilist-${media.id || Math.random().toString(36).substr(2, 9)}`;
   const title = media.title?.english || media.title?.romaji || media.title?.userPreferred || media.title || 'Untitled Manga';
   const cover = media.coverImage?.extraLarge || media.coverImage?.large || media.images?.jpg?.large_image_url || media.images?.jpg?.image_url || '';
   const description = media.description || media.synopsis || '';
@@ -156,7 +212,7 @@ async function saveCanonicalManga(media, sourceId = null, sourceSlug = null) {
   const startDate = typeof media.startDate === 'object' ? formatPartDate(media.startDate) : (media.published?.from?.split('T')[0] || '');
   const endDate = typeof media.endDate === 'object' ? formatPartDate(media.endDate) : (media.published?.to?.split('T')[0] || '');
 
-  const anilistId = media.id ? String(media.id) : null;
+  const anilistId = !isMalSource && media.id ? String(media.id) : null;
   const malId = media.idMal ? String(media.idMal) : (media.mal_id ? String(media.mal_id) : null);
 
   // 1. Insert into manga table
@@ -299,6 +355,14 @@ async function getOrFetchMangaMetadata(title, sourceId = null, sourceSlug = null
   console.log(`Fetching metadata for "${title}" from external APIs...`);
   let media = await fetchFromAnilist(title);
   
+  if (!media) {
+    console.log(`AniList failed for "${title}", trying MyAnimeList fallback...`);
+    const malRaw = await fetchFromMAL(title);
+    if (malRaw) {
+      media = normalizeMALData(malRaw);
+    }
+  }
+  
   if (media) {
     const savedId = await saveCanonicalManga(media, sourceId, sourceSlug);
     return savedId;
@@ -307,9 +371,19 @@ async function getOrFetchMangaMetadata(title, sourceId = null, sourceSlug = null
   // fallback to generic local entry if all lookups failed
   const fallbackId = `local-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   await db.query(`
-    INSERT INTO manga (id, title, status)
-    VALUES ($1, $2, 'RELEASING') ON CONFLICT DO NOTHING
-  `, [fallbackId, title]);
+    INSERT INTO manga (id, title, status, cover, description, banner_image, rating, popularity, country, format)
+    VALUES ($1, $2, 'RELEASING', $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (id) DO UPDATE SET
+      title = EXCLUDED.title,
+      status = EXCLUDED.status,
+      cover = COALESCE(manga.cover, EXCLUDED.cover),
+      description = COALESCE(manga.description, EXCLUDED.description),
+      banner_image = COALESCE(manga.banner_image, EXCLUDED.banner_image),
+      rating = COALESCE(manga.rating, EXCLUDED.rating),
+      popularity = COALESCE(manga.popularity, EXCLUDED.popularity),
+      country = COALESCE(manga.country, EXCLUDED.country),
+      format = COALESCE(manga.format, EXCLUDED.format)
+  `, [fallbackId, title, '', 'No description available.', '', 4.5, 0, 'JP', 'MANGA']);
 
   if (sourceId && sourceSlug) {
     await db.query(`
