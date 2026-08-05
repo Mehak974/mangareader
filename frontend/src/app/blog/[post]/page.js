@@ -26,7 +26,7 @@ import {
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function proxyImage(url) {
-  if (!url || url.includes("anilist.co") || url.startsWith("/")) return url;
+  if (!url || url.startsWith("/")) return url;
   return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 

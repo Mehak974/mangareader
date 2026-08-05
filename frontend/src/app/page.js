@@ -20,10 +20,10 @@ export default async function Home() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  const proxyImage = (url) => {
-    if (!url || url.includes('anilist.co') || url.startsWith('/')) return url;
-    return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
-  };
+const proxyImage = (url) => {
+  if (!url || url.startsWith('/')) return url;
+  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
+};
 
   const [popularNowRes, trendingRes, popularOverallRes, recentRes] = await Promise.all([
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
