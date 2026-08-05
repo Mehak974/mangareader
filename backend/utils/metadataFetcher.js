@@ -132,7 +132,6 @@ function normalizeMALData(manga) {
   if (!manga) return null;
 
   const title = manga.title || 'Untitled Manga';
-  const cover = manga.main_picture?.large || manga.main_picture?.medium || '';
   const description = manga.synopsis || '';
   const status = manga.status === 'Publishing' ? 'RELEASING' : (manga.status === 'Finished' ? 'FINISHED' : 'RELEASING');
   const rating = manga.score ? manga.score / 2 : 4.0;
@@ -162,7 +161,6 @@ function normalizeMALData(manga) {
       native: null,
       userPreferred: title,
     },
-    coverImage: cover ? { large: cover, extraLarge: cover } : null,
     description,
     status,
     averageScore: rating * 20,

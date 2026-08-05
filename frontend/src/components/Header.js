@@ -102,9 +102,6 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                   userPreferred: item.title
                 },
                 genres: (item.genres || []).map(g => g.name),
-                coverImage: {
-                  medium: item.images?.jpg?.image_url || ""
-                }
               }));
             }
           }

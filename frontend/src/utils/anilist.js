@@ -178,7 +178,7 @@ export async function getMangaList(variables) {
             hot: false,
             rating: item.mean ? item.mean / 2 : 4.0,
             ongoing: item.status === 'currently_publishing',
-            cover: item.main_picture?.large || item.main_picture?.medium || "",
+            cover: "",
             genres: genres,
             g: genres.length > 0 ? genres[0] : "Action",
           };
