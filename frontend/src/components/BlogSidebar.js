@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function proxyImage(url) {
+  if (!url || url.includes("anilist.co") || url.startsWith("/")) return url;
+  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 /**
  * Sticky sidebar that auto-generates a Table of Contents from the article's
  * h2/h3 headings. Highlights the currently visible section on scroll.
@@ -133,11 +140,11 @@ export default function BlogSidebar({ body, relatedBlogs = [] }) {
                   {b.coverImage && (
                     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 'var(--r)', overflow: 'hidden' }}>
                       <Image
-                        src={b.coverImage}
+                        src={proxyImage(b.coverImage)}
                         alt={b.title}
                         fill
                         sizes="200px"
-                        style={{ objectFit: 'cover' }}
+                        style={{ objectFit: "cover" }}
                       />
                     </div>
                   )}

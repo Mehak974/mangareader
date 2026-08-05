@@ -7,6 +7,13 @@ import AdCashBanner from "@/components/AdCashBanner";
 import { listPublishedArticles } from "@/lib/editorial";
 import { buildMetadata, websiteSchema, breadcrumbSchema, SITE_URL } from "@/lib/seo";
 
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function proxyImage(url) {
+  if (!url || url.includes("anilist.co") || url.startsWith("/")) return url;
+  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 export const metadata = buildMetadata({
   title: "The Reading Room — Manga Reviews, Guides & Editorials",
   description:
@@ -115,7 +122,7 @@ export default async function Blog({ searchParams }) {
               >
                 {featured.coverImage && (
                   <Image
-                    src={featured.coverImage}
+                    src={proxyImage(featured.coverImage)}
                     alt={`Cover for ${featured.title}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 800px"
@@ -156,7 +163,7 @@ export default async function Blog({ searchParams }) {
                   >
                     {post.coverImage && (
                       <Image
-                        src={post.coverImage}
+                        src={proxyImage(post.coverImage)}
                         alt={`Cover for ${post.title}`}
                         fill
                         sizes="(max-width: 768px) 100vw, 400px"

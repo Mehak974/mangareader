@@ -23,6 +23,13 @@ import {
   SITE_URL,
 } from "@/lib/seo";
 
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function proxyImage(url) {
+  if (!url || url.includes("anilist.co") || url.startsWith("/")) return url;
+  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 // Cache articles for 60 seconds (ISR) so they load instantly from the CDN,
 // while still updating in the background when edited.
 export const revalidate = 60;
@@ -181,13 +188,13 @@ export default async function BlogPost({ params }) {
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', marginBottom: '28px', borderRadius: 'var(--rl)', overflow: 'hidden' }}>
             {article.coverImage ? (
               <Image
-                src={article.coverImage}
+                src={proxyImage(article.coverImage)}
                 alt={article.title}
                 fill
                 style={{
-                  objectFit: 'cover',
-                  borderRadius: 'var(--rl)',
-                  display: 'block',
+                  objectFit: "cover",
+                  borderRadius: "var(--rl)",
+                  display: "block",
                 }}
                 priority
               />
