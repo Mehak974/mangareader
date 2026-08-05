@@ -36,11 +36,7 @@ export default function MangaCard({ manga, index }) {
       router.push(`/manga/${slugify(manga.t || manga.title)}`);
     }
   };
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  let imageUrl = manga.cover || null;
-  if (imageUrl && !imageUrl.includes('anilist.co') && !imageUrl.startsWith('/')) {
-    imageUrl = `${apiBase}/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-  }
+  const imageUrl = manga.cover || null;
   
   const coverStyle = imageUrl
     ? {
