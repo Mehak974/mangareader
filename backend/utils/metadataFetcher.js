@@ -191,7 +191,7 @@ async function saveCanonicalManga(media, sourceId = null, sourceSlug = null) {
     ? `mal-${media.mal_id || media.id || Math.random().toString(36).substr(2, 9)}`
     : `anilist-${media.id || Math.random().toString(36).substr(2, 9)}`;
   const title = media.title?.english || media.title?.romaji || media.title?.userPreferred || media.title || 'Untitled Manga';
-  const cover = media.coverImage?.extraLarge || media.coverImage?.large || media.images?.jpg?.large_image_url || media.images?.jpg?.image_url || '';
+  const cover = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || '';
   const description = media.description || media.synopsis || '';
   const status = media.status || 'RELEASING';
   const rating = media.averageScore ? (media.averageScore / 20) : (media.score || 4.0);
