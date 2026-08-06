@@ -11,6 +11,9 @@ export const API_BASE =
 
 export function proxyImage(url) {
   if (!url || url.startsWith('/') || url.includes('/api/proxy-image')) return url;
+  // AniList CDN images are served optimized with proper CORS headers —
+  // bypass the backend proxy to eliminate an extra round-trip (critical for LCP).
+  if (url.includes('anilist.co')) return url;
   return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 

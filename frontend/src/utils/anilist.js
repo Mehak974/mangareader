@@ -1,4 +1,4 @@
-import { fetchApi } from "./api";
+import { API_BASE } from "./api";
 
 const isServer = typeof window === 'undefined';
 
@@ -10,6 +10,10 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 
       // Server components call AniList directly (no CORS on server).
       // Client components go through the backend proxy to avoid CORS.
+      // Note: we use a direct fetch (not fetchApi) here because the backend's
+      // doubleCsrfProtection middleware is registered AFTER the /api/anilist
+      // route, so CSRF is not enforced on this endpoint. Using fetchApi would
+      // add a wasteful CSRF-token round-trip on every AniList request.
       let res;
       if (isServer) {
         res = await fetch('https://graphql.anilist.co', {
@@ -20,7 +24,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
           next: { revalidate: 3600 },
         });
       } else {
-        res = await fetchApi('/api/anilist', {
+        res = await fetch(`${API_BASE}/api/anilist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ query, variables }),

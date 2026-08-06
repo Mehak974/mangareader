@@ -68,7 +68,9 @@ export default function MangaCard({ manga, index }) {
             fill
             sizes="(max-width: 768px) 50vw, 230px"
             style={{ objectFit: "cover" }}
-            priority={index < 8}
+            priority={index < 4}
+            loading={index < 4 ? "eager" : "lazy"}
+            decoding="async"
           />
         )}
         <div className="m-shimmer" />

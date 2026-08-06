@@ -38,7 +38,7 @@ export function middleware(request) {
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
-    font-src 'self' data: https://fonts.gstatic.com;
+    font-src 'self' data: https://fonts.gstatic.com https://vercel.live;
     connect-src 'self' https: http: ws: wss:;
     object-src 'none';
     base-uri 'self';
