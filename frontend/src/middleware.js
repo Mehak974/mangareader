@@ -54,12 +54,18 @@ export function middleware(request) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
 
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
-  response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
+   const response = NextResponse.next({
+     request: { headers: requestHeaders },
+   });
+   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
 
-  return response;
+   // Prevent search engines from indexing reader pages (duplicate content /
+   // chapter images that shouldn't be crawled).
+   if (request.nextUrl.pathname.startsWith("/reader/")) {
+     response.headers.set("X-Robots-Tag", "noindex, nofollow");
+   }
+
+   return response;
 }
 
 export const config = {

@@ -22,6 +22,11 @@ export default function HomeGenreFilter() {
       .then((res) => {
         setPopularInGenre(res.media || []);
         setLoadingGenre(false);
+      })
+      .catch((err) => {
+        console.warn("Genre fetch failed:", err.message);
+        setPopularInGenre([]);
+        setLoadingGenre(false);
       });
   }, [activeGenre]);
 

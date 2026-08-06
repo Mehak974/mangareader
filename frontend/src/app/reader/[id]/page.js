@@ -12,6 +12,13 @@ import Image from "next/image";
 import { API_BASE } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
 
+export const metadata = { robots: { index: false, follow: false } };
+
+function proxyImage(url) {
+  if (!url || url.startsWith('/')) return url;
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 function ReaderContent({ params }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -516,8 +523,8 @@ const handleChapterSelect = (e) => {
                   </div>
                 </div>
               ) : (
-                  <Image 
-                    src={`https://manga.mehakiqbal974.workers.dev/?url=${encodeURIComponent(imgUrl)}`} 
+                <Image 
+                     src={proxyImage(imgUrl)} 
                     alt={`Page ${i + 1}`} 
                     width={800}
                     height={1200}

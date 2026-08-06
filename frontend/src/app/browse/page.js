@@ -9,10 +9,6 @@ import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
 import AdCashBanner from "@/components/AdCashBanner";
 
-import { MANGA } from "@/data/mockData";
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
 // All popular genres from AniList
 const ANILIST_GENRES = [
   "All",
@@ -186,8 +182,8 @@ useEffect(() => {
         {/* Advanced Filters Panel */}
         <div className="filters-grid">
           <div className="filter-group">
-            <label>Sort</label>
-            <select className="filter-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <label htmlFor="sort-select">Sort</label>
+            <select id="sort-select" className="filter-select" value={sort} onChange={(e) => setSort(e.target.value)}>
               <option>Trending</option>
               <option>Top Rated</option>
               <option>New Releases</option>
@@ -196,8 +192,8 @@ useEffect(() => {
           </div>
 
           <div className="filter-group">
-            <label>Status</label>
-            <select className="filter-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <label htmlFor="status-select">Status</label>
+            <select id="status-select" className="filter-select" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option>All Statuses</option>
               <option>Ongoing</option>
               <option>Completed</option>
@@ -205,8 +201,8 @@ useEffect(() => {
           </div>
 
           <div className="filter-group">
-            <label>Year</label>
-            <select className="filter-select" value={year} onChange={(e) => setYear(e.target.value)}>
+            <label htmlFor="year-select">Year</label>
+            <select id="year-select" className="filter-select" value={year} onChange={(e) => setYear(e.target.value)}>
               <option value="All">All Years</option>
               <option value="2026">2026</option>
               <option value="2025">2025</option>
@@ -219,8 +215,8 @@ useEffect(() => {
           </div>
 
           <div className="filter-group">
-            <label>Min Rating</label>
-            <select className="filter-select" value={rating} onChange={(e) => setRating(e.target.value)}>
+            <label htmlFor="rating-select">Min Rating</label>
+            <select id="rating-select" className="filter-select" value={rating} onChange={(e) => setRating(e.target.value)}>
               <option value="All">Any Rating</option>
               <option value="4.5">★ 4.5+</option>
               <option value="4.0">★ 4.0+</option>
@@ -230,8 +226,8 @@ useEffect(() => {
           </div>
 
           <div className="filter-group">
-            <label>Origin</label>
-            <select className="filter-select" value={country} onChange={(e) => setCountry(e.target.value)}>
+            <label htmlFor="country-select">Origin</label>
+            <select id="country-select" className="filter-select" value={country} onChange={(e) => setCountry(e.target.value)}>
               <option value="All">Any Country</option>
               <option value="JP">Japan</option>
               <option value="KR">Korea</option>
@@ -291,11 +287,12 @@ useEffect(() => {
              {/* Pagination Controls */}
              {pageInfo.lastPage > 1 && (
                <div className="ch-pagination" style={{ marginTop: "32px", justifyContent: "center" }}>
-                 <button
-                   className="pg-btn"
-                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                   disabled={page === 1}
-                 >
+                  <button
+                    className="pg-btn"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                  >
                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                    </svg>
@@ -320,11 +317,12 @@ useEffect(() => {
                    );
                  })}
 
-                 <button
-                   className="pg-btn"
-                   onClick={() => setPage((p) => Math.min(pageInfo.lastPage, p + 1))}
-                   disabled={page === pageInfo.lastPage}
-                 >
+                  <button
+                    className="pg-btn"
+                    onClick={() => setPage((p) => Math.min(pageInfo.lastPage, p + 1))}
+                    disabled={page === pageInfo.lastPage}
+                    aria-label="Next page"
+                  >
                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                    </svg>

@@ -2759,13 +2759,13 @@ body:not(.logged-in) .guest-flex {
   color: #fff
 }
 
-.pg-btn:disabled {
-  opacity: .3;
+  .pg-btn:disabled {
+  opacity: .5;
   cursor: not-allowed
 }
 
-.pg-ellipsis {
-  color: var(--text3);
+  .pg-ellipsis {
+  color: var(--text2);
   font-size: 13px;
   padding: 0 3px
 }
@@ -4306,11 +4306,11 @@ body:not(.logged-in) .guest-flex {
   gap: 6px;
 }
 
-.filter-group label {
+  .filter-group label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text3);
+  color: var(--text2);
   font-weight: 700;
 }
 

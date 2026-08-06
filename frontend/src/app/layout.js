@@ -75,9 +75,9 @@ export default function RootLayout({ children }) {
         <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://graphql.anilist.co" />
-        <link rel="preconnect" href="https://s4.anilist.co" />
-        <link rel="dns-prefetch" href="https://cdn.myanimelist.net" />
+        {process.env.NEXT_PUBLIC_API_URL && (
+          <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
+        )}
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
