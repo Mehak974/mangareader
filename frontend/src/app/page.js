@@ -1,7 +1,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ALL_GENRES, MANGA, abbr } from "@/data/mockData";
+import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
@@ -18,7 +18,7 @@ export const revalidate = 300; // Revalidate every 5 minutes
 export default async function Home() {
   // Set a 5-second timeout for the backend fetch so it doesn't hang the Vercel build
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
 const proxyImage = (url) => {
   if (!url || url.startsWith('/')) return url;

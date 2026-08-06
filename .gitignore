@@ -14,3 +14,14 @@ build/
 step*.txt
 *_history.txt
 fix_all.js
+
+# Temporary utility/debug scripts (backfill, checks, tests, fixes)
+backend/test*.js
+backend/check-*.js
+backend/backfill-*.js
+backend/fix-*.js
+backend/count-*.js
+remove_ads.js
+fix_reader.js
+add_search.js
+fix_manga.js

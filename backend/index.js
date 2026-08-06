@@ -577,11 +577,13 @@ app.get('/api/manga/search',async(req,res)=>{
   }catch(err){res.status(500).json({error:err.message});}
 });
 
-app.get('/api/home',async(req,res)=>{
+app.get('/api/home',rateLimit(60000,30),async(req,res)=>{
   const c=await getCached('home');if(c)return res.json({data:c,cached:true});
   const results=await Promise.allSettled(Object.values(SOURCE_SCRAPERS).map(async s=>{
-    try{const d=await s.getHome();return{sourceId:s.id,...d};}
-    catch(err){return{sourceId:s.id,items:[],error:err.message};}
+    try{
+      const d=await Promise.race([s.getHome(),new Promise((_,rej)=>setTimeout(()=>rej(new Error('Home scraper timeout')),8000))]);
+      return{sourceId:s.id,...d};
+    }catch(err){return{sourceId:s.id,items:[],error:err.message};}
   }));
   const sections=results.map(r=>r.status==='fulfilled'?r.value:{items:[],error:r.reason?.message});
   await setCached('home',sections);res.json({data:sections,cached:false});
@@ -629,9 +631,20 @@ function isPrivateIP(hostname) {
   return false;
 }
 
+// In-memory cache for proxied images (10MB cap, 1-hour TTL)
+const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
+const IMAGE_CACHE_MAX = 200;
+
 app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
   const{url,w}=req.query;
   if(!url||!isValidUrl(url))return res.status(400).send('Invalid url');
+  const cacheKey = `${url}|${w||''}`;
+  const cached = imageCache.get(cacheKey);
+  if (cached) {
+    res.setHeader('Content-Type', cached.ct);
+    res.setHeader('Cache-Control','public, max-age=604800, stale-while-revalidate=86400');
+    return res.send(cached.buf);
+  }
   try{
     const parsed=new URL(url);
     if (parsed.protocol !== 'https:') return res.status(400).send('Only HTTPS URLs allowed');
@@ -647,13 +660,21 @@ app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
 
     const origin=parsed.origin;
     const r=await axios({method:'get',url,responseType:'arraybuffer',headers:{Referer:origin+'/',
-      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'image/*,*/*;q=0.8'},timeout:15000});
+      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'image/*,*/*;q=0.8'},timeout:8000});
     let buf,ct='image/webp';
     try{
       let p=sharp(Buffer.from(r.data));
       if(w){const wi=parseInt(w);if(!isNaN(wi)&&wi>0&&wi<=2000)p=p.resize({width:wi,withoutEnlargement:true});}
       buf=await p.webp({quality:75}).toBuffer();
     }catch{buf=Buffer.from(r.data);ct=r.headers['content-type']||'image/jpeg';}
+    
+    // Cache processed image (evict oldest if over cap)
+    if (Object.keys(imageCache.keys()).length >= IMAGE_CACHE_MAX) {
+      const keys = imageCache.keys();
+      imageCache.del(keys[0]);
+    }
+    imageCache.set(cacheKey, { buf, ct });
+    
     res.setHeader('Content-Type',ct);res.removeHeader('Content-Disposition');
     res.setHeader('Cache-Control','public, max-age=604800, stale-while-revalidate=86400');
     res.send(buf);
