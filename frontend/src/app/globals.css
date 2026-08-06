@@ -25,7 +25,7 @@
   --r: 8px;
   --rl: 12px;
   --rxl: 16px;
-  --font: var(--font-dm-sans), sans-serif;
+  --font: var(--font-dm-sans), system-ui, sans-serif;
   --serif: var(--font-noto-serif-jp), serif;
 }
 
@@ -1023,6 +1023,36 @@ body.incognito .incognito-bar {
 
 [data-theme="light"] .m-shimmer {
   background: linear-gradient(160deg, rgba(255, 255, 255, .4), transparent 55%)
+}
+
+/* Skeleton loaders for async content — match real card dimensions to prevent CLS */
+.skeleton-cover {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  animation: pulse-skel 1.5s ease-in-out infinite;
+}
+
+.skeleton-shimmer {
+  display: none;
+}
+
+.skeleton-title {
+  display: none;
+}
+
+.m-skeleton-title {
+  height: 12px;
+  width: 80%;
+  background: var(--surface2);
+  border-radius: 3px;
+  margin-bottom: 4px;
+  animation: pulse-skel 1.5s ease-in-out infinite;
+  animation-delay: 100ms;
+}
+
+@keyframes pulse-skel {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .m-hot {
@@ -4373,7 +4403,7 @@ body:not(.logged-in) .guest-flex {
 .lsk-body,
 .chapter-list-wrap {
   content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
+  contain-intrinsic-size: auto 500px;
 }
 
 /* ── PERFORMANCE: use GPU compositing for animated elements ── */

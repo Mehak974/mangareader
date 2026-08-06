@@ -56,6 +56,7 @@ export const metadata = {
   other: {
     "google-adsense-account": "ca-pub-4938022536946038",
     "clckd": "86b8c0654c9747f415992c207c9c12a2",
+    "purpleads-verification": "d26ac344796b2665a44df336",
   },
 };
 

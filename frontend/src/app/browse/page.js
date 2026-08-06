@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
+import MangaSkeleton from "@/components/MangaSkeleton";
 import Footer from "@/components/Footer";
-import Loader from "@/components/Loader";
 
 // All popular genres from AniList
 const ANILIST_GENRES = [
@@ -68,26 +68,7 @@ const [page, setPage] = useState(1);
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState(null);
 
-  // Dynamic mobile viewport layout checking
-  const [isMobile, setIsMobile] = useState(false);
-
-useEffect(() => {
-     let debounceTimer = null;
-     const handleResize = () => {
-       clearTimeout(debounceTimer);
-       debounceTimer = setTimeout(() => {
-         setIsMobile(window.innerWidth <= 768);
-       }, 150);
-     };
-     handleResize();
-     window.addEventListener("resize", handleResize);
-     return () => {
-       clearTimeout(debounceTimer);
-       window.removeEventListener("resize", handleResize);
-     };
-   }, []);
-
-  const perPage = isMobile ? 27 : 36;
+  const perPage = 36;
 
   // Read search parameters for initial values
   useEffect(() => {
@@ -260,9 +241,11 @@ useEffect(() => {
         </div>
       </div>
       <div className="section" style={{ minHeight: "400px" }}>
-         {loading ? (
-           <Loader />
-         ) : error && !mangaList.length ? (
+          {loading ? (
+            <div className="manga-grid browse-grid">
+              <MangaSkeleton count={36} />
+            </div>
+          ) : error && !mangaList.length ? (
            <div style={{ textAlign: "center", padding: "60px 20px" }}>
              <h3 style={{ color: "var(--red)", marginBottom: "12px" }}>Unable to load manga</h3>
              <p style={{ color: "var(--text3)", marginBottom: "16px" }}>{error}</p>
