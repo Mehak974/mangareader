@@ -22,7 +22,7 @@ const nextConfig = {
 
   experimental: {
     optimizeCss: true,
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', 'react-hot-toast', '@use-gesture/react', 'react-markdown', 'remark-gfm', 'rehype-sanitize'],
   },
 
   // Remote image sources — backend proxy + known CDNs

@@ -9,6 +9,11 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001";
 
+export function proxyImage(url) {
+  if (!url || url.startsWith('/') || url.includes('/api/proxy-image')) return url;
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 let csrfToken = null;
 
 export async function fetchApi(endpoint, options = {}) {

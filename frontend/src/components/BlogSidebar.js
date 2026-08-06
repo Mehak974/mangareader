@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-function proxyImage(url) {
-  if (!url || url.startsWith("/")) return url;
-  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
-}
+import { proxyImage } from "@/utils/api";
 
 /**
  * Sticky sidebar that auto-generates a Table of Contents from the article's

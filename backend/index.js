@@ -633,7 +633,7 @@ function isPrivateIP(hostname) {
 
 // In-memory cache for proxied images (10MB cap, 1-hour TTL)
 const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
-const IMAGE_CACHE_MAX = 200;
+const IMAGE_CACHE_MAX = 500;
 
 app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
   const{url,w}=req.query;

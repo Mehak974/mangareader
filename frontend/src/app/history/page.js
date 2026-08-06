@@ -7,6 +7,7 @@ import { abbr } from "@/data/mockData";
 import Footer from "@/components/Footer";
 import { slugify } from "@/utils/slugify";
 import Image from "next/image";
+import { proxyImage } from "@/utils/api";
 
 export default function History() {
   const router = useRouter();
@@ -73,7 +74,7 @@ export default function History() {
                   >
                     {h.cover && h.cover !== "undefined" && h.cover !== "null" && (h.cover.startsWith("http") || h.cover.startsWith("/")) ? (
                       <Image 
-                        src={h.cover} 
+                        src={proxyImage(h.cover)} 
                         alt={h.t} 
                         fill
                         sizes="80px"

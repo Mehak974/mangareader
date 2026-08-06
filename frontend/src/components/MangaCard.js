@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { COVER_GRADS, abbr } from "@/data/mockData";
 import { isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
+import { proxyImage } from "@/utils/api";
 
 export default function MangaCard({ manga, index }) {
   const router = useRouter();
@@ -36,12 +37,8 @@ export default function MangaCard({ manga, index }) {
       router.push(`/manga/${slugify(manga.t || manga.title)}`);
     }
   };
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-let imageUrl = manga.cover || null;
-   if (imageUrl && imageUrl.startsWith('http')) {
-      imageUrl = `${apiBase}/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-   }
-  
+  const imageUrl = proxyImage(manga.cover || null);
+   
   const coverStyle = imageUrl
     ? {
         filter: shouldBlur ? "blur(40px) brightness(0.3)" : "none",

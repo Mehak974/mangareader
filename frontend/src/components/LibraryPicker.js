@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
+import { proxyImage } from "@/utils/api";
 
 export default function LibraryPicker() {
   const {
@@ -101,7 +102,7 @@ export default function LibraryPicker() {
               style={{ position: "relative", overflow: "hidden" }}
             >
               <Image
-                src={libraryPickerManga.cover}
+                src={proxyImage(libraryPickerManga.cover)}
                 alt={`Cover for ${libraryPickerManga.t || libraryPickerManga.title || "Unknown"}`}
                 fill
                 sizes="60px"

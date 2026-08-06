@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
+import { proxyImage } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
@@ -18,11 +19,6 @@ export default async function Home() {
   // Set a 5-second timeout for the backend fetch so it doesn't hang the Vercel build
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-const proxyImage = (url) => {
-  if (!url || url.startsWith('/')) return url;
-  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
-};
 
   const [popularNowRes, trendingRes, popularOverallRes, recentRes] = await Promise.all([
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),

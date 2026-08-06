@@ -5,13 +5,7 @@ import JsonLd from "@/components/JsonLd";
 
 import { listPublishedArticles } from "@/lib/editorial";
 import { buildMetadata, websiteSchema, breadcrumbSchema, SITE_URL } from "@/lib/seo";
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-function proxyImage(url) {
-  if (!url || url.startsWith("/")) return url;
-  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
-}
+import { proxyImage } from "@/utils/api";
 
 export const metadata = buildMetadata({
   title: "The Reading Room — Manga Reviews, Guides & Editorials",
@@ -199,7 +193,7 @@ export default async function Blog({ searchParams }) {
                 >
                   {p.coverImage && (
                     <Image
-                      src={p.coverImage}
+                      src={proxyImage(p.coverImage)}
                       alt={`Cover for ${p.title}`}
                       fill
                       sizes="150px"

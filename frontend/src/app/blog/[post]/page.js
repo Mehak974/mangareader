@@ -22,12 +22,7 @@ import {
   SITE_URL,
 } from "@/lib/seo";
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-function proxyImage(url) {
-  if (!url || url.startsWith("/")) return url;
-  return `${apiBase}/api/proxy-image?url=${encodeURIComponent(url)}`;
-}
+import { proxyImage } from "@/utils/api";
 
 // Cache articles for 60 seconds (ISR) so they load instantly from the CDN,
 // while still updating in the background when edited.

@@ -12,7 +12,8 @@ import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
 import MangaNote from "@/components/MangaNote";
-import { MANGA, ALL_CHAPTERS, abbr, COVER_GRADS } from "@/data/mockData";
+import { MANGA, abbr, COVER_GRADS } from "@/data/mockData";
+import { proxyImage } from "@/utils/api";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -401,7 +402,7 @@ const [chPage, setChPage] = useState(1);
         >
           {manga.cover ? (
             <Image
-              src={manga.cover}
+              src={proxyImage(manga.cover)}
               alt={`Cover for ${manga.title}`}
               fill
               sizes="(max-width: 768px) 100vw, 350px"

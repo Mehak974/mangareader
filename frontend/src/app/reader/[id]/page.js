@@ -3,18 +3,11 @@
 import React, { use, useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import Footer from "@/components/Footer";
-import Loader, { MiniLoader } from "@/components/Loader";
-import MangaNote from "@/components/MangaNote";
+import Loader from "@/components/Loader";
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
-import { API_BASE } from "@/utils/api";
+import { API_BASE, proxyImage } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
-
-function proxyImage(url) {
-  if (!url || url.startsWith('/')) return url;
-  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
-}
 
 function ReaderContent({ params }) {
   const router = useRouter();

@@ -54,10 +54,26 @@ export default async function sitemap() {
       priority: 0.7,
     }));
   } catch {
-    // If the database is unreachable at request time, still emit the static
-    // routes rather than failing the whole sitemap.
     articleEntries = [];
   }
 
-  return [...staticEntries, ...articleEntries];
+  // Include manga detail pages so Google can discover them
+  let mangaEntries = [];
+  try {
+    const mangaList = await prisma.manga.findMany({
+      select: { id: true, title: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 5000,
+    });
+    mangaEntries = mangaList.map((m) => ({
+      url: `${SITE_URL}/manga/${m.id || m.title}`,
+      lastModified: m.updatedAt,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    }));
+  } catch {
+    mangaEntries = [];
+  }
+
+  return [...staticEntries, ...articleEntries, ...mangaEntries];
 }

@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { MANGA, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { fetchAnilist, MANGA_QUERY } from "@/utils/anilist";
+import { proxyImage } from "@/utils/api";
 
 export default function Header() {
   const router = useRouter();
@@ -312,7 +313,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     >
                       {m.cover ? (
                         <Image
-                          src={m.cover}
+                          src={proxyImage(m.cover)}
                           alt={`Cover for ${m.t}`}
                           fill
                           sizes="40px"

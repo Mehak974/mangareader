@@ -7,6 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import InkDots from "@/components/InkDots";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import JsonLd from "@/components/JsonLd";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import AchievementToast from "@/components/AchievementToast";
@@ -99,6 +100,7 @@ export default function RootLayout({ children }) {
           </MaintenanceGuard>
         </AppProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

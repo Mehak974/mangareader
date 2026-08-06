@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
+import { proxyImage } from "@/utils/api";
 
 function LibraryContent() {
   const searchParams = useSearchParams();
@@ -65,7 +66,7 @@ function LibraryContent() {
                             {m.cover ? (
                               <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "4px", overflow: "hidden" }}>
                                 <Image
-                                  src={m.cover}
+                                  src={proxyImage(m.cover)}
                                   alt={`Cover for ${m.title}`}
                                   fill
                                   sizes="120px"
