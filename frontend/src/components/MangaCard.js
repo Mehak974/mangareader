@@ -38,12 +38,8 @@ export default function MangaCard({ manga, index }) {
   };
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 let imageUrl = manga.cover || null;
-<<<<<<< HEAD
    if (imageUrl && imageUrl.startsWith('http')) {
-=======
-   if (imageUrl && imageUrl.startsWith('http')) {
->>>>>>> 882e3db (chore: blog fixes and cover backfill scripts)
-     imageUrl = `${apiBase}/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+      imageUrl = `${apiBase}/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
    }
   
   const coverStyle = imageUrl
