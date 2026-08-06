@@ -11,7 +11,6 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
-import AdCashBanner from "@/components/AdCashBanner";
 import MangaNote from "@/components/MangaNote";
 import { MANGA, ALL_CHAPTERS, abbr, COVER_GRADS } from "@/data/mockData";
 
@@ -554,7 +553,6 @@ const [chPage, setChPage] = useState(1);
 
       <div className={`manga-detail-grid ${activeTab === 'chapters' ? 'active-chapters' : 'active-discussion'}`}>
         <div className="manga-detail-chapters">
-          <AdCashBanner />
 
 
           {/* CHAPTER LIST HEADER */}

@@ -7,7 +7,6 @@ import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
-import AdCashBanner from "@/components/AdCashBanner";
 
 // All popular genres from AniList
 const ANILIST_GENRES = [
@@ -260,7 +259,6 @@ useEffect(() => {
           ))}
         </div>
       </div>
-      <AdCashBanner />
       <div className="section" style={{ minHeight: "400px" }}>
          {loading ? (
            <Loader />

@@ -5,14 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "@/components/Footer";
 import Loader, { MiniLoader } from "@/components/Loader";
-import AdCashBanner from "@/components/AdCashBanner";
 import MangaNote from "@/components/MangaNote";
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 import { API_BASE } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
-
-export const metadata = { robots: { index: false, follow: false } };
 
 function proxyImage(url) {
   if (!url || url.startsWith('/')) return url;
@@ -472,9 +469,6 @@ const handleChapterSelect = (e) => {
           <div className="brightness-label" style={{ marginTop: "140px" }}>{100 - brightness}%</div>
         </div>
       )}
-      {/* Top Banner Ad */}
-      <AdCashBanner />
-
       {/* Manga Pages List */}
       <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: 0 }}>
         {images.map((imgUrl, i) => {

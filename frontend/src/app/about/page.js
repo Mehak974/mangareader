@@ -39,7 +39,7 @@ export default function AboutPage() {
             I decided I had enough. I wanted to build a platform that solved every single problem I faced as a reader. 
           </p>
           <ul>
-            <li><strong>Clean Experience:</strong> No intrusive pop-unders or malicious redirects. Just clean, non-intrusive banner ads to keep the servers running.</li>
+            <li><strong>Clean Experience:</strong> No intrusive pop-unders or malicious redirects. Ad-free reading experience.</li>
             <li><strong>Massive Library:</strong> A wide range of titles aggregated across the web, updated as fast as possible.</li>
             <li><strong>Seamless Tracking:</strong> Built-in library management so you always know exactly which chapter you are on.</li>
           </ul>

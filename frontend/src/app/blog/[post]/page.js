@@ -11,7 +11,6 @@ const DynamicMarkdown = dynamicImport(() => import("@/components/Markdown"), {
 
 import BlogSidebarWrapper from "@/components/BlogSidebarWrapper";
 import JsonLd from "@/components/JsonLd";
-import AdCashBanner from "@/components/AdCashBanner";
 import ViewTracker from "@/components/ViewTracker";
 
 import CommentSection from "@/components/CommentSection";
@@ -148,8 +147,6 @@ export default async function BlogPost({ params }) {
               {article.excerpt}
             </p>
           )}
-          <AdCashBanner />
-
           <div
             style={{
               display: "flex",
