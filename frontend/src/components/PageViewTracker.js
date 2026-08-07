@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 function generateId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -14,6 +15,8 @@ function generateId() {
 }
 
 export default function PageViewTracker() {
+  const pathname = usePathname();
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -23,8 +26,20 @@ export default function PageViewTracker() {
     let visitorId = localStorage.getItem("visitorId");
     if (!visitorId) {
       visitorId = generateId();
-      localStorage.setItem("visitorId", visitorId);
+      try {
+        localStorage.setItem("visitorId", visitorId);
+      } catch {
+        // localStorage may be unavailable
+      }
     }
+
+    const userId = (() => {
+      try {
+        return localStorage.getItem("userId") || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
 
     const isPwa =
       typeof window.matchMedia === "function" &&
@@ -34,6 +49,7 @@ export default function PageViewTracker() {
       path: path.slice(0, 500),
       referrer: document.referrer || undefined,
       visitorId,
+      userId,
       isPwa,
     };
 
@@ -41,11 +57,13 @@ export default function PageViewTracker() {
       "Content-Type": "application/json",
     };
 
-    const beacon = navigator.sendBeacon
-      ? navigator.sendBeacon("/api/page-view", JSON.stringify(payload))
-      : false;
-
-    if (!beacon) {
+    if (navigator.sendBeacon) {
+      try {
+        navigator.sendBeacon("/api/page-view", JSON.stringify(payload));
+      } catch {
+        // ignore beacon failures
+      }
+    } else {
       fetch("/api/page-view", {
         method: "POST",
         headers,
@@ -53,7 +71,7 @@ export default function PageViewTracker() {
         keepalive: true,
       }).catch(() => {});
     }
-  }, []);
+  }, [pathname]);
 
   return null;
 }
