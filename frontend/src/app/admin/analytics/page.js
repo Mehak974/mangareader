@@ -3,11 +3,6 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "Analytics · Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-function fmtDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 function fmtTime(d) {
   if (!d) return "—";
   return new Date(d).toLocaleString("en-US", {
@@ -56,43 +51,80 @@ export default async function AdminAnalyticsPage({ searchParams }) {
   else if (range === "7d") startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   else if (range === "30d") startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [total, uniqueVisitors, topPages, recent, byDay] = await Promise.all([
-    prisma.pageView.count({ where: { createdAt: { gte: startDate } } }),
-    prisma.pageView.count({
-      where: {
-        createdAt: { gte: startDate },
-        userId: { not: null },
-      },
-    }),
-    prisma.pageView.groupBy({
-      by: ["path"],
-      where: { createdAt: { gte: startDate } },
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 10,
-    }),
-    prisma.pageView.findMany({
-      where: { createdAt: { gte: startDate } },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: {
-        id: true,
-        path: true,
-        userId: true,
-        referrer: true,
-        createdAt: true,
-      },
-    }),
-    prisma.$queryRaw`
-      SELECT 
-        DATE(created_at) as date,
-        COUNT(*) as count
-      FROM page_views
-      WHERE created_at >= ${startDate}
-      GROUP BY DATE(created_at)
-      ORDER BY DATE(created_at) ASC
-    `,
-  ]);
+  let total = 0;
+  let uniqueVisitors = 0;
+  let topPages = [];
+  let recent = [];
+  let byDay = [];
+
+  try {
+    const [totalRes, uniqueRes, topRes, recentRes] = await Promise.all([
+      prisma.pageView.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.pageView.count({
+        where: {
+          createdAt: { gte: startDate },
+          userId: { not: null },
+        },
+      }),
+      prisma.pageView.groupBy({
+        by: ["path"],
+        where: { createdAt: { gte: startDate } },
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+        take: 10,
+      }),
+      prisma.pageView.findMany({
+        where: { createdAt: { gte: startDate } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          path: true,
+          userId: true,
+          referrer: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    total = totalRes;
+    uniqueVisitors = uniqueRes;
+    topPages = topRes.map((p) => ({
+      path: p.path,
+      views: p._count.id,
+    }));
+    recent = recentRes.map((r) => ({
+      id: r.id,
+      path: r.path,
+      userId: r.userId,
+      referrer: r.referrer,
+      createdAt: r.createdAt,
+    }));
+
+    try {
+      const raw = await prisma.$queryRaw`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as count
+        FROM page_views
+        WHERE created_at >= ${startDate}
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at) ASC
+      `;
+      byDay = raw.map((r) => ({
+        date: r.date ? new Date(r.date).toISOString().split("T")[0] : "",
+        count: parseInt(r.count || 0),
+      }));
+    } catch {
+      byDay = [];
+    }
+  } catch {
+    total = 0;
+    uniqueVisitors = 0;
+    topPages = [];
+    recent = [];
+    byDay = [];
+  }
 
   const rangeHref = (r) => {
     const params = new URLSearchParams();
