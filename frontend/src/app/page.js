@@ -12,7 +12,7 @@ import HomeAuthNudge from "@/components/HomeAuthNudge";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 600; // Revalidate every 10 minutes (ISR) — balances freshness vs cold-start LCP
 
 // Server components can be async
 export default async function Home() {
@@ -118,8 +118,14 @@ export default async function Home() {
   const featuredHero = finalPopularNow[0];
   const desktopHero = finalTrending[0];
 
+  // Preload the LCP hero image so the browser starts fetching it as early as possible
+  const heroImageUrl = featuredHero?.cover ? proxyImage(featuredHero.cover) : null;
+
   return (
     <div>
+      {heroImageUrl && (
+        <link rel="preload" as="image" href={heroImageUrl} fetchPriority="high" />
+      )}
       {/* MOBILE HERO VIEWPORT */}
       <div className="mob-hero">
         {featuredHero ? (
@@ -134,15 +140,16 @@ export default async function Home() {
             >
                {featuredHero.cover ? (
                  <Image
-                   src={proxyImage(featuredHero.cover)}
-                   alt={`Cover for ${featuredHero.t}`}
-                   fill
-                   sizes="100vw"
-                   style={{ objectFit: "cover", objectPosition: "center" }}
-                   priority
-                   loading="eager"
-                   fetchPriority="high"
-                 />
+                    src={proxyImage(featuredHero.cover)}
+                    alt={`Cover for ${featuredHero.t}`}
+                    fill
+                    sizes="100vw"
+                    style={{ objectFit: "cover", objectPosition: "center" }}
+                    priority
+                    loading="eager"
+                    fetchPriority="high"
+                    referrerPolicy="no-referrer"
+                  />
               ) : (
                 "表"
               )}
@@ -218,15 +225,16 @@ export default async function Home() {
               >
                 {desktopHero.cover ? (
                  <Image
-                     src={proxyImage(desktopHero.cover)}
-                     alt={`Cover for ${desktopHero.t}`}
-                     fill
-                     sizes="(max-width: 768px) 100vw, 50vw"
-                     style={{ objectFit: "cover", objectPosition: "center" }}
-                     priority
-                     loading="eager"
-                     fetchPriority="high"
-                   />
+                    src={proxyImage(desktopHero.cover)}
+                    alt={`Cover for ${desktopHero.t}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    style={{ objectFit: "cover", objectPosition: "center" }}
+                    priority
+                    loading="eager"
+                    fetchPriority="high"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   "表紙"
                 )}
