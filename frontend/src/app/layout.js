@@ -78,7 +78,6 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://s4.anilist.co" />
-        <link rel="preconnect" href="https://cdn.myanimelist.net" />
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
         )}
