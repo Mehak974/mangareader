@@ -31,6 +31,33 @@ import { NextResponse } from "next/server";
  * console open and confirm there are no CSP violation reports.
  */
 export function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // ── Redirect legacy URL patterns to current routes ──────────────────
+  // Old genre/platform/origin filter URLs that no longer exist as routes
+  // (they were 404-ing → contributing to 4xx crawl errors in GSC).
+  // Redirect to /browse which now handles all filtering via query params.
+  const legacyPatterns = [
+    /^\/manga\/genre\/(.+)$/,
+    /^\/manga\/platform\/(.+)$/,
+    /^\/manga\/origin\/(.+)$/,
+    /^\/genre\/(.+)$/,
+    /^\/reading-guides\/(.+)$/,
+  ];
+
+  for (const pattern of legacyPatterns) {
+    const match = pathname.match(pattern);
+    if (match) {
+      const dest = pathname.startsWith("/reading-guides") ? "/blog" : "/browse";
+      return NextResponse.redirect(new URL(dest, request.url), { status: 301 });
+    }
+  }
+
+  // /manga (no title slug) → /browse
+  if (pathname === "/manga" || pathname === "/manga/") {
+    return NextResponse.redirect(new URL("/browse", request.url), { status: 301 });
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
   const cspHeader = `
