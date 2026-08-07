@@ -20,9 +20,9 @@ export default async function Home() {
   // These are fetched in parallel. The backend /api/home fetch is deliberately
   // NOT in this Promise.all so a slow backend can't delay the hero image.
   const [popularNowRes, trendingRes, popularOverallRes] = await Promise.all([
-    getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-    getMangaList({ perPage: 24, sort: ["TRENDING_DESC"] }),
-    getMangaList({ perPage: 24, sort: ["POPULARITY_DESC"] }),
+    getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
+    getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }),
+    getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }),
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0
@@ -38,14 +38,17 @@ export default async function Home() {
     : [];
 
   // ── Non-critical: backend fetch for Recently Added (below the fold on mobile) ──
-  // Short 3 s timeout — if it doesn't resolve in time, we fall back to AniList
-  // "newest" results so the page never blocks on a slow backend.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  // Use Promise.race with a 500 ms timeout so a slow backend can't delay
+  // the initial page paint. If it doesn't resolve in 500 ms, fall back to
+  // AniList "newest" results for the Recently Added section.
+  const backendPromise = fetch(`${apiBase}/api/home`)
+    .then(r => r.json())
+    .catch(() => ({ data: [] }));
 
-  const recentRes = await fetch(`${apiBase}/api/home`, { signal: controller.signal })
-    .then(r => { clearTimeout(timeoutId); return r.json(); })
-    .catch((err) => { clearTimeout(timeoutId); console.warn("Backend fetch failed/timed out:", err.message); return { data: [] }; });
+  const recentRes = await Promise.race([
+    backendPromise,
+    new Promise(resolve => setTimeout(() => resolve({ data: [] }), 500)),
+  ]);
 
   let recentlyAdded = [];
   if (recentRes?.data && recentRes.data.length > 0) {
@@ -253,18 +256,19 @@ export default async function Home() {
                       : {}
                   }
                 >
-                  {r.cover ? (
-                    <Image
-                      src={proxyImage(r.cover)}
-                      alt={`Cover for ${r.t}`}
-                      fill
-                      sizes="60px"
-                      style={{ objectFit: "cover", objectPosition: "center" }}
-                      
-                    />
-                  ) : (
-                    abbr(r.t)
-                  )}
+                   {r.cover ? (
+                     <Image
+                       src={proxyImage(r.cover)}
+                       alt={`Cover for ${r.t}`}
+                       fill
+                       sizes="60px"
+                       style={{ objectFit: "cover", objectPosition: "center" }}
+                       loading="lazy"
+                       decoding="async"
+                     />
+                   ) : (
+                     abbr(r.t)
+                   )}
                 </div>
                 <div className="r-info">
                   <div className="r-title">{r.t}</div>
@@ -342,18 +346,19 @@ export default async function Home() {
                       : {}
                   }
                 >
-                  {r.cover ? (
-                    <Image
-                      src={proxyImage(r.cover)}
-                      alt={`Cover for ${r.t}`}
-                      fill
-                      sizes="48px"
-                      style={{ objectFit: "cover", objectPosition: "center" }}
-                      
-                    />
-                  ) : (
-                    abbr(r.t)
-                  )}
+                   {r.cover ? (
+                     <Image
+                       src={proxyImage(r.cover)}
+                       alt={`Cover for ${r.t}`}
+                       fill
+                       sizes="48px"
+                       style={{ objectFit: "cover", objectPosition: "center" }}
+                       loading="lazy"
+                       decoding="async"
+                     />
+                   ) : (
+                     abbr(r.t)
+                   )}
                 </div>
                 <div className="rc-body">
                   <div className="rc-title">{r.t}</div>
