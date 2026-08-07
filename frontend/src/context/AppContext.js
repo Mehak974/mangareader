@@ -369,7 +369,6 @@ export const AppProvider = ({ children }) => {
       setUser(data.user);
       setIsLoggedIn(true);
       setSigninSheetOpen(false);
-      if (data.user?.id) localStorage.setItem("userId", data.user.id);
       fetchLibraries();
       return { ok: true };
     } catch {
@@ -407,7 +406,6 @@ export const AppProvider = ({ children }) => {
     setIsLoggedIn(false);
     setLibraries([]);
     setBookmarks([]);
-    localStorage.removeItem("userId");
     loadLocalState(null); // Load guest history
   };
 

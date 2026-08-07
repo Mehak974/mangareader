@@ -912,17 +912,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/active', async (req, res) => {
-  try {
-    const userId = req.body?.userId || req.headers['x-user-id'];
-    if (!userId) return res.json({ success: true });
-    await db.query('UPDATE users SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ── SYSTEM SETTINGS & MAINTENANCE ────────────────────────────────────────────────
 app.get('/api/settings/maintenance', async (req, res) => {
   try {

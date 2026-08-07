@@ -26,12 +26,6 @@ const NAV = [
     ],
   },
   {
-    label: "Insights",
-    items: [
-      { href: "/admin/analytics", label: "Analytics", icon: "📊" },
-    ],
-  },
-  {
     label: "Security",
     adminOnly: true,
     items: [

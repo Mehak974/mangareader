@@ -277,28 +277,6 @@ model LoginAttempt {
   @@map("login_attempts")
 }
 
-// Page views for internal analytics (replaces Vercel Analytics).
-model PageView {
-  id        String   @id @default(cuid())
-  path      String   @db.Text
-  userId    String?  @map("user_id")
-  visitorId String?  @map("visitor_id")
-  referrer  String?  @db.Text
-  userAgent String?  @map("user_agent") @db.Text
-  device    String?
-  browser   String?
-  os        String?
-  country   String?
-  isPwa     Boolean  @default(false) @map("is_pwa")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([path, createdAt])
-  @@index([userId, createdAt])
-  @@index([visitorId, createdAt])
-  @@index([createdAt])
-  @@map("page_views")
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // COMMUNITY DISCUSSION
 // ─────────────────────────────────────────────────────────────────────────────
