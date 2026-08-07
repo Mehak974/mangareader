@@ -220,9 +220,12 @@ function ReaderContent({ params }) {
     } else {
       router.push(`/manga/${encodeURIComponent(title)}`);
     }
-  };
+    };
 
-const handleChapterSelect = (e) => {
+  const TOTAL_PAGES = images.length;
+  const mappedChapters = chapters.map((c, index) => ({ ...c, originalIndex: index, chNum: chapters.length - index }));
+
+  const handleChapterSelect = (e) => {
      const selectedIndex = parseInt(e.target.value);
      const ch = chapters[selectedIndex];
      if (ch) {
@@ -294,9 +297,6 @@ const handleChapterSelect = (e) => {
       </div>
     );
   }
-
-  const TOTAL_PAGES = images.length;
-  const mappedChapters = chapters.map((c, index) => ({ ...c, originalIndex: index, chNum: chapters.length - index }));
 
   const handleReaderClick = (e) => {
     if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.brightness-slider') || e.target.closest('.brightness-pop')) return;
