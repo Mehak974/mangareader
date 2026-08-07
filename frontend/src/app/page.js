@@ -16,17 +16,13 @@ export const revalidate = 300; // Revalidate every 5 minutes
 
 // Server components can be async
 export default async function Home() {
-  // Set a 5-second timeout for the backend fetch so it doesn't hang the Vercel build
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-  const [popularNowRes, trendingRes, popularOverallRes, recentRes] = await Promise.all([
+  // ── Critical path: fetch AniList data first (determines the hero image / LCP) ──
+  // These are fetched in parallel. The backend /api/home fetch is deliberately
+  // NOT in this Promise.all so a slow backend can't delay the hero image.
+  const [popularNowRes, trendingRes, popularOverallRes] = await Promise.all([
     getMangaList({ perPage: 20, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
     getMangaList({ perPage: 24, sort: ["TRENDING_DESC"] }),
     getMangaList({ perPage: 24, sort: ["POPULARITY_DESC"] }),
-    fetch(`${apiBase}/api/home`, { signal: controller.signal })
-      .then(r => { clearTimeout(timeoutId); return r.json(); })
-      .catch((err) => { clearTimeout(timeoutId); console.warn("Backend fetch failed/timed out:", err.message); return { data: [] }; })
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0
@@ -40,6 +36,16 @@ export default async function Home() {
   let popularOverall = popularOverallRes?.media?.length > 0
     ? popularOverallRes.media
     : [];
+
+  // ── Non-critical: backend fetch for Recently Added (below the fold on mobile) ──
+  // Short 3 s timeout — if it doesn't resolve in time, we fall back to AniList
+  // "newest" results so the page never blocks on a slow backend.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+  const recentRes = await fetch(`${apiBase}/api/home`, { signal: controller.signal })
+    .then(r => { clearTimeout(timeoutId); return r.json(); })
+    .catch((err) => { clearTimeout(timeoutId); console.warn("Backend fetch failed/timed out:", err.message); return { data: [] }; });
 
   let recentlyAdded = [];
   if (recentRes?.data && recentRes.data.length > 0) {
@@ -123,16 +129,17 @@ export default async function Home() {
                   : {}
               }
             >
-              {featuredHero.cover ? (
-                <Image
-                  src={proxyImage(featuredHero.cover)}
-                  alt={`Cover for ${featuredHero.t}`}
-                  fill
-                  sizes="100vw"
-                  style={{ objectFit: "cover", objectPosition: "center" }}
-                  priority
-                  
-                />
+               {featuredHero.cover ? (
+                 <Image
+                   src={proxyImage(featuredHero.cover)}
+                   alt={`Cover for ${featuredHero.t}`}
+                   fill
+                   sizes="100vw"
+                   style={{ objectFit: "cover", objectPosition: "center" }}
+                   priority
+                   loading="eager"
+                   fetchPriority="high"
+                 />
               ) : (
                 "表"
               )}
@@ -207,15 +214,16 @@ export default async function Home() {
                 }
               >
                 {desktopHero.cover ? (
-                  <Image
-                    src={proxyImage(desktopHero.cover)}
-                    alt={`Cover for ${desktopHero.t}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    style={{ objectFit: "cover", objectPosition: "center" }}
-                    priority
-                    
-                  />
+                 <Image
+                     src={proxyImage(desktopHero.cover)}
+                     alt={`Cover for ${desktopHero.t}`}
+                     fill
+                     sizes="(max-width: 768px) 100vw, 50vw"
+                     style={{ objectFit: "cover", objectPosition: "center" }}
+                     priority
+                     loading="eager"
+                     fetchPriority="high"
+                   />
                 ) : (
                   "表紙"
                 )}
