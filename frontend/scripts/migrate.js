@@ -3,39 +3,36 @@ const prisma = new PrismaClient();
 
 async function migrate() {
   try {
-    console.log('Running custom migration...');
+    console.log('Running analytics migration...');
 
-    // Add last_active_at to users if not exists
     await prisma.$executeRaw`
       DO $$ 
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_active_at') THEN
-          ALTER TABLE "users" ADD COLUMN "last_active_at" TIMESTAMP(3);
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'page_views' AND column_name = 'visitor_id') THEN
+          ALTER TABLE "page_views" ADD COLUMN "visitor_id" TEXT;
         END IF;
       END $$;
     `;
-    console.log('✓ Added last_active_at to users');
+    console.log('✓ Added visitor_id');
 
-    // Create page_views table if not exists
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "page_views_visitor_id_created_at_idx" ON "page_views"("visitor_id", "created_at")`;
+    console.log('✓ Added visitor_id index');
+
+    const columns = ['device', 'browser', 'os'];
+    for (const col of columns) {
+      await prisma.$executeRawUnsafe(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'page_views' AND column_name = '${col}') THEN ALTER TABLE "page_views" ADD COLUMN "${col}" TEXT; END IF; END $$;`);
+    }
+    console.log('✓ Added device, browser, os columns');
+
     await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "page_views" (
-        "id" TEXT NOT NULL,
-        "path" TEXT NOT NULL,
-        "user_id" TEXT,
-        "referrer" TEXT,
-        "user_agent" TEXT,
-        "country" TEXT,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "page_views_pkey" PRIMARY KEY ("id")
-      );
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'page_views' AND column_name = 'is_pwa') THEN
+          ALTER TABLE "page_views" ADD COLUMN "is_pwa" BOOLEAN DEFAULT FALSE;
+        END IF;
+      END $$;
     `;
-    console.log('✓ Created page_views table');
-
-    // Create indexes
-    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "page_views_path_created_at_idx" ON "page_views"("path", "created_at")`;
-    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "page_views_user_id_created_at_idx" ON "page_views"("user_id", "created_at")`;
-    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "page_views_created_at_idx" ON "page_views"("created_at")`;
-    console.log('✓ Created page_views indexes');
+    console.log('✓ Added is_pwa column');
 
     console.log('Migration complete!');
   } catch (err) {
