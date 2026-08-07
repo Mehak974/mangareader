@@ -5,9 +5,22 @@ import AuthorRowActions from "@/components/admin/AuthorRowActions";
 export const metadata = { title: "Authors · Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function AdminAuthorsPage() {
+const SORT_FIELDS = [
+  { key: "name", label: "Name" },
+  { key: "_count.articles", label: "Articles" },
+];
+
+export default async function AdminAuthorsPage({ searchParams }) {
+  const sp = await searchParams;
+  const sort = SORT_FIELDS.find(s => s.key === sp?.sort) ? sp.sort : "name";
+  const order = sp?.order === "asc" ? "asc" : "desc";
+
+  const orderBy = sort.startsWith("_count.")
+    ? { [sort.split(".")[1]]: order }
+    : { [sort]: order };
+
   const authors = await prisma.editorialAuthor.findMany({
-    orderBy: { name: "asc" },
+    orderBy,
     select: {
       id: true,
       slug: true,
@@ -16,6 +29,19 @@ export default async function AdminAuthorsPage() {
       _count: { select: { articles: true } },
     },
   });
+
+  const sortHref = (field) => {
+    const params = new URLSearchParams();
+    if (sort === field) {
+      params.set("sort", field);
+      params.set("order", order === "asc" ? "desc" : "asc");
+    } else {
+      params.set("sort", field);
+      params.set("order", "desc");
+    }
+    const str = params.toString();
+    return `/admin/authors?${str}`;
+  };
 
   return (
     <div className="admin-page">
@@ -31,6 +57,18 @@ export default async function AdminAuthorsPage() {
         </Link>
       </header>
 
+      <div className="admin-filter-row">
+        {SORT_FIELDS.map((f) => (
+          <Link
+            key={f.key}
+            href={sortHref(f.key)}
+            className={`admin-chip ${sort === f.key ? "on" : ""}`}
+          >
+            {f.label} {sort === f.key ? (order === "asc" ? "▲" : "▼") : ""}
+          </Link>
+        ))}
+      </div>
+
       {authors.length === 0 ? (
         <div className="admin-empty">No authors yet. Create your first byline persona.</div>
       ) : (
@@ -41,7 +79,11 @@ export default async function AdminAuthorsPage() {
                 <th>Name</th>
                 <th>Slug</th>
                 <th>Credentials</th>
-                <th>Articles</th>
+                <th>
+                  <a href={sortHref("_count.articles")} className="admin-sort-link">
+                    Articles {sort === "_count.articles" ? (order === "asc" ? "▲" : "▼") : ""}
+                  </a>
+                </th>
                 <th aria-label="Actions" />
               </tr>
             </thead>

@@ -7,6 +7,14 @@ export const dynamic = "force-dynamic";
 const STATUSES = ["NEW", "IN_PROGRESS", "RESOLVED", "SPAM"];
 const TYPES = ["CONTACT", "BUG_REPORT", "FEATURE_REQUEST", "COMPLAINT"];
 
+const SORT_FIELDS = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
+  { key: "type", label: "Type" },
+  { key: "status", label: "Status" },
+  { key: "createdAt", label: "Received" },
+];
+
 function fmt(date) {
   if (!date) return "—";
   return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -16,15 +24,20 @@ export default async function AdminMessagesPage({ searchParams }) {
   const sp = await searchParams;
   const status = STATUSES.includes(sp?.status) ? sp.status : undefined;
   const type = TYPES.includes(sp?.type) ? sp.type : undefined;
+  const sort = SORT_FIELDS.find(s => s.key === sp?.sort) ? sp.sort : "createdAt";
+  const order = sp?.order === "asc" ? "asc" : "desc";
 
   const where = {
     ...(status ? { status } : {}),
     ...(type ? { type } : {}),
   };
+
+  const orderBy = { [sort]: order };
+
   const [items, total] = await Promise.all([
     prisma.contactMessage.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       take: 200,
       select: {
         id: true,
@@ -46,8 +59,27 @@ export default async function AdminMessagesPage({ searchParams }) {
     const t = patch.type ?? type;
     if (s) params.set("status", s);
     if (t) params.set("type", t);
+    if (sort !== "createdAt" || order !== "desc") {
+      params.set("sort", sort);
+      params.set("order", order);
+    }
     const str = params.toString();
     return str ? `/admin/messages?${str}` : "/admin/messages";
+  };
+
+  const sortHref = (field) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (type) params.set("type", type);
+    if (sort === field) {
+      params.set("sort", field);
+      params.set("order", order === "asc" ? "desc" : "asc");
+    } else {
+      params.set("sort", field);
+      params.set("order", "desc");
+    }
+    const str = params.toString();
+    return `/admin/messages?${str}`;
   };
 
   return (
@@ -76,6 +108,18 @@ export default async function AdminMessagesPage({ searchParams }) {
         ))}
       </div>
 
+      <div className="admin-filter-row">
+        {SORT_FIELDS.map((f) => (
+          <a
+            key={f.key}
+            href={sortHref(f.key)}
+            className={`admin-chip ${sort === f.key ? "on" : ""}`}
+          >
+            {f.label} {sort === f.key ? (order === "asc" ? "▲" : "▼") : ""}
+          </a>
+        ))}
+      </div>
+
       {items.length === 0 ? (
         <div className="admin-empty">No messages match this filter.</div>
       ) : (
@@ -87,7 +131,11 @@ export default async function AdminMessagesPage({ searchParams }) {
                 <th>Type</th>
                 <th>Subject / message</th>
                 <th>Status</th>
-                <th>Received</th>
+                <th>
+                  <a href={sortHref("createdAt")} className="admin-sort-link">
+                    Received {sort === "createdAt" ? (order === "asc" ? "▲" : "▼") : ""}
+                  </a>
+                </th>
                 <th aria-label="Actions" />
               </tr>
             </thead>

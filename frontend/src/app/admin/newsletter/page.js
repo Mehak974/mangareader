@@ -4,21 +4,46 @@ import NewsletterRowActions from "@/components/admin/NewsletterRowActions";
 export const metadata = { title: "Newsletter · Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
+const SORT_FIELDS = [
+  { key: "email", label: "Email" },
+  { key: "confirmed", label: "Status" },
+  { key: "createdAt", label: "Subscribed" },
+];
+
 function fmt(date) {
   if (!date) return "—";
   return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default async function AdminNewsletterPage() {
+export default async function AdminNewsletterPage({ searchParams }) {
+  const sp = await searchParams;
+  const sort = SORT_FIELDS.find(s => s.key === sp?.sort) ? sp.sort : "createdAt";
+  const order = sp?.order === "asc" ? "asc" : "desc";
+
+  const orderBy = { [sort]: order };
+
   const [items, total, confirmed] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy,
       take: 500,
       select: { id: true, email: true, confirmed: true, confirmedAt: true, createdAt: true },
     }),
     prisma.newsletterSubscriber.count(),
     prisma.newsletterSubscriber.count({ where: { confirmed: true } }),
   ]);
+
+  const sortHref = (field) => {
+    const params = new URLSearchParams();
+    if (sort === field) {
+      params.set("sort", field);
+      params.set("order", order === "asc" ? "desc" : "asc");
+    } else {
+      params.set("sort", field);
+      params.set("order", "desc");
+    }
+    const str = params.toString();
+    return `/admin/newsletter?${str}`;
+  };
 
   return (
     <div className="admin-page">
@@ -34,6 +59,18 @@ export default async function AdminNewsletterPage() {
         </a>
       </header>
 
+      <div className="admin-filter-row">
+        {SORT_FIELDS.map((f) => (
+          <a
+            key={f.key}
+            href={sortHref(f.key)}
+            className={`admin-chip ${sort === f.key ? "on" : ""}`}
+          >
+            {f.label} {sort === f.key ? (order === "asc" ? "▲" : "▼") : ""}
+          </a>
+        ))}
+      </div>
+
       {items.length === 0 ? (
         <div className="admin-empty">No subscribers yet.</div>
       ) : (
@@ -43,7 +80,11 @@ export default async function AdminNewsletterPage() {
               <tr>
                 <th>Email</th>
                 <th>Status</th>
-                <th>Subscribed</th>
+                <th>
+                  <a href={sortHref("createdAt")} className="admin-sort-link">
+                    Subscribed {sort === "createdAt" ? (order === "asc" ? "▲" : "▼") : ""}
+                  </a>
+                </th>
                 <th aria-label="Actions" />
               </tr>
             </thead>

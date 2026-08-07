@@ -13,6 +13,14 @@ const SUB_TABS = [
   { label: "Web Comics", slug: "if-you-like-web-comics" },
 ];
 
+const SORT_FIELDS = [
+  { key: "title", label: "Title" },
+  { key: "status", label: "Status" },
+  { key: "publishedAt", label: "Published" },
+  { key: "updatedAt", label: "Updated" },
+  { key: "viewCount", label: "Views" },
+];
+
 export default async function AdminArticlesPage({ searchParams }) {
   const sp = await searchParams;
   const categorySlug = sp?.category || undefined;
@@ -20,9 +28,11 @@ export default async function AdminArticlesPage({ searchParams }) {
   const page = parseInt(sp?.page || "1", 10);
   const take = 50;
   const skip = (page - 1) * take;
-  
+  const sort = SORT_FIELDS.find(s => s.key === sp?.sort) ? sp.sort : "updatedAt";
+  const order = sp?.order === "asc" ? "asc" : "desc";
+
   const counts = await getAdminArticleCounts();
-  const { items, total } = await listAdminArticles({ categorySlug, status, take, skip });
+  const { items, total } = await listAdminArticles({ categorySlug, status, take, skip, sort, order });
   const totalPages = Math.ceil(total / take);
 
   const STATUS_TABS = [
@@ -49,6 +59,10 @@ export default async function AdminArticlesPage({ searchParams }) {
     const params = new URLSearchParams();
     if (categorySlug) params.set("category", categorySlug);
     if (newStatus) params.set("status", newStatus);
+    if (sort !== "updatedAt" || order !== "desc") {
+      params.set("sort", sort);
+      params.set("order", order);
+    }
     const qs = params.toString();
     return `/admin/articles${qs ? `?${qs}` : ""}`;
   };
@@ -57,6 +71,26 @@ export default async function AdminArticlesPage({ searchParams }) {
     const params = new URLSearchParams();
     if (newCategory) params.set("category", newCategory);
     if (status) params.set("status", status);
+    if (sort !== "updatedAt" || order !== "desc") {
+      params.set("sort", sort);
+      params.set("order", order);
+    }
+    const qs = params.toString();
+    return `/admin/articles${qs ? `?${qs}` : ""}`;
+  };
+
+  const getSortHref = (field) => {
+    const params = new URLSearchParams();
+    if (categorySlug) params.set("category", categorySlug);
+    if (status) params.set("status", status);
+    if (page > 1) params.set("page", page);
+    if (sort === field) {
+      params.set("sort", field);
+      params.set("order", order === "asc" ? "desc" : "asc");
+    } else {
+      params.set("sort", field);
+      params.set("order", "desc");
+    }
     const qs = params.toString();
     return `/admin/articles${qs ? `?${qs}` : ""}`;
   };
@@ -65,6 +99,10 @@ export default async function AdminArticlesPage({ searchParams }) {
     const params = new URLSearchParams();
     if (categorySlug) params.set("category", categorySlug);
     if (status) params.set("status", status);
+    if (sort !== "updatedAt" || order !== "desc") {
+      params.set("sort", sort);
+      params.set("order", order);
+    }
     if (newPage > 1) params.set("page", newPage);
     const qs = params.toString();
     return `/admin/articles${qs ? `?${qs}` : ""}`;
@@ -133,6 +171,18 @@ export default async function AdminArticlesPage({ searchParams }) {
           ))}
         </div>
       )}
+
+      <div className="admin-filter-row">
+        {SORT_FIELDS.map((f) => (
+          <Link
+            key={f.key}
+            href={getSortHref(f.key)}
+            className={`admin-chip ${sort === f.key ? "on" : ""}`}
+          >
+            {f.label} {sort === f.key ? (order === "asc" ? "▲" : "▼") : ""}
+          </Link>
+        ))}
+      </div>
 
       <AdminArticlesClient items={items} />
 

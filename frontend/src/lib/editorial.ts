@@ -271,12 +271,25 @@ export async function listAdminArticles(opts?: {
   categorySlug?: string;
   take?: number;
   skip?: number;
+  sort?: string;
+  order?: "asc" | "desc";
 }) {
   const where: Prisma.ArticleWhereInput = {
     ...(opts?.status ? { status: opts.status } : {}),
     ...(opts?.contentType ? { contentType: opts.contentType } : {}),
     ...(opts?.categorySlug ? { category: { slug: opts.categorySlug } } : {}),
   };
+
+  let orderBy: Prisma.ArticleOrderByWithRelationInput = { updatedAt: "desc" };
+  if (opts?.sort) {
+    const dir = opts.order === "asc" ? "asc" : "desc";
+    if (opts.sort === "title") orderBy = { title: dir };
+    else if (opts.sort === "status") orderBy = { status: dir };
+    else if (opts.sort === "publishedAt") orderBy = { publishedAt: dir };
+    else if (opts.sort === "viewCount") orderBy = { viewCount: dir };
+    else orderBy = { updatedAt: dir };
+  }
+
   const [items, total] = await Promise.all([
     prisma.article.findMany({
       where,
@@ -293,7 +306,7 @@ export async function listAdminArticles(opts?: {
         byline: { select: { name: true } },
         category: { select: { name: true, slug: true } },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy,
       take: opts?.take ?? 50,
       skip: opts?.skip ?? 0,
     }),

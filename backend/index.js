@@ -833,10 +833,10 @@ app.get('/api/admin/stats',requireAdmin,async(req,res)=>{
   try{
     const[mc,bc,cc,sc,tp,uc,u24,u7,u30,ur,newRegs]=await Promise.all([
       db.query('SELECT COUNT(*)as c FROM manga'),
-      db.query("SELECT COUNT(*)as c FROM blog_posts WHERE status='published'"),
+      db.query("SELECT COUNT(*)as c FROM articles WHERE status='PUBLISHED'"),
       db.query('SELECT COUNT(*)as c FROM contact_messages'),
       db.query('SELECT COUNT(*)as c FROM newsletter_subscribers'),
-      db.query("SELECT slug,title,views FROM blog_posts WHERE status='published' ORDER BY views DESC LIMIT 10"),
+      db.query("SELECT slug,title,view_count as views FROM articles WHERE status='PUBLISHED' ORDER BY view_count DESC LIMIT 10"),
       db.query('SELECT COUNT(*)as c FROM users'),
       db.query("SELECT COUNT(*)as c FROM users WHERE last_active_at >= NOW() - INTERVAL '24 hours'"),
       db.query("SELECT COUNT(*)as c FROM users WHERE last_active_at >= NOW() - INTERVAL '7 days'"),
@@ -907,6 +907,17 @@ app.post('/api/auth/login', async (req, res) => {
       is_vip: result.rows[0].is_vip
     };
     res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/active', async (req, res) => {
+  try {
+    const userId = req.body?.userId || req.headers['x-user-id'];
+    if (!userId) return res.json({ success: true });
+    await db.query('UPDATE users SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

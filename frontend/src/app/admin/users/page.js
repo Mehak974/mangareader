@@ -12,16 +12,47 @@ function fmt(date) {
   return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// ADMIN-only page. The shared layout only guards EDITOR, so re-check here and
-// redirect an editor who lacks the admin role.
-export default async function AdminUsersPage() {
+function fmtTimeAgo(date) {
+  if (!date) return "Never";
+  const now = new Date();
+  const diff = now - new Date(date);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return fmt(date);
+}
+
+function isOnline(lastActiveAt) {
+  if (!lastActiveAt) return false;
+  return new Date(lastActiveAt) > new Date(Date.now() - 5 * 60 * 1000);
+}
+
+const SORT_FIELDS = [
+  { key: "displayName", label: "Name" },
+  { key: "email", label: "Email" },
+  { key: "role", label: "Role" },
+  { key: "createdAt", label: "Joined" },
+  { key: "lastActiveAt", label: "Last active" },
+];
+
+export default async function AdminUsersPage({ searchParams }) {
+  const sp = await searchParams;
+  const sort = SORT_FIELDS.find(s => s.key === sp?.sort) ? sp.sort : "createdAt";
+  const order = sp?.order === "asc" ? "asc" : "desc";
+
   const current = await getCurrentUser();
   if (!hasRole(current, "ADMIN")) {
     redirect("/admin");
   }
 
+  const orderBy = { [sort]: order };
+
   const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy,
     take: 500,
     select: {
       id: true,
@@ -33,6 +64,7 @@ export default async function AdminUsersPage() {
       readingHistory: true,
       readChapters: true,
       createdAt: true,
+      lastActiveAt: true,
       sessions: {
         where: { expiresAt: { gt: new Date() } },
         select: { id: true },
@@ -40,6 +72,18 @@ export default async function AdminUsersPage() {
       },
     },
   });
+
+  const sortHref = (field) => {
+    const params = new URLSearchParams();
+    if (sort === field) {
+      params.set("sort", field);
+      params.set("order", order === "asc" ? "desc" : "asc");
+    } else {
+      params.set("sort", field);
+      params.set("order", "desc");
+    }
+    return `/admin/users?${params.toString()}`;
+  };
 
   return (
     <div className="admin-page">
@@ -61,7 +105,16 @@ export default async function AdminUsersPage() {
               <th>Status</th>
               <th>Read Hours</th>
               <th>Chapters Read</th>
-              <th>Joined</th>
+              <th>
+                <a href={sortHref("lastActiveAt")} className="admin-sort-link">
+                  Last active {sort === "lastActiveAt" ? (order === "asc" ? "▲" : "▼") : ""}
+                </a>
+              </th>
+              <th>
+                <a href={sortHref("createdAt")} className="admin-sort-link">
+                  Joined {sort === "createdAt" ? (order === "asc" ? "▲" : "▼") : ""}
+                </a>
+              </th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -81,6 +134,8 @@ export default async function AdminUsersPage() {
                     </span>
                   ) : u.sessions.length > 0 ? (
                     <span className="admin-badge admin-badge-published">Online</span>
+                  ) : isOnline(u.lastActiveAt) ? (
+                    <span className="admin-badge admin-badge-scheduled">Active</span>
                   ) : (
                     <span className="admin-badge admin-badge-draft">Offline</span>
                   )}
@@ -90,6 +145,9 @@ export default async function AdminUsersPage() {
                 </td>
                 <td>
                   {u.readChapters ? Object.values(u.readChapters).flat().length : 0}
+                </td>
+                <td title={u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : ""}>
+                  {fmtTimeAgo(u.lastActiveAt)}
                 </td>
                 <td>{fmt(u.createdAt)}</td>
                 <td>

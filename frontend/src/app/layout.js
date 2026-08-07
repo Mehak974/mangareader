@@ -9,6 +9,8 @@ import InkDots from "@/components/InkDots";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import JsonLd from "@/components/JsonLd";
+import PageViewTracker from "@/components/PageViewTracker";
+import UserActiveTracker from "@/components/UserActiveTracker";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
@@ -98,6 +100,8 @@ export default function RootLayout({ children }) {
               <AchievementToast />
               <PWAInstall />
               <LibraryPicker />
+              <PageViewTracker />
+              <UserActiveTracker />
             </div>
           </MaintenanceGuard>
         </AppProvider>
