@@ -5231,7 +5231,15 @@ body:not(.logged-in) .guest-flex {
     padding: 2rem 1.5rem;
     border-radius: 16px;
   }
-  .legal-container h1 {
+   .legal-container h1 {
     font-size: 2rem;
   }
+}
+
+.ad-banner-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  margin: 0 auto;
+  max-width: 1200px;
 }
