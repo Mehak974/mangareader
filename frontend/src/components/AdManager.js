@@ -15,7 +15,6 @@ const MONETAG_SCRIPT = `
     inject('11533092','https://al5sm.com/tag.min.js');
   } else {
     inject('11461253','https://nap5k.com/tag.min.js');
-    inject('11532242','https://n6wxm.com/vignette.min.js');
   }
 })();
 `;
