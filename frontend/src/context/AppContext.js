@@ -20,7 +20,7 @@ export const AppProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(true);
   const [isIncognito, setIsIncognito] = useState(false);
   const [isNSFW, setIsNSFW] = useState(false);
-  const [accentColors, setAccentColors] = useState({ c1: "#a855f7", c2: "#c084fc" });
+  const [accentColors, setAccentColors] = useState({ c1: "#FFB300", c2: "#FFCA28" });
 
   // Custom User Preferences Settings
   const [compactCards, setCompactCards] = useState(false);

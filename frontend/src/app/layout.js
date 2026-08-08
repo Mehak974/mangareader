@@ -14,7 +14,6 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
-import AdManager from "@/components/AdManager";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -53,15 +52,11 @@ export const metadata = {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true },
-  },
-  other: {
-    "google-adsense-account": "ca-pub-4938022536946038",
-    "purpleads-verification": "d26ac344796b2665a44df336",
-  },
+  }
 };
 
 export const viewport = {
-  themeColor: "#a855f7",
+  themeColor: "#FFB300",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -93,7 +88,6 @@ export default function RootLayout({ children }) {
               <InkDots />
               <Header />
               <Sidebar />
-              <AdManager />
               <main>{children}</main>
               <MobileNav />
               <AchievementToast />
