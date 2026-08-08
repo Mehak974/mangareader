@@ -208,7 +208,12 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                onKeyDown={(e) => {
                  if (e.key === "Enter") {
-                   router.push(`/browse`);
+                   const q = searchQuery.trim();
+                   if (q) {
+                     router.push(`/browse?q=${encodeURIComponent(q)}`);
+                   } else {
+                     router.push(`/browse`);
+                   }
                    setShowSuggestions(false);
                    searchInputRef.current?.blur();
                  }
