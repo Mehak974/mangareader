@@ -12,7 +12,6 @@ const MOBILE_ZONEID = "5991066";
 export default function AdManager() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -32,7 +31,7 @@ export default function AdManager() {
   }, []);
 
   useEffect(() => {
-    if (!mounted || dismissed) return;
+    if (!mounted) return;
 
     const loadAd = () => {
       if (!containerRef.current) return;
@@ -44,6 +43,10 @@ export default function AdManager() {
       const ins = document.createElement('ins');
       ins.className = isMobile ? MOBILE_CLASS : DESKTOP_CLASS;
       ins.setAttribute('data-zoneid', isMobile ? MOBILE_ZONEID : DESKTOP_ZONEID);
+      // Optional: Give it a minimum height to avoid layout shift
+      ins.style.display = 'inline-block';
+      ins.style.minHeight = isMobile ? '50px' : '90px';
+      
       containerRef.current.appendChild(ins);
 
       // Trigger ExoClick ad load
@@ -54,9 +57,9 @@ export default function AdManager() {
     // Small delay ensures DOM is painted
     const timer = setTimeout(loadAd, 150);
     return () => clearTimeout(timer);
-  }, [mounted, isMobile, dismissed]);
+  }, [mounted, isMobile]);
 
-  if (!mounted || dismissed) return null;
+  if (!mounted) return null;
 
   return (
     <>
@@ -65,15 +68,9 @@ export default function AdManager() {
         strategy="afterInteractive"
         src={PROVIDER_SCRIPT}
       />
-      <div className="fixed bottom-0 left-0 w-full z-[99999] flex flex-col items-center bg-black/90 pb-2 pt-2 shadow-2xl border-t border-white/10">
-        <button 
-          onClick={() => setDismissed(true)}
-          className="absolute -top-7 right-2 bg-black/90 text-white/70 hover:text-white rounded-t-md px-3 py-1 text-xs font-bold border border-white/10 border-b-0 transition-colors"
-        >
-          Close X
-        </button>
-        
-        <div ref={containerRef} className="w-full flex justify-center items-center min-h-[50px] overflow-hidden">
+      <div className="w-full flex justify-center py-4 bg-bg border-b border-white/5">
+        <div ref={containerRef} className="w-full flex justify-center items-center overflow-hidden min-h-[50px] lg:min-h-[90px]">
+          {/* Ad will be natively injected here */}
         </div>
       </div>
     </>

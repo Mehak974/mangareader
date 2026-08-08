@@ -93,8 +93,8 @@ export default function RootLayout({ children }) {
               <InkDots />
               <Header />
               <Sidebar />
-              <main>{children}</main>
               <AdManager />
+              <main>{children}</main>
               <MobileNav />
               <AchievementToast />
               <PWAInstall />
