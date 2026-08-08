@@ -85,7 +85,7 @@ export default function RootLayout({ children }) {
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
-        <Script id="vignette-script" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `(function(s){s.dataset.zone='11532242',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))` }} />
+        <Script id="tag-script" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `(function(s){s.dataset.zone='11461253',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))` }} />
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
         <Toaster position="bottom-right" />
