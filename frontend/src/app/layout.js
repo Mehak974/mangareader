@@ -14,7 +14,7 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
-import Script from "next/script";
+import AdManager from "@/components/AdManager";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -56,7 +56,6 @@ export const metadata = {
   },
   other: {
     "google-adsense-account": "ca-pub-4938022536946038",
-    "clckd": "86b8c0654c9747f415992c207c9c12a2",
     "purpleads-verification": "d26ac344796b2665a44df336",
   },
 };
@@ -85,7 +84,7 @@ export default function RootLayout({ children }) {
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
-        <Script id="tag-script" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `(function(s){s.dataset.zone='11461253',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))` }} />
+        <AdManager />
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
         <Toaster position="bottom-right" />
