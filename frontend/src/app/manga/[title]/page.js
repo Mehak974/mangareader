@@ -130,18 +130,18 @@ const [chPage, setChPage] = useState(1);
           }
 
           // Now fetch full details from AniList using the resolved ID
-          try {
-            const cleanId = resolvedId.startsWith("mal-") 
-              ? resolvedId.replace("mal-", "") 
-              : resolvedId.startsWith("anilist-") 
+          if (resolvedId && !resolvedId.startsWith("mal-")) {
+            try {
+              const cleanId = resolvedId.startsWith("anilist-") 
                 ? resolvedId.replace("anilist-", "") 
                 : resolvedId;
-            const aniData = await fetchAnilist(SINGLE_MANGA_QUERY, { id: parseInt(cleanId) });
-            if (aniData && aniData.Media) {
-              media = aniData.Media;
+              const aniData = await fetchAnilist(SINGLE_MANGA_QUERY, { id: parseInt(cleanId) });
+              if (aniData && aniData.Media) {
+                media = aniData.Media;
+              }
+            } catch (aniErr) {
+              console.warn("AniList detail fetch failed:", aniErr.message);
             }
-          } catch (aniErr) {
-            console.warn("AniList detail fetch failed:", aniErr.message);
           }
         }
 

@@ -33,19 +33,7 @@ const ANILIST_GENRES = [
 export default function BrowseContent({ initialData, initialParams }) {
   const searchParams = useSearchParams();
   const { searchQuery, setSearchQuery, isNSFW } = useApp();
-
-  const applyNsfwFilter = (list) => list.filter((m) => {
-    const genres = m.genres || (m.g ? [m.g] : []);
-    const titleStr = m.t || m.title || "";
-    const extra = { tags: m.tags, isAdult: m.isAdult };
-    if (!isExplicitNSFW(genres, titleStr, extra)) return true;
-    if (isNSFW) return true;
-    if (searchQuery && searchQuery.trim() !== "") {
-      const q = searchQuery.trim().toLowerCase();
-      if (titleStr.toLowerCase().includes(q)) return true;
-    }
-    return false;
-  });
+  const applyNsfwFilter = (list) => list;
 
   const [sort, setSort] = useState(() => {
     const p = initialParams?.sort;

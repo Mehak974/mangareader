@@ -77,18 +77,13 @@ export default async function Home() {
       ? recentFallback.media
       : [];
 
-    const existingTitles = new Set(recentlyAdded.map(m => (m.t || m.title || "").toLowerCase()));
     const uniqueFallback = fallbackMedia.filter(m => !existingTitles.has((m.t || m.title || "").toLowerCase()));
     recentlyAdded = [...recentlyAdded, ...uniqueFallback].slice(0, 20);
   }
-
-  // Filter out NSFW
-  const nsfwCheck = (m) => isExplicitNSFW(m.genres || (m.g ? [m.g] : []), m.t || m.title || "", { tags: m.tags, isAdult: m.isAdult });
-
-  let finalPopularNow = popularNow.filter(m => !nsfwCheck(m)).slice(0, 9);
-  let finalTrending = trending.filter(m => !nsfwCheck(m)).slice(0, 12);
-  let finalPopularOverall = popularOverall.filter(m => !nsfwCheck(m)).slice(0, 12);
-  const finalRecentlyAdded = recentlyAdded.filter(m => !nsfwCheck(m)).slice(0, 10);
+  let finalPopularNow = popularNow.slice(0, 9);
+  let finalTrending = trending.slice(0, 12);
+  let finalPopularOverall = popularOverall.slice(0, 12);
+  const finalRecentlyAdded = recentlyAdded.slice(0, 10);
 
   const fallbackHero1 = {
     id: "fallback-solo-leveling",

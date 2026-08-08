@@ -26,14 +26,14 @@ export default function MangaCard({ manga, index }) {
     tags: manga.tags,
     isAdult: manga.isAdult,
   }), [manga.genres, manga.g, manga.t, manga.tags, manga.isAdult]);
-  const shouldBlur = isNSFWItem && !revealed;
+  const shouldBlur = isNSFWItem && !isNSFW && !revealed;
 
   const isHidden = hiddenGenres.includes(manga.g);
   const isRead = readManga.includes(manga.t || manga.title);
   const bookmarked = isBookmarked(manga.id);
   const bg = COVER_GRADS[index % COVER_GRADS.length];
   const handleCardClick = () => {
-    if (!isHidden && (!isNSFWItem || revealed)) {
+    if (!isHidden && !shouldBlur) {
       router.push(`/manga/${slugify(manga.t || manga.title)}`);
     }
   };
@@ -80,7 +80,7 @@ export default function MangaCard({ manga, index }) {
         <div className="m-read-badge">READ</div>
 
         {/* NSFW Warning overlay */}
-        {isNSFWItem && !revealed && (
+        {shouldBlur && (
           <div 
             className="m-hidden-overlay nsfw-overlay" 
             onClick={(e) => {
