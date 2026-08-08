@@ -1,5 +1,6 @@
 "use client";
 
+import Script from "next/script";
 import { useEffect, useState, useRef } from "react";
 
 const PROVIDER_SCRIPT = "https://a.magsrv.com/ad-provider.js";
@@ -8,10 +9,9 @@ const DESKTOP_ZONEID = "5990958";
 const MOBILE_CLASS = "eas6a97888e10";
 const MOBILE_ZONEID = "5991066";
 
-let providerLoaded = false;
-
 export default function AdManager() {
   const [isMobile, setIsMobile] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const insRef = useRef(null);
 
   useEffect(() => {
@@ -21,44 +21,28 @@ export default function AdManager() {
   }, []);
 
   useEffect(() => {
-    if (providerLoaded) {
-      if (insRef.current) {
-        (window.AdProvider = window.AdProvider || []).push({ "serve": {} });
-      }
-      return;
-    }
-    providerLoaded = true;
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.type = "application/javascript";
-    script.src = PROVIDER_SCRIPT;
-    script.onload = () => {
-      (window.AdProvider = window.AdProvider || []).push({ "serve": {} });
-    };
-    script.onerror = () => {
-      providerLoaded = false;
-    };
-    document.head.appendChild(script);
-
-    return () => {
-      if (script.parentNode) script.parentNode.removeChild(script);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (insRef.current && providerLoaded) {
+    if (typeof window === "undefined") return;
+    if (!insRef.current) return;
+    if (isScriptLoaded) {
       (window.AdProvider = window.AdProvider || []).push({ "serve": {} });
     }
-  }, [isMobile]);
+  }, [isMobile, isScriptLoaded]);
 
   return (
-    <div className="ad-banner-wrapper">
-      <ins
-        ref={insRef}
-        className={isMobile ? MOBILE_CLASS : DESKTOP_CLASS}
-        data-zoneid={isMobile ? MOBILE_ZONEID : DESKTOP_ZONEID}
+    <>
+      <Script
+        id="magsrv-provider"
+        strategy="afterInteractive"
+        src={PROVIDER_SCRIPT}
+        onLoad={() => setIsScriptLoaded(true)}
       />
-    </div>
+      <div className="ad-banner-wrapper">
+        <ins
+          ref={insRef}
+          className={isMobile ? MOBILE_CLASS : DESKTOP_CLASS}
+          data-zoneid={isMobile ? MOBILE_ZONEID : DESKTOP_ZONEID}
+        />
+      </div>
+    </>
   );
 }
