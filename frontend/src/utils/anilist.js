@@ -235,7 +235,10 @@ const HARD_NSFW_WORDS = ["sex", "18+"];
 export function isExplicitNSFW(genres = [], title = "", extra = {}) {
   if (extra.isAdult) return true;
 
-  const haystack = [...(genres || []), ...(extra.tags || [])].map((g) =>
+  const genresArr = Array.isArray(genres) ? genres : typeof genres === "string" ? [genres] : [];
+  const tagsArr = Array.isArray(extra?.tags) ? extra.tags : typeof extra?.tags === "string" ? [extra.tags] : [];
+
+  const haystack = [...genresArr, ...tagsArr].map((g) =>
     String(g).toLowerCase().trim()
   );
 

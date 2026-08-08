@@ -388,6 +388,10 @@ const [chPage, setChPage] = useState(1);
     }
   };
 
+  const isNSFWItem = React.useMemo(() => isExplicitNSFW(manga?.genres || [], manga?.title || "", { isAdult: manga?.isAdult }), [manga?.genres, manga?.title, manga?.isAdult]);
+  const { isNSFW } = useApp();
+  const shouldBlur = isNSFWItem && !isNSFW;
+
   return (
     <div>
       {/* MANGA HERO INFOS */}
@@ -406,7 +410,12 @@ const [chPage, setChPage] = useState(1);
               alt={`Cover for ${manga.title}`}
               fill
               sizes="(max-width: 768px) 100vw, 350px"
-              style={{ objectFit: "cover", objectPosition: "center" }}
+              style={{ 
+                objectFit: "cover", 
+                objectPosition: "center",
+                filter: shouldBlur ? "blur(40px) brightness(0.3)" : "none",
+                transition: "filter 0.3s ease"
+              }}
               priority
               fetchPriority="high"
             />
@@ -425,6 +434,32 @@ const [chPage, setChPage] = useState(1);
               padding: "8px",
             }}>
               {abbr(manga.title)}
+            </div>
+          )}
+          {shouldBlur && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+              background: "rgba(0,0,0,0.6)",
+              color: "#fff",
+              textAlign: "center",
+              padding: "16px",
+              fontFamily: "var(--sans)",
+              fontSize: "12px",
+              fontWeight: 600,
+              lineHeight: 1.4,
+              pointerEvents: "none"
+            }}>
+              <div>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 8px auto", display: "block" }}>
+                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                May contain<br/>explicit content
+              </div>
             </div>
           )}
           <div className="detail-cover-shimmer" style={{ position: "relative", zIndex: 1 }} />
