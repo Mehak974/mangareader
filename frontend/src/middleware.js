@@ -70,7 +70,7 @@ export function middleware(request) {
     object-src 'none';
     base-uri 'self';
     form-action 'self';
-    frame-ancestors 'none';
+    frame-ancestors 'self';
     frame-src 'self' https: http:;
     worker-src 'self' blob:;
     upgrade-insecure-requests;
