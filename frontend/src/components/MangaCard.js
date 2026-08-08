@@ -34,7 +34,7 @@ export default function MangaCard({ manga, index }) {
   const bg = COVER_GRADS[index % COVER_GRADS.length];
   const handleCardClick = () => {
     if (!isHidden && !shouldBlur) {
-      router.push(`/manga/${slugify(manga.t || manga.title)}`);
+      router.push(`/manga/${slugify(manga.t || manga.title)}${manga.cover ? `?cover=${encodeURIComponent(manga.cover)}` : ''}`);
     }
   };
   const imageUrl = proxyImage(manga.cover || null, 250);

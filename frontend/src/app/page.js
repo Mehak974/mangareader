@@ -125,7 +125,7 @@ export default async function Home() {
       {/* MOBILE HERO VIEWPORT */}
       <div className="mob-hero">
         {featuredHero ? (
-          <Link href={`/manga/${slugify(featuredHero.t || featuredHero.title)}`} className="mob-resume" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link href={`/manga/${slugify(featuredHero.t || featuredHero.title)}${featuredHero.cover ? `?cover=${encodeURIComponent(featuredHero.cover)}` : ''}`} className="mob-resume" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div
               className="mob-cov"
               style={
@@ -207,7 +207,7 @@ export default async function Home() {
         </div>
 
         {desktopHero && (
-          <Link href={`/manga/${slugify(desktopHero.t || desktopHero.title)}`} className="hero-stack" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link href={`/manga/${slugify(desktopHero.t || desktopHero.title)}${desktopHero.cover ? `?cover=${encodeURIComponent(desktopHero.cover)}` : ''}`} className="hero-stack" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="hc-back"></div>
             <div className="hc-mid"></div>
             <div className="hc-front">
@@ -251,7 +251,7 @@ export default async function Home() {
           <div className="bar-label">Popular Right Now</div>
           <div className="reading-list">
             {finalPopularNow.map((r) => (
-              <Link href={`/manga/${slugify(r.t || r.title)}`} key={r.id} className="r-item" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={`/manga/${slugify(r.t || r.title)}${r.cover ? `?cover=${encodeURIComponent(r.cover)}` : ''}`} key={r.id} className="r-item" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="r-cov"
                   style={

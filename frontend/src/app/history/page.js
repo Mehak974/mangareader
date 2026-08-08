@@ -60,7 +60,7 @@ export default function History() {
                     if (h.url && h.mangaId) {
                       router.push(`/reader/${h.chNum || 1}?url=${encodeURIComponent(h.url)}&source=${h.source || ""}&title=${encodeURIComponent(h.t)}&mangaId=${encodeURIComponent(h.mangaId)}&cover=${encodeURIComponent(h.cover || "")}`);
                     } else {
-                      router.push(`/manga/${slugify(h.t)}`);
+                      router.push(`/manga/${slugify(h.t)}${h.cover ? `?cover=${encodeURIComponent(h.cover)}` : ''}`);
                     }
                   }}
                 >
@@ -68,7 +68,7 @@ export default function History() {
                     className="hist-cov"
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/manga/${slugify(h.t)}`);
+                      router.push(`/manga/${slugify(h.t)}${h.cover ? `?cover=${encodeURIComponent(h.cover)}` : ''}`);
                     }}
                     style={{ position: "relative", overflow: "hidden", padding: 0 }}
                   >

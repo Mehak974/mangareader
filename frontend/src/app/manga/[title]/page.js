@@ -56,9 +56,11 @@ const AVAILABLE_SOURCES = [
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
 
-export default function MangaDetail({ params }) {
+export default function MangaDetail({ params, searchParams }) {
   const router = useRouter();
   const { title: titleSlug } = use(params);
+  const resolvedSearchParams = searchParams ? use(searchParams) : {};
+  const queryCover = resolvedSearchParams.cover || "";
   const {
     isBookmarked,
     toggleBookmark,
@@ -184,7 +186,7 @@ const [chPage, setChPage] = useState(1);
           normalizedManga = {
             id: `fallback-${slugify(searchTitle)}`,
             title: searchTitle,
-            cover: "",
+            cover: queryCover,
             description: "Detailed description is not available in our database. You can still read the chapters below.",
             status: "RELEASING",
             rating: 4.5,
@@ -242,7 +244,7 @@ const [chPage, setChPage] = useState(1);
     if (titleSlug) {
       loadMangaDetail();
     }
-  }, [titleSlug]);
+  }, [titleSlug, queryCover]);
 
   const handleSourceChange = async (newSourceId) => {
     localStorage.setItem(`preferred_source_${mangaId}`, newSourceId);

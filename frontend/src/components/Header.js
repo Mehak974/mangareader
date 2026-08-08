@@ -314,7 +314,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     className="sr-item"
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      router.push(`/manga/${slugify(m.t)}`);
+                      router.push(`/manga/${slugify(m.t)}${m.cover ? `?cover=${encodeURIComponent(m.cover)}` : ''}`);
                       setSearchQuery("");
                     }}
                   >
