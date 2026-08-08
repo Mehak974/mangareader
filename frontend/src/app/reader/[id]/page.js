@@ -186,33 +186,28 @@ function ReaderContent({ params }) {
   };
 
   useEffect(() => {
-    // 20% chance to arm the popunder on this chapter page
-    const adChance = 0.20;
-    if (Math.random() < adChance) {
-      if (!window.aclib) {
-        const s = document.createElement('script');
-        s.src = '//acscdn.com/script/aclib.js';
-        s.async = true;
-        s.onload = () => {
-          if (window.aclib && typeof window.aclib.runPop === 'function') {
-            window.aclib.runPop({ zoneId: '11932798' });
-            console.log("Ad script armed successfully.");
-          }
-        };
-        document.body.appendChild(s);
-      } else if (typeof window.aclib.runPop === 'function') {
-        window.aclib.runPop({ zoneId: '11932798' });
-        console.log("Ad script armed successfully.");
-      }
-    } else {
-      console.log("Ad script skipped for this chapter.");
+    // Just ensure the ad library is loaded on the page
+    if (!window.aclib) {
+      const s = document.createElement('script');
+      s.src = '//acscdn.com/script/aclib.js';
+      s.async = true;
+      document.body.appendChild(s);
     }
   }, []);
+
+  const attemptPopunder = () => {
+    const adChance = 0.20;
+    if (Math.random() < adChance && window.aclib && typeof window.aclib.runPop === 'function') {
+      window.aclib.runPop({ zoneId: '11932798' });
+      console.log("Popunder triggered from button click.");
+    }
+  };
 
   const goToNextChapter = () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
     
+    attemptPopunder();
     
     // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
     let currentIdx = chapters.findIndex(ch => ch.href === url);
@@ -233,6 +228,7 @@ function ReaderContent({ params }) {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
     
+    attemptPopunder();
     
     let currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx === -1 && id) {
@@ -255,6 +251,7 @@ function ReaderContent({ params }) {
      const selectedIndex = parseInt(e.target.value);
      const ch = chapters[selectedIndex];
      if (ch) {
+       attemptPopunder();
        const chNum = chapters.length - selectedIndex;
        router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
      }
