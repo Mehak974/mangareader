@@ -4,7 +4,7 @@ import React, { use, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import { fetchAnilist, getMangaList } from "@/utils/anilist";
+import { fetchAnilist, getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
 import { sanitizeHtml } from "@/utils/sanitize";
 import MangaCard from "@/components/MangaCard";
@@ -71,6 +71,7 @@ export default function MangaDetail({ params }) {
     toggleChapterReadState,
     setChaptersReadState,
     markAllBelowRead,
+    isNSFW,
   } = useApp();
 
   const [manga, setManga] = useState(null);
@@ -388,8 +389,7 @@ const [chPage, setChPage] = useState(1);
     }
   };
 
-  const isNSFWItem = React.useMemo(() => isExplicitNSFW(manga?.genres || [], manga?.title || "", { isAdult: manga?.isAdult }), [manga?.genres, manga?.title, manga?.isAdult]);
-  const { isNSFW } = useApp();
+  const isNSFWItem = isExplicitNSFW(manga?.genres || [], manga?.title || "", { isAdult: manga?.isAdult });
   const shouldBlur = isNSFWItem && !isNSFW;
 
   return (

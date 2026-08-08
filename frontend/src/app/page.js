@@ -77,6 +77,7 @@ export default async function Home() {
       ? recentFallback.media
       : [];
 
+    const existingTitles = new Set(recentlyAdded.map(m => (m.t || m.title || "").toLowerCase()));
     const uniqueFallback = fallbackMedia.filter(m => !existingTitles.has((m.t || m.title || "").toLowerCase()));
     recentlyAdded = [...recentlyAdded, ...uniqueFallback].slice(0, 20);
   }
