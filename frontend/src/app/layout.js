@@ -82,6 +82,7 @@ export default function RootLayout({ children }) {
           <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
         )}
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(s){s.dataset.zone='11532242',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))` }} />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />

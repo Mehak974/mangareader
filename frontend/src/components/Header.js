@@ -284,7 +284,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
               >
                 Search
               </button>
-           </div>
+           </form>
 
           {/* SEARCH DROPDOWN */}
           {showSuggestions && searchQuery !== "" && (
