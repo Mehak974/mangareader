@@ -9,12 +9,14 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001";
 
-export function proxyImage(url) {
+export function proxyImage(url, width = null) {
   if (!url || url.startsWith('/') || url.includes('/api/proxy-image')) return url;
-  // AniList CDN images are served optimized with proper CORS headers —
-  // bypass the backend proxy to eliminate an extra round-trip (critical for LCP).
-  if (url.includes('anilist.co')) return url;
-  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  
+  let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  if (width) {
+    target += `&w=${width}`;
+  }
+  return target;
 }
 
 let csrfToken = null;

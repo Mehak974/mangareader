@@ -115,7 +115,7 @@ export default async function Home() {
   const desktopHero = finalTrending[0];
 
   // Preload the LCP hero image so the browser starts fetching it as early as possible
-  const heroImageUrl = featuredHero?.cover ? proxyImage(featuredHero.cover) : null;
+  const heroImageUrl = featuredHero?.cover ? proxyImage(featuredHero.cover, 400) : null;
 
   return (
     <div>
@@ -136,7 +136,7 @@ export default async function Home() {
             >
                {featuredHero.cover ? (
                  <Image
-                    src={proxyImage(featuredHero.cover)}
+                    src={proxyImage(featuredHero.cover, 400)}
                     alt={`Cover for ${featuredHero.t}`}
                     fill
                     sizes="100vw"
@@ -221,7 +221,7 @@ export default async function Home() {
               >
                 {desktopHero.cover ? (
                  <Image
-                    src={proxyImage(desktopHero.cover)}
+                    src={proxyImage(desktopHero.cover, 800)}
                     alt={`Cover for ${desktopHero.t}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
@@ -262,7 +262,7 @@ export default async function Home() {
                 >
                    {r.cover ? (
                      <Image
-                       src={proxyImage(r.cover)}
+                       src={proxyImage(r.cover, 150)}
                        alt={`Cover for ${r.t}`}
                        fill
                        sizes="60px"
@@ -352,7 +352,7 @@ export default async function Home() {
                 >
                    {r.cover ? (
                      <Image
-                       src={proxyImage(r.cover)}
+                       src={proxyImage(r.cover, 100)}
                        alt={`Cover for ${r.t}`}
                        fill
                        sizes="48px"

@@ -37,7 +37,7 @@ export default function MangaCard({ manga, index }) {
       router.push(`/manga/${slugify(manga.t || manga.title)}`);
     }
   };
-  const imageUrl = proxyImage(manga.cover || null);
+  const imageUrl = proxyImage(manga.cover || null, 250);
    
   const coverStyle = imageUrl
     ? {
