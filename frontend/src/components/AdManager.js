@@ -41,7 +41,7 @@ export default function AdManager() {
       // 3. Inject the inline trigger script
       const triggerTag = document.createElement("script");
       triggerTag.type = "text/javascript";
-      triggerTag.innerHTML = \`(window.AdProvider = window.AdProvider || []).push({"serve": {}});\`;
+      triggerTag.innerHTML = `(window.AdProvider = window.AdProvider || []).push({"serve": {}});`;
 
       // Append everything directly to the DOM natively
       containerRef.current.appendChild(scriptTag);
