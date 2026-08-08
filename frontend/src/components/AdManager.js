@@ -32,7 +32,7 @@ export default function AdManager() {
       
       // We use a small polling mechanism to wait for aclib to become available
       // because the global script might still be downloading
-      triggerTag.innerHTML = \`
+      triggerTag.innerHTML = `
         var checkAclib = setInterval(function() {
           if (typeof aclib !== 'undefined') {
             clearInterval(checkAclib);
@@ -43,7 +43,7 @@ export default function AdManager() {
             }
           }
         }, 100);
-      \`;
+      `;
 
       // Inject the trigger directly where the ad should appear
       containerRef.current.appendChild(triggerTag);
