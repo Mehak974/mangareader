@@ -382,6 +382,19 @@ export default async function Home() {
 
       <div className="divider"></div>
 
+      {/* DONATE SECTION */}
+      <div className="nudge" style={{ margin: "40px 20px" }}>
+        <div>
+          <h2>Love MangaReader? Buy us a coffee! ☕</h2>
+          <p>Your support helps us keep the servers running and manga updates flowing.</p>
+        </div>
+        <Link href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          Donate via PayPal
+        </Link>
+      </div>
+
+      <div className="divider"></div>
+
       {/* ALL GENRES TILES */}
       <div className="section">
         <div className="s-hd">
@@ -394,15 +407,6 @@ export default async function Home() {
             </Link>
           ))}
         </div>
-      </div>
-
-      {/* DONATE SECTION */}
-      <div className="section" style={{ textAlign: "center", padding: "40px 20px", background: "var(--bg-card)", borderRadius: "12px", margin: "40px 20px" }}>
-        <h2 style={{ marginBottom: "15px", fontSize: "1.5rem" }}>Love MangaReader? Buy us a coffee! ☕</h2>
-        <p style={{ color: "var(--text3)", marginBottom: "20px" }}>Your support helps us keep the servers running and manga updates flowing.</p>
-        <Link href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="btn btn-p" style={{ display: "inline-block", textDecoration: 'none', background: "#FFC439", color: "#000", fontWeight: "bold" }}>
-          Donate via PayPal
-        </Link>
       </div>
 
       <Footer />
