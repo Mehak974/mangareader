@@ -219,10 +219,6 @@ const HARD_NSFW_TERMS = [
 // not fire on "Middlesex" or "sexuality". "sex" and "18+" live here.
 const HARD_NSFW_WORDS = ["sex", "18+"];
 
-// Soft signals: alone they do NOT hide the cover. Only when a hard signal is
-// also present do they contribute. (adult / mature / josei / seinen.)
-const SOFT_NSFW_TERMS = ["adult", "mature", "josei", "seinen"];
-
 /**
  * Decide whether a title's cover must be hidden behind an explicit-content
  * warning.
@@ -230,7 +226,7 @@ const SOFT_NSFW_TERMS = ["adult", "mature", "josei", "seinen"];
  * Rules:
  *  - AniList's own `isAdult` flag → always hide.
  *  - Any hard term/word in genres or tags → always hide.
- *  - Soft terms (adult/mature/josei) alone → do NOT hide.
+ *  - If the genre exactly matches "adult" or "mature" (common on scraper sites for smut) -> hide.
  *
  * @param {string[]} genres
  * @param {string} title
@@ -240,8 +236,13 @@ export function isExplicitNSFW(genres = [], title = "", extra = {}) {
   if (extra.isAdult) return true;
 
   const haystack = [...(genres || []), ...(extra.tags || [])].map((g) =>
-    String(g).toLowerCase()
+    String(g).toLowerCase().trim()
   );
+
+  // Exact genre/tag matches for common scraper adult tags
+  if (haystack.includes("adult") || haystack.includes("mature")) {
+    return true;
+  }
 
   // Substring match for multi-word hard terms.
   if (haystack.some((g) => HARD_NSFW_TERMS.some((term) => g.includes(term)))) {
@@ -257,6 +258,5 @@ export function isExplicitNSFW(genres = [], title = "", extra = {}) {
   );
   if (HARD_NSFW_WORDS.some((w) => words.has(w))) return true;
 
-  // Soft terms alone never hide — they only mattered above alongside a hard hit.
   return false;
 }
