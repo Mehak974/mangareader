@@ -185,9 +185,24 @@ function ReaderContent({ params }) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
+  const triggerAd = () => {
+    const adChance = 0.20;
+    if (Math.random() < adChance) {
+        var s = document.createElement('script');
+        s.src = '//acscdn.com/script/aclib.js';
+        s.setAttribute('data-idzone', '11931906');
+        s.async = true;
+        document.body.appendChild(s);
+        console.log("Ad script injected successfully.");
+    } else {
+        console.log("Ad script skipped to protect user experience.");
+    }
+  };
+
   const goToNextChapter = () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
+    triggerAd();
     
     // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
     let currentIdx = chapters.findIndex(ch => ch.href === url);
@@ -207,6 +222,7 @@ function ReaderContent({ params }) {
   const goToPrevChapter = () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
+    triggerAd();
     
     let currentIdx = chapters.findIndex(ch => ch.href === url);
     if (currentIdx === -1 && id) {
@@ -229,6 +245,7 @@ function ReaderContent({ params }) {
      const selectedIndex = parseInt(e.target.value);
      const ch = chapters[selectedIndex];
      if (ch) {
+       triggerAd();
        const chNum = chapters.length - selectedIndex;
        router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
      }
