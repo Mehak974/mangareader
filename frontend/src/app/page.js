@@ -315,7 +315,7 @@ export default async function Home() {
           <h2>Love MangaReader? Buy us a coffee! ☕</h2>
           <p>Your support helps us keep the servers running and manga updates flowing.</p>
         </div>
-        <Link href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Link href="https://www.paypal.com/paypalme/manireader" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           Donate via PayPal
         </Link>
       </div>
