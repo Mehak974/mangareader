@@ -16,30 +16,37 @@ export default function AdManager() {
       // Clear previous ad content to prevent duplicates on route changes
       containerRef.current.innerHTML = "";
 
-      // 1. Create the main Adcash script
-      const scriptTag = document.createElement("script");
-      scriptTag.id = "aclib";
-      scriptTag.type = "text/javascript";
-      scriptTag.src = "https://acscdn.com/script/aclib.js";
+      // 1. Ensure the main Adcash script is loaded globally exactly ONCE
+      if (!document.querySelector('script[id="aclib"]')) {
+        const scriptTag = document.createElement("script");
+        scriptTag.id = "aclib";
+        scriptTag.type = "text/javascript";
+        scriptTag.src = "https://acscdn.com/script/aclib.js";
+        scriptTag.async = true;
+        document.head.appendChild(scriptTag);
+      }
       
       // 2. Create the trigger script
       const triggerTag = document.createElement("script");
       triggerTag.type = "text/javascript";
-      triggerTag.innerHTML = `
-        if (typeof aclib !== 'undefined') {
-            aclib.runBanner({ zoneId: '11931906' });
-        }
-      `;
+      
+      // We use a small polling mechanism to wait for aclib to become available
+      // because the global script might still be downloading
+      triggerTag.innerHTML = \`
+        var checkAclib = setInterval(function() {
+          if (typeof aclib !== 'undefined') {
+            clearInterval(checkAclib);
+            try {
+                aclib.runBanner({ zoneId: '11931906' });
+            } catch (e) {
+                console.error("Adcash Error:", e);
+            }
+          }
+        }, 100);
+      \`;
 
-      // We wait for the main script to load before injecting the trigger
-      // This ensures 'aclib' is defined and the banner injects in the correct place
-      scriptTag.onload = () => {
-         if (containerRef.current) {
-             containerRef.current.appendChild(triggerTag);
-         }
-      };
-
-      containerRef.current.appendChild(scriptTag);
+      // Inject the trigger directly where the ad should appear
+      containerRef.current.appendChild(triggerTag);
     };
 
     // Load ad immediately on mount/navigation
