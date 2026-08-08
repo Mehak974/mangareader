@@ -26,11 +26,14 @@ export default function AdManager() {
       const zoneId = isMobile ? "5991066" : "5990958";
       const className = isMobile ? "eas6a97888e10" : "eas6a97888e2";
 
-      // 1. Inject the Asynchronous AdProvider script
-      const scriptTag = document.createElement("script");
-      scriptTag.src = "https://a.magsrv.com/ad-provider.js";
-      scriptTag.async = true;
-      scriptTag.type = "application/javascript";
+      // 1. Ensure the Asynchronous AdProvider script is loaded globally exactly ONCE
+      if (!document.querySelector('script[src="https://a.magsrv.com/ad-provider.js"]')) {
+        const scriptTag = document.createElement("script");
+        scriptTag.src = "https://a.magsrv.com/ad-provider.js";
+        scriptTag.async = true;
+        scriptTag.type = "application/javascript";
+        document.head.appendChild(scriptTag);
+      }
       
       // 2. Inject the <ins> tag
       const insTag = document.createElement("ins");
@@ -44,7 +47,6 @@ export default function AdManager() {
       triggerTag.innerHTML = `(window.AdProvider = window.AdProvider || []).push({"serve": {}});`;
 
       // Append everything directly to the DOM natively
-      containerRef.current.appendChild(scriptTag);
       containerRef.current.appendChild(insTag);
       containerRef.current.appendChild(triggerTag);
     };
