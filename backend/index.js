@@ -131,9 +131,17 @@ function rateLimit(windowMs = 60000, maxRequests = 60) {
 
 const limiter = rateLimit(15 * 60 * 1000, 200);
 
+const anilistCache = new NodeCache({ stdTTL: 86400, checkperiod: 3600 }); // Cache for 24 hours
+
 app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
   try {
+    const cacheKey = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
+    const cachedData = anilistCache.get(cacheKey);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
     const r = await axios.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' }, timeout: 10000 });
+    anilistCache.set(cacheKey, r.data);
     res.json(r.data);
   } catch (err) {
     if (err.response) res.status(err.response.status).json(err.response.data);
@@ -458,7 +466,39 @@ app.get('/api/manga/map', rateLimit(60000,30), async (req,res)=>{
   if(!title) return res.status(400).json({error:'title required'});
   try {
     const mangaId=await getOrFetchMangaMetadata(title);
-    const mData = (await db.query('SELECT country FROM manga WHERE id=$1',[mangaId])).rows[0];
+    const mData = (await db.query('SELECT country, preferred_source_id, preferred_source_slug, last_source_check FROM manga WHERE id=$1',[mangaId])).rows[0];
+    
+    // Helper to scrape and cache a single source
+    async function scrapeAndCache(m){
+      try{
+        const s=SOURCE_SCRAPERS[m.source_id];if(!s)return null;
+        const d=await s.getMangaDetail(m.source_slug);
+        if(d?.chapters?.length){
+          await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`,[mangaId,m.source_id,JSON.stringify(d.chapters)]);
+          return{sourceId:m.source_id,url:m.source_slug,detail:d};
+        }
+      }catch(err){console.warn(`Scrape failed ${m.source_id}:`,err.message);}
+      return null;
+    }
+
+    const now = Date.now();
+    const isPreferredValid = mData.preferred_source_id && mData.last_source_check && (now - new Date(mData.last_source_check).getTime()) < 30 * 24 * 60 * 60 * 1000;
+
+    if (isPreferredValid) {
+      const cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, mData.preferred_source_id])).rows[0];
+      let detail = null;
+      if (cached && (now - new Date(cached.fetched_at).getTime()) < 6 * 3600000 && cached.chapters?.length) {
+        // Just return from chapters_cache
+        return res.json({data:{sourceId:mData.preferred_source_id,url:mData.preferred_source_slug,chapters:cached.chapters}});
+      } else {
+        const result = await scrapeAndCache({source_id: mData.preferred_source_id, source_slug: mData.preferred_source_slug});
+        if (result) {
+           return res.json({data:{sourceId:result.sourceId,url:result.url,title:result.detail.title,cover:result.detail.cover,description:result.detail.description,status:result.detail.status,genres:result.detail.genres,chapters:result.detail.chapters}});
+        }
+        // If preferred source fails to scrape, fall through to full search
+      }
+    }
+
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
     const sourceIds = isManga ? ['mangakatana','mangadex'] : ['mangaread','coffeemanga','mgeko','isekaiscans','mangakatana','mangadex'];
     
@@ -476,27 +516,16 @@ app.get('/api/manga/map', rateLimit(60000,30), async (req,res)=>{
         throw new Error('Not found');
       });
       
-      // Wait up to 5.5 seconds for all sources to return their search results
       await Promise.allSettled(promises.map(p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5500))])));
       
       mappings = [...resolvedMappings];
       Promise.allSettled(promises).catch(()=>{});
     }
     if(!mappings.length) return res.status(404).json({error:'No source mappings found'});
-    const TTL=6*3600000,now=Date.now();
+    const TTL=6*3600000;
     const cached=(await db.query('SELECT source_id,chapters,fetched_at FROM chapters_cache WHERE manga_id=$1',[mangaId])).rows
       .reduce((m,r)=>{m[r.source_id]={chapters:r.chapters,ts:new Date(r.fetched_at).getTime()};return m;},{});
-    async function scrapeAndCache(m){
-      try{
-        const s=SOURCE_SCRAPERS[m.source_id];if(!s)return null;
-        const d=await s.getMangaDetail(m.source_slug);
-        if(d?.chapters?.length){
-          await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`,[mangaId,m.source_id,JSON.stringify(d.chapters)]);
-          return{sourceId:m.source_id,url:m.source_slug,detail:d};
-        }
-      }catch(err){console.warn(`Scrape failed ${m.source_id}:`,err.message);}
-      return null;
-    }
+    
     const fresh=[],stale=[];
     for(const m of mappings){
       const c=cached[m.source_id];
@@ -505,12 +534,10 @@ app.get('/api/manga/map', rateLimit(60000,30), async (req,res)=>{
     }
     let active=[...fresh];
     if(stale.length){
-      const withTimeout = (promise, ms) => Promise.race([promise, new Promise(r => setTimeout(() => r(null), ms))]);
       if(!fresh.length){
         let activeTemp = [];
         const promises = stale.map(r => scrapeAndCache(r).then(res => { if(res) activeTemp.push(res); else throw new Error(); return res; }));
         
-        // Wait up to 5.5 seconds for all scrapers to finish so we get the best source, not just the fastest
         await Promise.allSettled(promises.map(p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5500))])));
         
         active = activeTemp;
@@ -521,7 +548,11 @@ app.get('/api/manga/map', rateLimit(60000,30), async (req,res)=>{
     if(!active.length) return res.status(404).json({error:'Could not fetch chapters'});
     active.sort((a,b)=>{const d=b.detail.chapters.length-a.detail.chapters.length;return d||sourceIds.indexOf(a.sourceId)-sourceIds.indexOf(b.sourceId);});
     const sel=active[0];
-    res.json({data:{sourceId:sel.sourceId,url:sel.url,title:sel.detail.title,cover:sel.detail.cover,description:sel.detail.description,status:sel.detail.status,genres:sel.detail.genres,chapters:sel.detail.chapters}});
+
+    // Update the preferred source in the database (this is the optimization requested)
+    await db.query('UPDATE manga SET preferred_source_id=$1, preferred_source_slug=$2, last_source_check=NOW() WHERE id=$3', [sel.sourceId, sel.url, mangaId]);
+
+    res.json({data:{sourceId:sel.sourceId,url:sel.url,title:sel.detail?.title,cover:sel.detail?.cover,description:sel.detail?.description,status:sel.detail?.status,genres:sel.detail?.genres,chapters:sel.detail.chapters}});
   }catch(err){console.error('Mapping failed:',err.message);res.status(500).json({error:err.message});}
 });
 

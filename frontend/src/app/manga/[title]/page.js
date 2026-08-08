@@ -150,7 +150,7 @@ const [chPage, setChPage] = useState(1);
           normalizedManga = {
             id: String(media.id),
             title: aniTitle,
-            cover: media.coverImage.extraLarge || media.coverImage.large || media.coverImage.medium || "",
+            cover: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
             description: media.description || "No description available.",
             status: media.status === "RELEASING" ? "RELEASING" : "FINISHED",
             rating: media.averageScore ? media.averageScore / 20 : 4.5,

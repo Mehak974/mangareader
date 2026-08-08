@@ -116,6 +116,14 @@ export default function BrowseContent({ initialData, initialParams }) {
     };
     if (activeGenre !== "All") fetchVariables.genre = activeGenre;
     if (searchQuery.trim()) fetchVariables.search = searchQuery.trim();
+    if (country !== "All") fetchVariables.countryOfOrigin = country;
+    if (year !== "All") {
+      fetchVariables.startDate_greater = parseInt(`${year}0000`);
+      fetchVariables.startDate_lesser = parseInt(`${year}1232`);
+    }
+    if (rating !== "All") {
+      fetchVariables.averageScore_greater = parseInt(parseFloat(rating) * 20);
+    }
 
     setLoading(true);
     getMangaList(fetchVariables)

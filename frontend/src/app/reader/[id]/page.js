@@ -153,9 +153,9 @@ function ReaderContent({ params }) {
              }
            }
          });
-       },
-       { root: el, rootMargin: "-50% 0px", threshold: 0 }
-     );
+        },
+        { root: null, rootMargin: "-50% 0px", threshold: 0 }
+      );
      // Also observe the end element for marking read and showing nav automatically
      const endObserver = new IntersectionObserver(
        (entries) => {
@@ -304,7 +304,7 @@ function ReaderContent({ params }) {
   };
 
   return (
-    <div role="region" aria-label="Manga reader" onKeyDown={handleKeyDown} tabIndex={0} {...bindSwipe()} style={{ touchAction: "pan-y" }}>
+    <div role="region" aria-label="Manga reader" onKeyDown={handleKeyDown} tabIndex={0} {...bindSwipe()} style={{ touchAction: zoomedImage !== null ? "pan-x pan-y" : "pan-y" }}>
         <div className="reader-wrap" style={{ background: "#000" }} onClick={handleReaderClick}>
       {/* Top Toolbar */}
       {showNav && (
@@ -478,8 +478,10 @@ function ReaderContent({ params }) {
                 height: viewMode === "paged" ? "100vh" : "auto",
                 background: "none",
                 display: "flex",
-                justifyContent: "center",
+                justifyContent: viewMode === "paged" ? "center" : (zoomedImage === i ? "flex-start" : "center"),
                 alignItems: viewMode === "paged" ? "center" : "flex-start",
+                overflowX: zoomedImage === i ? "auto" : "hidden",
+                overflowY: "hidden"
               }}
             >
               {hasError ? (
@@ -516,15 +518,15 @@ function ReaderContent({ params }) {
                     width={800}
                     height={1200}
                     style={{ 
-                      width: viewMode === "paged" ? "auto" : "100%", 
+                      width: viewMode === "paged" ? "auto" : (zoomedImage === i ? "150%" : "100%"), 
                       height: viewMode === "paged" ? "100%" : "auto", 
                       maxHeight: viewMode === "paged" ? "100vh" : "none", 
+                      maxWidth: zoomedImage === i ? "none" : "100%",
                       objectFit: "contain", 
                       display: "block",
-                      transform: zoomedImage === i ? "scale(1.5)" : "none",
-                      transformOrigin: "top center",
-                      transition: "transform 0.25s ease-in-out",
-                      cursor: "zoom-in"
+                      transform: "none",
+                      transition: "width 0.25s ease-in-out",
+                      cursor: zoomedImage === i ? "zoom-out" : "zoom-in"
                     }} 
                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}
                     unoptimized={true}

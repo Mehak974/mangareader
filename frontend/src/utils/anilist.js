@@ -59,7 +59,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 }
 
 export const MANGA_QUERY = `
-  query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode) {
+  query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
     Page (page: $page, perPage: $perPage) {
       pageInfo {
         total
@@ -68,7 +68,7 @@ export const MANGA_QUERY = `
         hasNextPage
         perPage
       }
-      media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin) {
+      media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
         id
         title {
           english
@@ -116,7 +116,7 @@ export function mapAnilistMedia(media) {
 
 export async function getMangaList(variables) {
   try {
-    const data = await fetchAnilist(MANGA_QUERY, variables);
+    const data = await fetchAnilist(MANGA_QUERY, variables, 1, 500);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,
@@ -182,7 +182,7 @@ export async function getMangaList(variables) {
             hot: false,
             rating: item.mean ? item.mean / 2 : 4.0,
             ongoing: item.status === 'currently_publishing',
-            cover: "",
+            cover: item.main_picture?.large || item.main_picture?.medium || "",
             genres: genres,
             g: genres.length > 0 ? genres[0] : "Action",
           };
