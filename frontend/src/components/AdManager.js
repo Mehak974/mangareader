@@ -13,6 +13,7 @@ export default function AdManager() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
@@ -33,14 +34,25 @@ export default function AdManager() {
   useEffect(() => {
     if (!mounted || dismissed) return;
 
-    // Trigger ExoClick ad load
     const loadAd = () => {
+      if (!containerRef.current) return;
+      
+      // Clear container to prevent duplicate ads on re-renders
+      containerRef.current.innerHTML = '';
+
+      // Create the <ins> tag natively so ExoClick can manipulate it without React conflicts
+      const ins = document.createElement('ins');
+      ins.className = isMobile ? MOBILE_CLASS : DESKTOP_CLASS;
+      ins.setAttribute('data-zoneid', isMobile ? MOBILE_ZONEID : DESKTOP_ZONEID);
+      containerRef.current.appendChild(ins);
+
+      // Trigger ExoClick ad load
       window.AdProvider = window.AdProvider || [];
       window.AdProvider.push({ serve: {} });
     };
 
-    // Small delay ensures DOM is painted before AdProvider tries to find the <ins> tag
-    const timer = setTimeout(loadAd, 300);
+    // Small delay ensures DOM is painted
+    const timer = setTimeout(loadAd, 150);
     return () => clearTimeout(timer);
   }, [mounted, isMobile, dismissed]);
 
@@ -61,12 +73,7 @@ export default function AdManager() {
           Close X
         </button>
         
-        <div className="w-full flex justify-center items-center min-h-[50px] overflow-hidden">
-          {isMobile ? (
-            <ins className={MOBILE_CLASS} data-zoneid={MOBILE_ZONEID} style={{ display: 'inline-block' }}></ins>
-          ) : (
-            <ins className={DESKTOP_CLASS} data-zoneid={DESKTOP_ZONEID} style={{ display: 'inline-block' }}></ins>
-          )}
+        <div ref={containerRef} className="w-full flex justify-center items-center min-h-[50px] overflow-hidden">
         </div>
       </div>
     </>
