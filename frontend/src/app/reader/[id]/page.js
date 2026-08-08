@@ -410,7 +410,24 @@ function ReaderContent({ params }) {
 
       {/* Progress Bar */}
       {showNav && (
-      <div className="reader-prog-bar">
+      <div 
+        className="reader-prog-bar"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const percent = clickX / rect.width;
+          const targetPage = Math.max(1, Math.ceil(percent * TOTAL_PAGES));
+          if (viewMode === "paged") {
+            setPage(targetPage);
+          } else {
+            const pageEls = readerPagesRef.current?.querySelectorAll(".reader-page");
+            if (pageEls && pageEls[targetPage - 1]) {
+              pageEls[targetPage - 1].scrollIntoView({ behavior: "smooth" });
+            }
+          }
+        }}
+        style={{ cursor: "pointer" }}
+      >
         <div
           className="reader-prog-fill"
           style={{ width: `${(page / TOTAL_PAGES) * 100}%` }}
@@ -469,21 +486,21 @@ function ReaderContent({ params }) {
           const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
           const hasError = imgErrors[i];
           return (
-            <div
-              key={i}
-              className="reader-page"
-              style={{
-                position: "relative",
-                width: "100%",
-                height: viewMode === "paged" ? "100vh" : "auto",
-                background: "none",
-                display: "flex",
-                justifyContent: viewMode === "paged" ? "center" : (zoomedImage === i ? "flex-start" : "center"),
-                alignItems: viewMode === "paged" ? "center" : "flex-start",
-                overflowX: zoomedImage === i ? "auto" : "hidden",
-                overflowY: "hidden"
-              }}
-            >
+              <div
+                key={i}
+                className="reader-page"
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: viewMode === "paged" ? "100vh" : "auto",
+                  background: "none",
+                  display: "flex",
+                  justifyContent: viewMode === "paged" ? "center" : (zoomedImage === i ? "flex-start" : "center"),
+                  alignItems: viewMode === "paged" ? "center" : "flex-start",
+                  overflowX: zoomedImage === i ? "auto" : "hidden",
+                  overflowY: zoomedImage === i && viewMode === "paged" ? "auto" : "hidden"
+                }}
+              >
               {hasError ? (
                 <div style={{
                   width: "100%",
@@ -519,13 +536,12 @@ function ReaderContent({ params }) {
                     height={1200}
                     style={{ 
                       width: viewMode === "paged" ? "auto" : (zoomedImage === i ? "150%" : "100%"), 
-                      height: viewMode === "paged" ? "100%" : "auto", 
-                      maxHeight: viewMode === "paged" ? "100vh" : "none", 
+                      height: viewMode === "paged" ? (zoomedImage === i ? "200vh" : "100%") : "auto", 
+                      objectFit: "contain",
                       maxWidth: zoomedImage === i ? "none" : "100%",
-                      objectFit: "contain", 
-                      display: "block",
                       transform: "none",
-                      transition: "width 0.25s ease-in-out",
+                      transformOrigin: "center center",
+                      transition: "width 0.2s ease, height 0.2s ease",
                       cursor: zoomedImage === i ? "zoom-out" : "zoom-in"
                     }} 
                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}

@@ -12,7 +12,7 @@ import HomeAuthNudge from "@/components/HomeAuthNudge";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export const revalidate = 600; // Revalidate every 10 minutes (ISR) — balances freshness vs cold-start LCP
+export const revalidate = 43200; // Revalidate every 12 hours (ISR) — balances freshness vs cold-start LCP
 
 // Server components can be async
 export default async function Home() {

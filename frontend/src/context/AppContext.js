@@ -19,7 +19,7 @@ export const AppProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isDark, setIsDark] = useState(true);
   const [isIncognito, setIsIncognito] = useState(false);
-  const [isNSFW, setIsNSFW] = useState(true);
+  const [isNSFW, setIsNSFW] = useState(false);
   const [accentColors, setAccentColors] = useState({ c1: "#a855f7", c2: "#c084fc" });
 
   // Custom User Preferences Settings

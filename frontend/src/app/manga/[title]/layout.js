@@ -51,7 +51,7 @@ async function findManga(titleSlug) {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query: SEARCH_QUERY, variables: { search: searchTitle } }),
       // Metadata should be fast; don't let a slow AniList response hold up the page.
-      next: { revalidate: 3600 },
+      next: { revalidate: 86400 },
     });
     if (!res.ok) return null;
     const json = await res.json();

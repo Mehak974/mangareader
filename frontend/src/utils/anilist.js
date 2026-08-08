@@ -21,7 +21,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ query, variables }),
           signal: controller.signal,
-          next: { revalidate: 3600 },
+          next: { revalidate: 86400 },
         });
       } else {
         res = await fetch(`${API_BASE}/api/anilist`, {

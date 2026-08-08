@@ -188,16 +188,32 @@ return () => document.removeEventListener("keydown", handleKeyDown);
 
 {/* SEARCH BAR CONTAINER */}
          <div className="nav-search-wrap" ref={searchWrapRef}>
-          <div className="nav-search">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M21 21l-4.3-4.3"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>             <input
+          <form 
+            className="nav-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = searchQuery.trim();
+              if (q) {
+                router.push(`/browse?q=${encodeURIComponent(q)}`);
+              } else {
+                router.push(`/browse`);
+              }
+              setShowSuggestions(false);
+              searchInputRef.current?.blur();
+            }}
+          >
+            <button type="submit" style={{ background: "none", border: "none", color: "inherit", padding: 0, display: "flex", alignItems: "center", cursor: "pointer" }} aria-label="Submit search">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path
+                  d="M21 21l-4.3-4.3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <input
                type="text"
                ref={searchInputRef}
                placeholder="Search titles, genres…"
@@ -207,16 +223,6 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                onFocus={() => setShowSuggestions(true)}
                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                onKeyDown={(e) => {
-                 if (e.key === "Enter") {
-                   const q = searchQuery.trim();
-                   if (q) {
-                     router.push(`/browse?q=${encodeURIComponent(q)}`);
-                   } else {
-                     router.push(`/browse`);
-                   }
-                   setShowSuggestions(false);
-                   searchInputRef.current?.blur();
-                 }
                  if (e.key === "Escape") {
                    setSearchQuery("");
                    setShowSuggestions(false);
