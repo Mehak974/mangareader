@@ -309,6 +309,19 @@ export default async function Home() {
 
       {finalTrending.length > 0 && <div className="divider"></div>}
 
+      {/* DONATE SECTION */}
+      <div className="nudge" style={{ margin: "40px 20px" }}>
+        <div>
+          <h2>Love MangaReader? Buy us a coffee! ☕</h2>
+          <p>Your support helps us keep the servers running and manga updates flowing.</p>
+        </div>
+        <Link href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          Donate via PayPal
+        </Link>
+      </div>
+
+      <div className="divider"></div>
+
       <HomeGenreFilter />
 
       <div className="divider"></div>
@@ -379,19 +392,6 @@ export default async function Home() {
           </div>
         </div>
       )}
-
-      <div className="divider"></div>
-
-      {/* DONATE SECTION */}
-      <div className="nudge" style={{ margin: "40px 20px" }}>
-        <div>
-          <h2>Love MangaReader? Buy us a coffee! ☕</h2>
-          <p>Your support helps us keep the servers running and manga updates flowing.</p>
-        </div>
-        <Link href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          Donate via PayPal
-        </Link>
-      </div>
 
       <div className="divider"></div>
 
