@@ -189,7 +189,8 @@ function ReaderContent({ params }) {
     const adChance = 0.20;
     if (Math.random() < adChance) {
         var s = document.createElement('script');
-        s.src = '//acscdn.com/script/aclib.js';
+        s.src = '//acscdn.com/script/su.js';
+        s.setAttribute('data-zoneid', '11931906');
         s.setAttribute('data-idzone', '11931906');
         s.async = true;
         document.body.appendChild(s);
