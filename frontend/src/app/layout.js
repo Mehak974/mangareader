@@ -14,6 +14,7 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
+import AdManager from "@/components/AdManager";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -92,6 +93,7 @@ export default function RootLayout({ children }) {
               <InkDots />
               <Header />
               <Sidebar />
+              <AdManager />
               <main>{children}</main>
               <MobileNav />
               <AchievementToast />
