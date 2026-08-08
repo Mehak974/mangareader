@@ -14,7 +14,6 @@ import AchievementToast from "@/components/AchievementToast";
 import PWAInstall from "@/components/PWAInstall";
 import LibraryPicker from "@/components/LibraryPicker";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
-import MangaAd from "@/components/MangaAd";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -84,7 +83,6 @@ export default function RootLayout({ children }) {
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
-        <MangaAd />
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
         <Toaster position="bottom-right" />
