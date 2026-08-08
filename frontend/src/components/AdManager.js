@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 export default function AdManager() {
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef(null);
+  const pathname = usePathname(); // Tracks route changes
 
   useEffect(() => {
     setMounted(true);
@@ -40,12 +42,12 @@ export default function AdManager() {
     triggerTag.type = "text/javascript";
     triggerTag.innerHTML = `(window.AdProvider = window.AdProvider || []).push({"serve": {}});`;
 
-    // Append everything directly to the DOM natively (Bypassing React)
+    // Append everything directly to the DOM natively
     containerRef.current.appendChild(scriptTag);
     containerRef.current.appendChild(insTag);
     containerRef.current.appendChild(triggerTag);
 
-  }, [mounted, isMobile]);
+  }, [mounted, isMobile, pathname]); // Re-run whenever the route (pathname) changes
 
   return (
     <div className="w-full flex justify-center py-4 bg-bg border-b border-white/5">
