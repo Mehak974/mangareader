@@ -1,18 +1,13 @@
 import { DM_Sans } from "next/font/google";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import { Toaster } from "react-hot-toast";
 import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
-import MobileNav from "@/components/MobileNav";
-import InkDots from "@/components/InkDots";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import JsonLd from "@/components/JsonLd";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
-import AchievementToast from "@/components/AchievementToast";
-import PWAInstall from "@/components/PWAInstall";
-import LibraryPicker from "@/components/LibraryPicker";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
 
 const dmSans = DM_Sans({
@@ -21,6 +16,13 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
+
+const Sidebar = dynamic(() => import("@/components/Sidebar"));
+const MobileNav = dynamic(() => import("@/components/MobileNav"));
+const InkDots = dynamic(() => import("@/components/InkDots"));
+const AchievementToast = dynamic(() => import("@/components/AchievementToast"));
+const PWAInstall = dynamic(() => import("@/components/PWAInstall"));
+const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
 
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";

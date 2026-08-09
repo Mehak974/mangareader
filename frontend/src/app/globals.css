@@ -102,15 +102,6 @@ button {
   padding-bottom: 72px
 }
 
-.page {
-  display: none;
-  animation: pgIn .22s ease
-}
-
-.page.active {
-  display: block
-}
-
 @keyframes pgIn {
   from {
     opacity: 0;
