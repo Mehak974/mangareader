@@ -114,14 +114,8 @@ export default async function Home() {
   const featuredHero = finalPopularNow[0];
   const desktopHero = finalTrending[0];
 
-  // Preload the LCP hero image so the browser starts fetching it as early as possible
-  const heroImageUrl = featuredHero?.cover ? proxyImage(featuredHero.cover, 400) : null;
-
   return (
     <div>
-      {heroImageUrl && (
-        <link rel="preload" as="image" href={heroImageUrl} fetchPriority="high" />
-      )}
       {/* MOBILE HERO VIEWPORT */}
       <div className="mob-hero">
         {featuredHero ? (
