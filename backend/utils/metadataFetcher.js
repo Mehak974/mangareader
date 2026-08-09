@@ -2,7 +2,6 @@ const axios = require('axios');
 const db = require('../db');
 
 const ANILIST_URL = 'https://graphql.anilist.co';
-const JIKAN_URL = 'https://api.jikan.moe/v4';
 
 const ANILIST_QUERY = `
   query ($search: String, $id: Int) {
@@ -101,83 +100,6 @@ async function fetchFromAnilist(searchQuery, id = null, retries = 3, delay = 200
   return null;
 }
 
-/**
- * Fallback: Fetch metadata from MyAnimeList (via Jikan API)
- */
-async function fetchFromMAL(searchQuery, malId = null) {
-  try {
-    let url = `${JIKAN_URL}/manga`;
-    if (malId) {
-      url = `${JIKAN_URL}/manga/${malId}`;
-      const response = await axios.get(url, { timeout: 10000 });
-      if (response.data && response.data.data) {
-        return response.data.data;
-      }
-    } else {
-      const response = await axios.get(url, {
-        params: { q: searchQuery, limit: 1 },
-        timeout: 10000,
-      });
-      if (response.data && response.data.data && response.data.data.length > 0) {
-        return response.data.data[0];
-      }
-    }
-  } catch (err) {
-    console.warn('MAL metadata fetch warning:', err.message);
-  }
-  return null;
-}
-
-function normalizeMALData(manga) {
-  if (!manga) return null;
-
-  const title = manga.title || 'Untitled Manga';
-  const description = manga.synopsis || '';
-  const status = manga.status === 'Publishing' ? 'RELEASING' : (manga.status === 'Finished' ? 'FINISHED' : 'RELEASING');
-  const rating = manga.score ? manga.score / 2 : 4.0;
-  const popularity = manga.members || 0;
-  const genres = (manga.genres || []).map(g => g.name || g).filter(Boolean);
-  const authorsList = (manga.authors || []).map(a => ({
-    name: a.name,
-    role: a.role || 'author'
-  }));
-
-  const formatPartDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-  const startDate = formatPartDate(manga.published?.from);
-  const endDate = formatPartDate(manga.published?.to);
-
-  return {
-    ...manga,
-    _source: 'mal',
-    id: manga.mal_id,
-    idMal: manga.mal_id,
-    title: {
-      english: title,
-      romaji: null,
-      native: null,
-      userPreferred: title,
-    },
-    description,
-    status,
-    averageScore: rating * 20,
-    score: rating,
-    popularity,
-    genres,
-    startDate: startDate ? { year: parseInt(startDate.split('-')[0]), month: parseInt(startDate.split('-')[1]), day: parseInt(startDate.split('-')[2]) } : null,
-    endDate: endDate ? { year: parseInt(endDate.split('-')[0]), month: parseInt(endDate.split('-')[1]), day: parseInt(endDate.split('-')[2]) } : null,
-    staff: authorsList.length > 0 ? { edges: authorsList.map(a => ({ role: a.role, node: { name: { full: a.name } } })) } : null,
-    authors: authorsList,
-    chapters: manga.chapters || null,
-    countryOfOrigin: manga.country_of_origin || (manga.title?.match(/[\uac00-\ud7a3]/) ? 'KR' : 'JP'),
-    format: manga.type ? manga.type.toUpperCase() : 'MANGA',
-    favourites: manga.favorites || 0,
-    synonyms: manga.synonyms || [],
-  };
-}
 
 /**
  * Normalize and save/upsert a manga record in the canonical database
@@ -353,14 +275,6 @@ async function getOrFetchMangaMetadata(title, sourceId = null, sourceSlug = null
   console.log(`Fetching metadata for "${title}" from external APIs...`);
   let media = await fetchFromAnilist(title);
   
-  if (!media) {
-    console.log(`AniList failed for "${title}", trying MyAnimeList fallback...`);
-    const malRaw = await fetchFromMAL(title);
-    if (malRaw) {
-      media = normalizeMALData(malRaw);
-    }
-  }
-  
   if (media) {
     const savedId = await saveCanonicalManga(media, sourceId, sourceSlug);
     return savedId;
@@ -395,7 +309,6 @@ async function getOrFetchMangaMetadata(title, sourceId = null, sourceSlug = null
 
 module.exports = {
   fetchFromAnilist,
-  fetchFromMAL,
   saveCanonicalManga,
   getOrFetchMangaMetadata,
 };

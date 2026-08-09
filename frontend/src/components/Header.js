@@ -89,27 +89,6 @@ return () => document.removeEventListener("keydown", handleKeyDown);
         const aniData = await fetchAnilist(MANGA_QUERY, { search: q, perPage: 6 });
         if (aniData && aniData.Page && aniData.Page.media) {
           resultsData = aniData.Page.media;
-        } else {
-          // Fallback to MyAnimeList Jikan API
-          const jikanRes = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=6`);
-          if (jikanRes.ok) {
-            const jikanData = await jikanRes.json();
-            if (jikanData.data) {
-              resultsData = jikanData.data.map(item => ({
-                id: `mal-${item.mal_id}`,
-                title: {
-                  english: item.title_english,
-                  romaji: item.title,
-                  userPreferred: item.title
-                },
-                genres: (item.genres || []).map(g => g.name),
-                coverImage: {
-                  medium: item.images?.jpg?.image_url,
-                  large: item.images?.jpg?.large_image_url
-                },
-              }));
-            }
-          }
         }
 
         if (resultsData) {
