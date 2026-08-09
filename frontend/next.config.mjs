@@ -22,7 +22,6 @@ const nextConfig = {
 
   experimental: {
     optimizeCss: true,
-    cssChunking: true,
     optimizePackageImports: ['lucide-react', 'react-hot-toast', '@use-gesture/react', 'react-markdown', 'remark-gfm', 'rehype-sanitize'],
   },
 
