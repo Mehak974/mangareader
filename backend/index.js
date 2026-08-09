@@ -695,8 +695,8 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
         Referer: origin + '/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'image/*,*/*;q=0.8'
-      }, timeout: 8000
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept: 'image/*,*/*;q=0.8'
+      }, timeout: 3000
     });
     let buf, ct = 'image/avif';
     try {
