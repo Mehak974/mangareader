@@ -1,20 +1,3 @@
-/** @type {import('next').NextConfig} */
-
-// Content-Security-Policy moved to src/middleware.js — it now uses a
-// per-request nonce instead of 'unsafe-inline'/'unsafe-eval', which a static
-// header here can't express (a nonce has to be different on every request).
-const securityHeaders = [
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
-  { key: "X-XSS-Protection", value: "1; mode=block" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-];
-
-import critters from "critters";
-import critters from "critters";
 import withPWAInit from "@ducanh2912/next-pwa";
 
 /** @type {import('next').NextConfig} */
@@ -76,8 +59,4 @@ const withPWA = withPWAInit({
   },
 });
 
-export default critters({
-  preload: 'font',
-  reduceInlineStyles: true,
-  path: '.next/server',
-})(withPWA(nextConfig));
+export default withPWA(nextConfig);
