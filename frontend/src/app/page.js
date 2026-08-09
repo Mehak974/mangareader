@@ -133,13 +133,13 @@ export default async function Home() {
                     src={proxyImage(featuredHero.cover, 400)}
                     alt={`Cover for ${featuredHero.t}`}
                     fill
-                    sizes="100vw"
-                    style={{ objectFit: "cover", objectPosition: "center" }}
-                    priority
-                    loading="eager"
-                    fetchPriority="high"
-                    referrerPolicy="no-referrer"
-                  />
+                     sizes="42px"
+                     style={{ objectFit: "cover", objectPosition: "center" }}
+                     priority
+                     loading="eager"
+                     fetchPriority="high"
+                     referrerPolicy="no-referrer"
+                   />
               ) : (
                 "表"
               )}
@@ -218,13 +218,13 @@ export default async function Home() {
                     src={proxyImage(desktopHero.cover, 800)}
                     alt={`Cover for ${desktopHero.t}`}
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    style={{ objectFit: "cover", objectPosition: "center" }}
-                    priority
-                    loading="eager"
-                    fetchPriority="high"
-                    referrerPolicy="no-referrer"
-                  />
+                     sizes="(max-width: 768px) 0px, 380px"
+                     style={{ objectFit: "cover", objectPosition: "center" }}
+                     priority
+                     loading="eager"
+                     fetchPriority="high"
+                     referrerPolicy="no-referrer"
+                   />
                 ) : (
                   "表紙"
                 )}
@@ -259,11 +259,11 @@ export default async function Home() {
                        src={proxyImage(r.cover, 150)}
                        alt={`Cover for ${r.t}`}
                        fill
-                       sizes="60px"
-                       style={{ objectFit: "cover", objectPosition: "center" }}
-                       loading="lazy"
-                       decoding="async"
-                     />
+                        sizes="(max-width: 768px) 32px, 38px"
+                        style={{ objectFit: "cover", objectPosition: "center" }}
+                        loading="lazy"
+                        decoding="async"
+                      />
                    ) : (
                      abbr(r.t)
                    )}
@@ -362,11 +362,11 @@ export default async function Home() {
                        src={proxyImage(r.cover, 100)}
                        alt={`Cover for ${r.t}`}
                        fill
-                       sizes="48px"
-                       style={{ objectFit: "cover", objectPosition: "center" }}
-                       loading="lazy"
-                       decoding="async"
-                     />
+                        sizes="32px"
+                        style={{ objectFit: "cover", objectPosition: "center" }}
+                        loading="lazy"
+                        decoding="async"
+                      />
                    ) : (
                      abbr(r.t)
                    )}

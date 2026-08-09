@@ -669,9 +669,9 @@ const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 const IMAGE_CACHE_MAX = 500;
 
 app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
-  const { url, w } = req.query;
+  const { url, w, q } = req.query;
   if (!url || !isValidUrl(url)) return res.status(400).send('Invalid url');
-  const cacheKey = `${url}|${w || ''}`;
+  const cacheKey = `${url}|${w || ''}|${q || ''}`;
   const cached = imageCache.get(cacheKey);
   if (cached) {
     res.setHeader('Content-Type', cached.ct);
@@ -702,7 +702,8 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     try {
       let p = sharp(Buffer.from(r.data));
       if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p = p.resize({ width: wi, withoutEnlargement: true }); }
-      buf = await p.avif({ quality: 40 }).toBuffer();
+      const quality = Math.max(1, Math.min(100, parseInt(q) || 40));
+      buf = await p.avif({ quality }).toBuffer();
     } catch { buf = Buffer.from(r.data); ct = r.headers['content-type'] || 'image/jpeg'; }
 
     // Cache processed image (evict oldest if over cap)

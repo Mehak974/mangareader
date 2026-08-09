@@ -411,7 +411,7 @@ const [chPage, setChPage] = useState(1);
               src={proxyImage(manga.cover)}
               alt={`Cover for ${manga.title}`}
               fill
-              sizes="(max-width: 768px) 100vw, 350px"
+              sizes="(max-width: 768px) 110px, (max-width: 900px) 140px, 195px"
               style={{ 
                 objectFit: "cover", 
                 objectPosition: "center",

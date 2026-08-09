@@ -9,13 +9,12 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001";
 
-export function proxyImage(url, width = null) {
+export function proxyImage(url, width = null, quality = null) {
   if (!url || url.startsWith('/') || url.includes('/api/proxy-image')) return url;
   
   let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
-  if (width) {
-    target += `&w=${width}`;
-  }
+  if (width) target += `&w=${width}`;
+  if (quality) target += `&q=${quality}`;
   return target;
 }
 

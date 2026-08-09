@@ -77,7 +77,7 @@ export default function History() {
                         src={proxyImage(h.cover)} 
                         alt={h.t} 
                         fill
-                        sizes="80px"
+                        sizes="38px"
                         style={{ objectFit: "cover" }} 
                         
                       />

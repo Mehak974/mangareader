@@ -43,7 +43,7 @@ export default async function Browse({ searchParams }) {
   return (
     <div>
       {priorityImages.map((url) => (
-        <link key={url} rel="preload" as="image" href={proxyImage(url)} />
+        <link key={url} rel="preload" as="image" href={proxyImage(url, 400)} />
       ))}
       <BrowseContent initialData={initialData} initialParams={params} />
     </div>

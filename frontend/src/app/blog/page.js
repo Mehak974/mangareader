@@ -196,9 +196,9 @@ export default async function Blog({ searchParams }) {
                       src={proxyImage(p.coverImage)}
                       alt={`Cover for ${p.title}`}
                       fill
-                      sizes="150px"
-                      style={{ objectFit: "cover", objectPosition: "center" }}
-                    />
+                       sizes="100px"
+                       style={{ objectFit: "cover", objectPosition: "center" }}
+                     />
                   )}
                   {!p.coverImage && (p.category?.name || TYPE_LABEL[p.contentType] || "A")[0]}
                 </div>

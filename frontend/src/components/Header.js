@@ -310,8 +310,8 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                           src={proxyImage(m.cover)}
                           alt={`Cover for ${m.t}`}
                           fill
-                          sizes="40px"
-                          style={{ objectFit: "cover" }}
+                           sizes="28px"
+                           style={{ objectFit: "cover" }}
                         />
                       ) : (
                         abbr(m.t)

@@ -101,13 +101,13 @@ export default function LibraryPicker() {
               className="lib-picker-manga-cover"
               style={{ position: "relative", overflow: "hidden" }}
             >
-              <Image
-                src={proxyImage(libraryPickerManga.cover)}
-                alt={`Cover for ${libraryPickerManga.t || libraryPickerManga.title || "Unknown"}`}
-                fill
-                sizes="60px"
-                style={{ objectFit: "cover" }}
-              />
+                 <Image
+                   src={proxyImage(libraryPickerManga.cover)}
+                   alt={`Cover for ${libraryPickerManga.t || libraryPickerManga.title || "Unknown"}`}
+                   fill
+                   sizes="40px"
+                   style={{ objectFit: "cover" }}
+                 />
             </div>
           )}
           <div className="lib-picker-manga-info">
