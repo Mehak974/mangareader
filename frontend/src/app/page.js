@@ -1,14 +1,16 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import { proxyImage } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
-import Footer from "@/components/Footer";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
+
+const Footer = dynamic(() => import("@/components/Footer"));
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -19,10 +21,13 @@ export default async function Home() {
   // ── Critical path: fetch AniList data first (determines the hero image / LCP) ──
   // These are fetched in parallel. The backend /api/home fetch is deliberately
   // NOT in this Promise.all so a slow backend can't delay the hero image.
-  const [popularNowRes, trendingRes, popularOverallRes] = await Promise.all([
-    getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-    getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }),
-    getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }),
+  const [popularNowRes, trendingRes, popularOverallRes] = await Promise.race([
+    Promise.all([
+      getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
+      getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }),
+      getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }),
+    ]),
+    new Promise(resolve => setTimeout(() => resolve([null, null, null]), 3000)),
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0
@@ -115,7 +120,14 @@ export default async function Home() {
   const desktopHero = finalTrending[0];
 
   return (
-    <div>
+    <>
+      {featuredHero?.cover && (
+        <link rel="preload" as="image" href={featuredHero.cover} media="(max-width: 768px)" />
+      )}
+      {desktopHero?.cover && (
+        <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 800)} media="(min-width: 769px)" />
+      )}
+      <div>
       {/* MOBILE HERO VIEWPORT */}
       <div className="mob-hero">
         {featuredHero ? (
@@ -128,19 +140,16 @@ export default async function Home() {
                   : {}
               }
             >
-               {featuredHero.cover ? (
-                 <Image
-                    src={proxyImage(featuredHero.cover, 400)}
-                    alt={`Cover for ${featuredHero.t}`}
-                    fill
-                     sizes="42px"
-                     style={{ objectFit: "cover", objectPosition: "center" }}
-                     priority
+                {featuredHero.cover ? (
+                  <img
+                     src={featuredHero.cover}
+                     alt={`Cover for ${featuredHero.t}`}
+                     style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
                      loading="eager"
                      fetchPriority="high"
                      referrerPolicy="no-referrer"
                    />
-              ) : (
+                ) : (
                 "表"
               )}
             </div>
@@ -213,19 +222,17 @@ export default async function Home() {
                     : {}
                 }
               >
-                {desktopHero.cover ? (
-                 <Image
-                    src={proxyImage(desktopHero.cover, 800)}
-                    alt={`Cover for ${desktopHero.t}`}
-                    fill
-                     sizes="(max-width: 768px) 0px, 380px"
-                     style={{ objectFit: "cover", objectPosition: "center" }}
+                 {desktopHero.cover ? (
+                  <img
+                     src={desktopHero.cover}
+                     alt={`Cover for ${desktopHero.t}`}
+                     style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
                      priority
                      loading="eager"
                      fetchPriority="high"
                      referrerPolicy="no-referrer"
-                   />
-                ) : (
+                    />
+                 ) : (
                   "表紙"
                 )}
                 <div className="hc-rating" style={{ position: "relative", zIndex: 1 }}>★ {desktopHero.rating.toFixed(1)}</div>
@@ -405,5 +412,6 @@ export default async function Home() {
 
       <Footer />
     </div>
+    </>
   );
 }
