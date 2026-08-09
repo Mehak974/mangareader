@@ -692,11 +692,11 @@ app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
     const origin=parsed.origin;
     const r=await axios({method:'get',url,responseType:'arraybuffer',headers:{Referer:origin+'/',
       'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'image/*,*/*;q=0.8'},timeout:8000});
-    let buf,ct='image/webp';
+    let buf,ct='image/avif';
     try{
       let p=sharp(Buffer.from(r.data));
       if(w){const wi=parseInt(w);if(!isNaN(wi)&&wi>0&&wi<=2000)p=p.resize({width:wi,withoutEnlargement:true});}
-      buf=await p.webp({quality:75}).toBuffer();
+      buf=await p.avif({quality:60}).toBuffer();
     }catch{buf=Buffer.from(r.data);ct=r.headers['content-type']||'image/jpeg';}
     
     // Cache processed image (evict oldest if over cap)
@@ -707,7 +707,7 @@ app.get('/api/proxy-image',rateLimit(60000,300),async(req,res)=>{
     imageCache.set(cacheKey, { buf, ct });
     
     res.setHeader('Content-Type',ct);res.removeHeader('Content-Disposition');
-    res.setHeader('Cache-Control','public, max-age=604800, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control','public, max-age=31536000, immutable');
     res.send(buf);
   }catch(err){res.status(502).send('Error proxying image');}
 });
