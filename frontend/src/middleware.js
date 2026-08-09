@@ -62,7 +62,7 @@ export function middleware(request) {
 
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com https://vercel.live;
@@ -71,7 +71,7 @@ export function middleware(request) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'self';
-    frame-src 'self' https: http:;
+    frame-src 'self' https:;
     worker-src 'self' blob:;
     upgrade-insecure-requests;
   `;

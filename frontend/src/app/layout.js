@@ -62,23 +62,7 @@ export const viewport = {
   viewportFit: "cover",
 };
 
-async function getAdcashScript() {
-  try {
-    const res = await fetch('https://adbpage.com/adblock?v=3&format=js', {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(500),
-    });
-    if (!res.ok) return '';
-    return await res.text();
-  } catch (error) {
-    console.error('Failed to fetch Adcash script:', error);
-    return '';
-  }
-}
-
 export default async function RootLayout({ children }) {
-  const adcashScript = await getAdcashScript();
-
   return (
     <html lang="en" className={dmSans.variable} suppressHydrationWarning>
       <head>
@@ -93,9 +77,6 @@ export default async function RootLayout({ children }) {
           <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
         )}
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
-        {adcashScript && (
-          <script dangerouslySetInnerHTML={{ __html: adcashScript }} />
-        )}
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />

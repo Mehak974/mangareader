@@ -185,27 +185,6 @@ function ReaderContent({ params }) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
-  useEffect(() => {
-    // 50% chance to arm the popunder on this chapter page
-    const adChance = 1.00;
-    if (Math.random() < adChance) {
-      if (typeof window.aclib !== 'undefined' && typeof window.aclib.runPop === 'function') {
-        window.aclib.runPop({ zoneId: '11932798' });
-        console.log("Ad script armed successfully via anti-adblock.");
-      } else {
-        // Fallback or delayed arming if script hasn't loaded yet
-        setTimeout(() => {
-          if (typeof window.aclib !== 'undefined' && typeof window.aclib.runPop === 'function') {
-            window.aclib.runPop({ zoneId: '11932798' });
-            console.log("Ad script armed successfully via anti-adblock (delayed).");
-          }
-        }, 2000);
-      }
-    } else {
-      console.log("Ad script skipped for this chapter.");
-    }
-  }, []);
-
   const goToNextChapter = () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
