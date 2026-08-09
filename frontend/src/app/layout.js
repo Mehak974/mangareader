@@ -65,7 +65,8 @@ export const viewport = {
 async function getAdcashScript() {
   try {
     const res = await fetch('https://adbpage.com/adblock?v=3&format=js', {
-      next: { revalidate: 300 }
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(500),
     });
     if (!res.ok) return '';
     return await res.text();

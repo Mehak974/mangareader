@@ -42,6 +42,7 @@ export default function Settings() {
   } = useApp();
 
   const accentSwatches = [
+    { c1: "#a855f7", c2: "#c084fc", label: "Purple" },
     { c1: "#FFB300", c2: "#FFCA28", label: "Gold" },
     { c1: "#3b82f6", c2: "#60a5fa", label: "Blue" },
     { c1: "#10b981", c2: "#34d399", label: "Green" },
