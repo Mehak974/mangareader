@@ -25,9 +25,9 @@ export default async function Home() {
   const [popularNowRes, trendingRes] = await Promise.race([
     Promise.all([
       getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-      delay(1500).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
+      delay(5000).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
     ]),
-    new Promise(resolve => setTimeout(() => resolve([null, null]), 120000)),
+    new Promise(resolve => setTimeout(() => resolve([null, null]), 180000)),
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0
@@ -38,12 +38,18 @@ export default async function Home() {
     ? trendingRes.media
     : [];
 
-  let popularOverall = [];
+  const popularOverallRes = await Promise.race([
+    delay(10000).then(() => getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] })),
+    new Promise(resolve => setTimeout(() => resolve(null), 180000)),
+  ]);
 
-  // ── Non-critical: AniList fetch for Recently Added ──
+  let popularOverall = popularOverallRes?.media?.length > 0
+    ? popularOverallRes.media
+    : [];
+
   const recentRes = await Promise.race([
-    getRecentMangaList({ perPage: 5, genres: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }),
-    new Promise(resolve => setTimeout(() => resolve({ media: [] }), 60000)),
+    delay(15000).then(() => getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] })),
+    new Promise(resolve => setTimeout(() => resolve({ media: [] }), 180000)),
   ]).catch(() => ({ media: [] }));
 
   let recentlyAdded = [];

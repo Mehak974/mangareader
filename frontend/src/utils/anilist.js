@@ -53,7 +53,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 }
 
 export const MANGA_QUERY = `
-  query ($page: Int, $perPage: Int, $genre: String, $genres: [String], $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
+  query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
     Page (page: $page, perPage: $perPage) {
       pageInfo {
         total
@@ -62,7 +62,7 @@ export const MANGA_QUERY = `
         hasNextPage
         perPage
       }
-      media (type: MANGA, genre: $genre, genres: $genres, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
+      media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
         id
         title {
           english
@@ -90,7 +90,7 @@ export const MANGA_QUERY = `
 `;
 
 export const RECENT_MANGA_QUERY = `
-  query ($page: Int, $perPage: Int, $genres: [String], $sort: [MediaSort], $countryOfOrigin: CountryCode) {
+  query ($page: Int, $perPage: Int, $genre_in: [String], $sort: [MediaSort], $countryOfOrigin: CountryCode) {
     Page (page: $page, perPage: $perPage) {
       pageInfo {
         total
@@ -99,7 +99,7 @@ export const RECENT_MANGA_QUERY = `
         hasNextPage
         perPage
       }
-      media (type: MANGA, genres: $genres, sort: $sort, countryOfOrigin: $countryOfOrigin) {
+      media (type: MANGA, genre_in: $genre_in, sort: $sort, countryOfOrigin: $countryOfOrigin) {
         id
         title {
           english
