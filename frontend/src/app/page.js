@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
-import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
+import { getMangaList, getRecentMangaList, isExplicitNSFW } from "@/utils/anilist";
 import { proxyImage } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
@@ -43,54 +43,24 @@ export default async function Home() {
     ? popularOverallRes.media
     : [];
 
-  // ── Non-critical: backend fetch for Recently Added (below the fold on mobile) ──
-  // Use Promise.race with a 500 ms timeout so a slow backend can't delay
-  // the initial page paint. If it doesn't resolve in 500 ms, fall back to
-  // AniList "newest" results for the Recently Added section.
-  const backendPromise = fetch(`${apiBase}/api/home`)
-    .then(r => r.json())
-    .catch(() => ({ data: [] }));
-
-  const recentRes = await Promise.race([
-    backendPromise,
-    new Promise(resolve => setTimeout(() => resolve({ data: [] }), 500)),
-  ]);
+  // ── Non-critical: AniList fetch for Recently Added ──
+  const recentRes = await getRecentMangaList({ perPage: 5, genres: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }).catch(() => ({ media: [] }));
 
   let recentlyAdded = [];
-  if (recentRes?.data && recentRes.data.length > 0) {
-    const allRecentItems = [];
-    for (const section of recentRes.data) {
-      if (section.items) {
-        section.items.forEach(item => {
-          allRecentItems.push({ ...item, sourceId: section.sourceId });
-        });
-      }
-    }
-    recentlyAdded = allRecentItems.slice(0, 20).map(m => ({
-      id: m.href || m.title,
-      t: m.title,
+  if (recentRes?.media?.length > 0) {
+    recentlyAdded = recentRes.media.map(m => ({
+      id: m.id,
+      t: m.t,
       cover: m.cover,
-      ch: m.chapter || 'Ch 1',
-      g: 'Ongoing',
-      latest_source: m.sourceId,
+      ch: m.ch,
+      g: m.g || "Ongoing",
       hot: true
     }));
-  }
-
-  if (recentlyAdded.length < 20) {
-    const recentFallback = await getMangaList({ perPage: 20, sort: ["UPDATED_AT_DESC"] }).catch(() => ({ media: [] }));
-    const fallbackMedia = recentFallback?.media?.length > 0
-      ? recentFallback.media
-      : [];
-
-    const existingTitles = new Set(recentlyAdded.map(m => (m.t || m.title || "").toLowerCase()));
-    const uniqueFallback = fallbackMedia.filter(m => !existingTitles.has((m.t || m.title || "").toLowerCase()));
-    recentlyAdded = [...recentlyAdded, ...uniqueFallback].slice(0, 20);
   }
   let finalPopularNow = popularNow.slice(0, 9);
   let finalTrending = trending.slice(0, 12);
   let finalPopularOverall = popularOverall.slice(0, 12);
-  const finalRecentlyAdded = recentlyAdded.slice(0, 10);
+  const finalRecentlyAdded = recentlyAdded.slice(0, 5);
 
   const fallbackHero1 = {
     id: "fallback-solo-leveling",

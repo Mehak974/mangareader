@@ -59,7 +59,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 }
 
 export const MANGA_QUERY = `
-  query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
+  query ($page: Int, $perPage: Int, $genre: String, $genres: [String], $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
     Page (page: $page, perPage: $perPage) {
       pageInfo {
         total
@@ -68,7 +68,44 @@ export const MANGA_QUERY = `
         hasNextPage
         perPage
       }
-      media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
+      media (type: MANGA, genre: $genre, genres: $genres, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
+        id
+        title {
+          english
+          romaji
+          userPreferred
+        }
+        coverImage {
+          large
+          medium
+          color
+        }
+        genres
+        averageScore
+        status
+        chapters
+        trending
+        isAdult
+        tags {
+          name
+          isAdult
+        }
+      }
+    }
+  }
+`;
+
+export const RECENT_MANGA_QUERY = `
+  query ($page: Int, $perPage: Int, $genres: [String], $sort: [MediaSort], $countryOfOrigin: CountryCode) {
+    Page (page: $page, perPage: $perPage) {
+      pageInfo {
+        total
+        currentPage
+        lastPage
+        hasNextPage
+        perPage
+      }
+      media (type: MANGA, genres: $genres, sort: $sort, countryOfOrigin: $countryOfOrigin) {
         id
         title {
           english
@@ -125,6 +162,25 @@ export async function getMangaList(variables) {
     }
   } catch (err) {
     console.warn("getMangaList failed:", err.message);
+  }
+
+  return {
+    pageInfo: { total: 0, currentPage: 1, lastPage: 1, hasNextPage: false, perPage: 10 },
+    media: [],
+  };
+}
+
+export async function getRecentMangaList(variables) {
+  try {
+    const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 3, 1000);
+    if (data && data.Page) {
+      return {
+        pageInfo: data.Page.pageInfo,
+        media: data.Page.media.map(mapAnilistMedia),
+      };
+    }
+  } catch (err) {
+    console.warn("getRecentMangaList failed:", err.message);
   }
 
   return {
