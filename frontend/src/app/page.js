@@ -217,19 +217,19 @@ export default async function Home() {
                       : {}
                   }
                 >
-                   {r.cover ? (
-                     <Image
-                       src={proxyImage(r.cover, 150)}
-                       alt={`Cover for ${r.t}`}
-                       fill
-                        sizes="(max-width: 768px) 32px, 38px"
-                        style={{ objectFit: "cover", objectPosition: "center" }}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                   ) : (
-                     abbr(r.t)
-                   )}
+                    {r.cover ? (
+                      <Image
+                        src={proxyImage(r.cover, 80)}
+                        alt={`Cover for ${r.t}`}
+                        fill
+                         sizes="(max-width: 768px) 32px, 38px"
+                         style={{ objectFit: "cover", objectPosition: "center" }}
+                         loading="lazy"
+                         decoding="async"
+                       />
+                    ) : (
+                      abbr(r.t)
+                    )}
                 </div>
                 <div className="r-info">
                   <div className="r-title">{r.t}</div>
@@ -320,19 +320,19 @@ export default async function Home() {
                       : {}
                   }
                 >
-                   {r.cover ? (
-                     <Image
-                       src={proxyImage(r.cover, 100)}
-                       alt={`Cover for ${r.t}`}
-                       fill
-                        sizes="32px"
-                        style={{ objectFit: "cover", objectPosition: "center" }}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                   ) : (
-                     abbr(r.t)
-                   )}
+                    {r.cover ? (
+                      <Image
+                        src={proxyImage(r.cover, 64)}
+                        alt={`Cover for ${r.t}`}
+                        fill
+                         sizes="32px"
+                         style={{ objectFit: "cover", objectPosition: "center" }}
+                         loading="lazy"
+                         decoding="async"
+                       />
+                    ) : (
+                      abbr(r.t)
+                    )}
                 </div>
                 <div className="rc-body">
                   <div className="rc-title">{r.t}</div>

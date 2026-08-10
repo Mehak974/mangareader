@@ -757,13 +757,24 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'image/*,*/*;q=0.8'
       }, timeout: 3000
     });
-    let buf, ct = 'image/avif';
+    let buf, ct = 'image/webp';
     try {
       let p = sharp(Buffer.from(r.data));
       if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p = p.resize({ width: wi, withoutEnlargement: true }); }
-      const quality = Math.max(1, Math.min(100, parseInt(q) || 40));
-      buf = await p.avif({ quality }).toBuffer();
-    } catch { buf = Buffer.from(r.data); ct = r.headers['content-type'] || 'image/jpeg'; }
+      const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
+      buf = await p.webp({ quality }).toBuffer();
+    } catch {
+      try {
+        let p = sharp(Buffer.from(r.data));
+        if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p = p.resize({ width: wi, withoutEnlargement: true }); }
+        const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
+        buf = await p.jpeg({ quality, progressive: true }).toBuffer();
+        ct = 'image/jpeg';
+      } catch {
+        buf = Buffer.from(r.data);
+        ct = r.headers['content-type'] || 'image/jpeg';
+      }
+    }
 
     // Cache processed image (evict oldest if over cap)
     if (Object.keys(imageCache.keys()).length >= IMAGE_CACHE_MAX) {
