@@ -74,7 +74,7 @@ function bookSchema(media, titleSlug) {
   const url = absoluteUrl(`/manga/${titleSlug}`);
   const image = media.coverImage?.large;
 
-  const schema: Record<string, unknown> = {
+  const schema = {
     "@context": "https://schema.org",
     "@type": "Book",
     name,
