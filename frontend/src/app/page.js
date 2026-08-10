@@ -22,13 +22,12 @@ export default async function Home() {
   // These are fetched in parallel. The backend /api/home fetch is deliberately
   // NOT in this Promise.all so a slow backend can't delay the hero image.
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const [popularNowRes, trendingRes, popularOverallRes] = await Promise.race([
+  const [popularNowRes, trendingRes] = await Promise.race([
     Promise.all([
       getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-      delay(200).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
-      delay(400).then(() => getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] })),
+      delay(800).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
     ]),
-    new Promise(resolve => setTimeout(() => resolve([null, null, null]), 3000)),
+    new Promise(resolve => setTimeout(() => resolve([null, null]), 3000)),
   ]);
 
   let popularNow = popularNowRes?.media?.length > 0
@@ -38,6 +37,11 @@ export default async function Home() {
   let trending = trendingRes?.media?.length > 0
     ? trendingRes.media
     : [];
+
+  const popularOverallRes = await Promise.race([
+    delay(1600).then(() => getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] })),
+    new Promise(resolve => setTimeout(() => resolve(null), 3000)),
+  ]);
 
   let popularOverall = popularOverallRes?.media?.length > 0
     ? popularOverallRes.media
