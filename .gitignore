@@ -25,3 +25,6 @@ remove_ads.js
 fix_reader.js
 add_search.js
 fix_manga.js
+
+# Large local binaries / scrapers
+backend/chrome/

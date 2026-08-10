@@ -310,7 +310,7 @@ async function verifyRedirectLink(link, orig) {
 }
 
 async function performSearch(sourceId, query, origTitle) {
-  if (['coffeemanga', 'mangaread', 'isekaiscans'].includes(sourceId)) {
+  if (['coffeemanga', 'mangaread'].includes(sourceId)) {
     const base = SOURCE_SCRAPERS[sourceId].baseUrl;
     const $ = cheerio.load(await fetchHTML(`${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`));
     const redir = checkDirectRedirect($, base);
@@ -341,36 +341,6 @@ async function performSearch(sourceId, query, origTitle) {
       } catch { }
     }
     return null;
-  }
-  if (sourceId === 'hadesscans') {
-    const base = 'https://hadesscans.com';
-    const $ = cheerio.load(await fetchHTML(`${base}/?s=${encodeURIComponent(query)}`));
-    const redir = checkDirectRedirect($, base); if (redir) { const v = await verifyRedirectLink(redir, origTitle); if (v) return v; }
-    let best = null, score = 0;
-    $('.cx-poster-card a,.bsx a,a[href*="/series/"],a[href*="/manga/"]').each((_, el) => {
-      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
-      if (!href || href.endsWith('/manga') || href.endsWith('/series')) return;
-      if (!isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = href; }
-    });
-    return score >= 1 ? best : null;
-  }
-  if (sourceId === 'mgeko') {
-    const base = 'https://www.mgeko.cc';
-    const $ = cheerio.load(await fetchHTML(`${base}/search/?search=${encodeURIComponent(query)}`));
-    const redir = checkDirectRedirect($, base); if (redir) { const v = await verifyRedirectLink(redir, origTitle); if (v) return v; }
-    let best = null, score = 0;
-    $('.novel-item a,a[href*="/manga/"]').each((_, el) => {
-      const href = $(el).attr('href');
-      const text = ($(el).attr('title') || $(el).text() || $(el).find('.novel-title').text()).trim().toLowerCase();
-      if (!href || !href.includes('/manga/') || href.includes('/novel/')) return;
-      const full = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
-      if (!isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = full; }
-    });
-    return score >= 1 ? best : null;
   }
   if (sourceId === 'mangakatana') {
     const base = 'https://mangakatana.com';
@@ -451,9 +421,6 @@ async function searchSource(sourceId, title, mangaId = null) {
 function detectSource(url) {
   const h = new URL(url).hostname;
   if (h === 'coffeemanga.ink') return 'coffeemanga';
-  if (h === 'hadesscans.com') return 'hadesscans';
-  if (h === 'isekaiscans.org') return 'isekaiscans';
-  if (h === 'www.mgeko.cc' || h === 'mgeko.cc') return 'mgeko';
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
@@ -500,7 +467,7 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     }
 
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
-    const sourceIds = isManga ? ['mangakatana', 'mangadex'] : ['mangaread', 'coffeemanga', 'mgeko', 'isekaiscans', 'mangakatana', 'mangadex'];
+    const sourceIds = isManga ? ['mangakatana', 'mangadex'] : ['mangaread', 'coffeemanga', 'mangakatana', 'mangadex'];
 
     let mappings = (await db.query('SELECT source_id,source_slug FROM source_mappings WHERE manga_id=$1', [mangaId])).rows;
     if (!mappings.length) {
@@ -686,7 +653,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|hadesscans\.com|isekaiscans\.org|mgeko\.cc|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|i\.imgur\.com|githubusercontent\.com)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|i\.imgur\.com|githubusercontent\.com)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }

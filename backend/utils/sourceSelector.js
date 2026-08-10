@@ -4,8 +4,6 @@ const db = require('../db');
 const SOURCE_PRIORITY = [
   'mangaread',
   'coffeemanga',
-  'mgeko',
-  'isekaiscans',
   'mangakatana',
   'mangadex'
 ];

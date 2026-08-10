@@ -48,10 +48,8 @@ const SINGLE_MANGA_QUERY = `
 const AVAILABLE_SOURCES = [
   { id: "mangaread", name: "Server 1" },
   { id: "coffeemanga", name: "Server 2" },
-  { id: "mgeko", name: "Server 3" },
-  { id: "isekaiscans", name: "Server 4" },
-  { id: "mangakatana", name: "Server 5" },
-  { id: "mangadex", name: "Server 6" }
+  { id: "mangakatana", name: "Server 3" },
+  { id: "mangadex", name: "Server 4" }
 ];
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
