@@ -589,6 +589,98 @@ app.get('/api/home', rateLimit(60000, 30), async (req, res) => {
   await setCached('home', sections); res.json({ data: sections, cached: false });
 });
 
+app.get('/api/home/sections/:key', rateLimit(60000, 30), async (req, res) => {
+  const { key } = req.params;
+  try {
+    const result = await db.query('SELECT media, updated_at FROM home_sections WHERE section_key = $1', [key]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Section not found' });
+    res.json({ data: result.rows[0].media, updated_at: result.rows[0].updated_at });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/home/sections/:key', requireAdmin, async (req, res) => {
+  const { key } = req.params;
+  const { media } = req.body;
+  if (!Array.isArray(media)) return res.status(400).json({ error: 'media must be an array' });
+  try {
+    await db.query(
+      `INSERT INTO home_sections (section_key, media, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP)
+       ON CONFLICT (section_key) DO UPDATE SET media = EXCLUDED.media, updated_at = EXCLUDED.updated_at`,
+      [key, JSON.stringify(media)]
+    );
+    await setCached(`home_section:${key}`, media, 86400000);
+    res.json({ success: true, section_key: key, count: media.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const ANILIST_MANGA_QUERY = `
+  query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
+    Page (page: $page, perPage: $perPage) {
+      pageInfo { total currentPage lastPage hasNextPage perPage }
+      media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
+        id
+        title { english romaji userPreferred }
+        coverImage { large medium color }
+        genres averageScore status chapters trending isAdult
+        tags { name isAdult }
+      }
+    }
+  }
+`;
+
+function mapAnilistMedia(media) {
+  return {
+    id: media.id,
+    t: media.title.userPreferred || media.title.english || media.title.romaji,
+    title: media.title.english || media.title.romaji || media.title.userPreferred,
+    cover: media.coverImage.large || media.coverImage.medium,
+    ch: media.chapters ? `Ch ${media.chapters}` : '',
+    g: media.status || 'Ongoing',
+    hot: media.trending ? Math.round(media.trending) : undefined,
+    rating: media.averageScore ? (media.averageScore / 10).toFixed(1) : undefined,
+    genres: media.genres || [],
+    isAdult: media.isAdult,
+    tags: media.tags || [],
+  };
+}
+
+app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res) => {
+  const { key } = req.params;
+  let query, variables;
+  switch (key) {
+    case 'popular_now':
+      query = ANILIST_MANGA_QUERY;
+      variables = { perPage: 12, genre: 'Fantasy', countryOfOrigin: 'KR', sort: ['POPULARITY_DESC'] };
+      break;
+    case 'readers_also_love':
+      query = ANILIST_MANGA_QUERY;
+      variables = { perPage: 12, sort: ['POPULARITY_DESC'] };
+      break;
+    default:
+      return res.status(400).json({ error: 'Unknown section key' });
+  }
+  try {
+    const r = await axios.post('https://graphql.anilist.co', { query, variables }, {
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' },
+      timeout: 15000,
+    });
+    const media = (r.data?.data?.Page?.media || []).map(mapAnilistMedia);
+    await db.query(
+      `INSERT INTO home_sections (section_key, media, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP)
+       ON CONFLICT (section_key) DO UPDATE SET media = EXCLUDED.media, updated_at = EXCLUDED.updated_at`,
+      [key, JSON.stringify(media)]
+    );
+    await setCached(`home_section:${key}`, media, 86400000);
+    res.json({ success: true, section_key: key, count: media.length, source: 'anilist' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/manga', async (req, res) => {
   const { url, source: sid } = req.query;
   if (!url || !isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });

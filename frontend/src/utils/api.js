@@ -20,6 +20,18 @@ export function proxyImage(url, width = null, quality = null) {
 
 let csrfToken = null;
 
+export async function fetchHomeSection(sectionKey) {
+  const res = await fetch(`${API_BASE}/api/home/sections/${encodeURIComponent(sectionKey)}`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'omit',
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to fetch home section ${sectionKey}: ${res.status} - ${text}`);
+  }
+  return res.json();
+}
+
 export async function fetchApi(endpoint, options = {}) {
   // Fetch CSRF token if not loaded
   if (!csrfToken && ['POST', 'PUT', 'DELETE'].includes(options.method)) {

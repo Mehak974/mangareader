@@ -166,6 +166,12 @@ async function initDB() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS home_sections (
+        section_key VARCHAR(100) PRIMARY KEY,
+        media JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       -- Seed default maintenance_mode setting if not exists
       INSERT INTO site_settings (key, value)
       VALUES ('maintenance_mode', 'false')

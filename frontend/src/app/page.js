@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaList, getRecentMangaList, isExplicitNSFW } from "@/utils/anilist";
-import { proxyImage } from "@/utils/api";
+import { proxyImage, fetchHomeSection } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
@@ -35,23 +35,37 @@ export default async function Home() {
   let recentlyAdded = [];
 
   try {
-    const [popularNowRes, trendingRes, popularOverallRes, recentRes] =
+    const [popularNowData, popularOverallData, trendingRes, recentRes] =
       await Promise.all([
-        withTimeout(getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }), 8000),
+        fetchHomeSection('popular_now').catch(() => ({ data: [] })),
+        fetchHomeSection('readers_also_love').catch(() => ({ data: [] })),
         withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000),
-        withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000),
         withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000),
       ]);
 
-    popularNow = popularNowRes?.media?.length > 0 ? popularNowRes.media : [];
+    popularNow = popularNowData?.data?.length > 0 ? popularNowData.data : [];
+    popularOverall = popularOverallData?.data?.length > 0 ? popularOverallData.data : [];
     trending = trendingRes?.media?.length > 0 ? trendingRes.media : [];
-    popularOverall = popularOverallRes?.media?.length > 0 ? popularOverallRes.media : [];
     recentlyAdded = recentRes?.media?.length > 0 ? recentRes.media.slice(0, 5) : [];
   } catch {
     popularNow = [];
     trending = [];
     popularOverall = [];
     recentlyAdded = [];
+  }
+
+  // Fallback to AniList if backend cache is empty
+  if (popularNow.length === 0 || popularOverall.length === 0) {
+    try {
+      const [fallbackPopularNow, fallbackPopularOverall] = await Promise.all([
+        withTimeout(getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000),
+      ]);
+      if (popularNow.length === 0) popularNow = fallbackPopularNow?.media?.length > 0 ? fallbackPopularNow.media : [];
+      if (popularOverall.length === 0) popularOverall = fallbackPopularOverall?.media?.length > 0 ? fallbackPopularOverall.media : [];
+    } catch {
+      // leave empty
+    }
   }
 
   let finalPopularNow = popularNow.slice(0, 9);
