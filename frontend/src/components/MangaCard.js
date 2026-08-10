@@ -37,7 +37,7 @@ export default function MangaCard({ manga, index }) {
       router.push(`/manga/${slugify(manga.t || manga.title)}${manga.cover ? `?cover=${encodeURIComponent(manga.cover)}` : ''}`);
     }
   };
-  const imageUrl = proxyImage(manga.cover || null, 180);
+  const imageUrl = proxyImage(manga.cover || null, 120);
    
   const coverStyle = imageUrl
     ? {
@@ -66,7 +66,7 @@ export default function MangaCard({ manga, index }) {
             src={imageUrl}
             alt={`Cover for ${manga.t}`}
             fill
-            sizes="(max-width: 768px) 170px, 230px"
+             sizes="(max-width: 768px) 120px, 180px"
             style={{ objectFit: "cover" }}
             loading="lazy"
             decoding="async"
