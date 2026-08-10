@@ -30,8 +30,8 @@ const DEFAULT_DESCRIPTION =
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} - Read Manga Free Online`,
-    template: `%s · ${SITE_NAME}`,
+    default: "Free Manga Reader Online — Read Manga, Manhwa & Manhua",
+    template: "%s | Free Manga Reader",
   },
   description: DEFAULT_DESCRIPTION,
   applicationName: SITE_NAME,
@@ -54,7 +54,16 @@ export const metadata = {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true },
-  }
+  },
+  alternates: {
+    canonical: "/",
+    languages: {
+      "en": "/",
+      "ja": "/",
+      "ko": "/",
+      "zh": "/",
+    },
+  },
 };
 
 export const viewport = {
@@ -78,6 +87,11 @@ export default async function RootLayout({ children }) {
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
         )}
+        <link rel="alternate" hrefLang="en" href={SITE_URL + "/"} />
+        <link rel="alternate" hrefLang="ja" href={SITE_URL + "/"} />
+        <link rel="alternate" hrefLang="ko" href={SITE_URL + "/"} />
+        <link rel="alternate" hrefLang="zh" href={SITE_URL + "/"} />
+        <link rel="alternate" hrefLang="x-default" href={SITE_URL + "/"} />
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
         <script dangerouslySetInnerHTML={{ __html: `setTimeout(function(){var s=[document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script'));s.dataset.zone='11533092',s.src='https://al5sm.com/tag.min.js'},300000);` }} />
       </head>

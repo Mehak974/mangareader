@@ -22,76 +22,42 @@ export default async function Home() {
   // These are fetched in parallel. The backend /api/home fetch is deliberately
   // NOT in this Promise.all so a slow backend can't delay the hero image.
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const [popularNowRes, trendingRes] = await Promise.race([
-    Promise.all([
-      getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-      delay(5000).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
-    ]),
-    new Promise(resolve => setTimeout(() => resolve([null, null]), 180000)),
-  ]);
+  const timeout = (ms) =>
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), ms)
+    );
 
-  let popularNow = popularNowRes?.media?.length > 0
-    ? popularNowRes.media
-    : [];
+  const withTimeout = (promise, ms) => Promise.race([promise, timeout(ms)]);
 
-  let trending = trendingRes?.media?.length > 0
-    ? trendingRes.media
-    : [];
-
-  const popularOverallRes = await Promise.race([
-    delay(10000).then(() => getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] })),
-    new Promise(resolve => setTimeout(() => resolve(null), 180000)),
-  ]);
-
-  let popularOverall = popularOverallRes?.media?.length > 0
-    ? popularOverallRes.media
-    : [];
-
-  const recentRes = await Promise.race([
-    delay(15000).then(() => getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] })),
-    new Promise(resolve => setTimeout(() => resolve({ media: [] }), 180000)),
-  ]).catch(() => ({ media: [] }));
-
+  let popularNow = [];
+  let trending = [];
+  let popularOverall = [];
   let recentlyAdded = [];
-  if (recentRes?.media?.length > 0) {
-    recentlyAdded = recentRes.media.map(m => ({
-      id: m.id,
-      t: m.t,
-      cover: m.cover,
-      ch: m.ch,
-      g: m.g || "Ongoing",
-      hot: true
-    }));
+
+  try {
+    const [popularNowRes, trendingRes, popularOverallRes, recentRes] =
+      await Promise.all([
+        withTimeout(getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000),
+        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000),
+      ]);
+
+    popularNow = popularNowRes?.media?.length > 0 ? popularNowRes.media : [];
+    trending = trendingRes?.media?.length > 0 ? trendingRes.media : [];
+    popularOverall = popularOverallRes?.media?.length > 0 ? popularOverallRes.media : [];
+    recentlyAdded = recentRes?.media?.length > 0 ? recentRes.media.slice(0, 5) : [];
+  } catch {
+    popularNow = [];
+    trending = [];
+    popularOverall = [];
+    recentlyAdded = [];
   }
+
   let finalPopularNow = popularNow.slice(0, 9);
   let finalTrending = trending.slice(0, 12);
   let finalPopularOverall = popularOverall.slice(0, 12);
   const finalRecentlyAdded = recentlyAdded.slice(0, 5);
-
-  const fallbackHero1 = {
-    id: "fallback-solo-leveling",
-    t: "Solo Leveling",
-    title: "Solo Leveling",
-    cover: "https://i.pinimg.com/736x/55/be/88/55be884b487e78bf1f329d9927a3ffb2.jpg",
-    rating: 9.8,
-    ch: "Ch 200",
-    ongoing: false,
-  };
-  const fallbackHero2 = {
-    id: "fallback-one-piece",
-    t: "One Piece",
-    title: "One Piece",
-    cover: "https://i.pinimg.com/736x/15/26/bb/1526bb11c465be3119bb71279f4e750b.jpg",
-    rating: 9.9,
-    ch: "Ch 1100",
-    ongoing: true,
-  };
-
-  const emergencyFallbacks = [fallbackHero1, fallbackHero2, ...finalRecentlyAdded];
-
-  if (finalPopularNow.length === 0) finalPopularNow = emergencyFallbacks.slice(0, 9);
-  if (finalTrending.length === 0) finalTrending = emergencyFallbacks.slice(0, 12);
-  if (finalPopularOverall.length === 0) finalPopularOverall = emergencyFallbacks.slice(0, 12);
 
   const featuredHero = finalPopularNow[0];
   const desktopHero = finalTrending[0];

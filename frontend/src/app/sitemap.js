@@ -65,12 +65,20 @@ export default async function sitemap() {
       orderBy: { updatedAt: "desc" },
       take: 5000,
     });
-    mangaEntries = mangaList.map((m) => ({
-      url: `${SITE_URL}/manga/${m.id || m.title}`,
-      lastModified: m.updatedAt,
-      changeFrequency: "weekly",
-      priority: 0.6,
-    }));
+    mangaEntries = mangaList.map((m) => {
+      const slug = m.title
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return {
+        url: `${SITE_URL}/manga/${slug || m.id}`,
+        lastModified: m.updatedAt,
+        changeFrequency: "weekly",
+        priority: 0.8,
+      };
+    });
   } catch {
     mangaEntries = [];
   }

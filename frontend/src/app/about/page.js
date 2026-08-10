@@ -55,6 +55,16 @@ export default function AboutPage() {
           </p>
         </section>
 
+        <section style={{ marginTop: "2rem", padding: "1.5rem", background: "rgba(234, 179, 8, 0.1)", border: "1px solid rgba(234, 179, 8, 0.3)", borderRadius: "12px" }}>
+          <h2 style={{ borderBottom: "none", paddingBottom: 0, marginTop: 0, color: "#eab308" }}>Important: We Are Not Affiliated With Other Sites</h2>
+          <p>
+            <strong>MangaReader.pro</strong> is an independent project. We are <strong>not affiliated with, endorsed by, or connected to</strong> any other manga reading websites, including but not limited to <strong>MangaReader.to</strong>, MangaDex, MangaKatana, or any similarly named platforms.
+          </p>
+          <p>
+            If you see similar domain names or branding, those are separate entities. We maintain our own infrastructure, content aggregation, and reading experience.
+          </p>
+        </section>
+
         <section style={{ marginTop: "2rem", padding: "1.5rem", background: "var(--bg2)", borderRadius: "12px", textAlign: "center" }}>
           <h2 style={{ borderBottom: "none", paddingBottom: 0, marginTop: 0 }}>Support The Project</h2>
           <p>

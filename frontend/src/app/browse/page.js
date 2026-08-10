@@ -1,6 +1,13 @@
 import { getMangaList } from "@/utils/anilist";
 import BrowseContent from "@/app/browse/BrowseContent";
 import { proxyImage } from "@/utils/api";
+import { buildMetadata, SITE_URL } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Browse Manga — Read Free Online",
+  description: "Browse thousands of manga, manhwa, and manhua. Filter by genre, sort by popularity or latest updates. Free online manga reader.",
+  path: "/browse",
+});
 
 function buildFetchVariables(params) {
   const sortParam = params?.sort;

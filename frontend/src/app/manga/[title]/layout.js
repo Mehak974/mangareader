@@ -1,4 +1,4 @@
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadata, absoluteUrl } from "@/lib/seo";
 
 /**
  * `page.js` in this route is a client component ("use client"), so it can't
@@ -29,6 +29,10 @@ const SEARCH_QUERY = `
         description(asHtml: false)
         coverImage { large }
         genres
+        status
+        averageScore
+        chapters
+        startDate { year }
       }
     }
   }
@@ -65,16 +69,51 @@ async function findManga(titleSlug) {
   }
 }
 
+function bookSchema(media, titleSlug) {
+  const name = media.title.english || media.title.userPreferred || media.title.romaji;
+  const url = absoluteUrl(`/manga/${titleSlug}`);
+  const image = media.coverImage?.large;
+
+  const schema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name,
+    url,
+    image: image ? absoluteUrl(image) : undefined,
+    description: media.description
+      ? media.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)
+      : undefined,
+    genre: media.genres?.slice(0, 5) || [],
+    numberOfPages: media.chapters ? `Chapters: ${media.chapters}` : undefined,
+    datePublished: media.startDate?.year ? `${media.startDate.year}-01-01` : undefined,
+    inLanguage: "en",
+    author: {
+      "@type": "Organization",
+      name: "Aggregated from multiple publishers",
+    },
+    isAccessibleForFree: "True",
+    publisher: {
+      "@type": "Organization",
+      name: "MangaReader",
+      url: SITE_URL,
+    },
+  };
+
+  if (media.averageScore) schema.aggregateRating = { "@type": "AggregateRating", ratingValue: media.averageScore / 20, bestRating: 5 };
+
+  return schema;
+}
+
 export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
   const media = await findManga(titleSlug);
 
   if (!media) {
-    // Fall back to a still-unique-enough title rather than the site default.
     const fallbackTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
     return buildMetadata({
       title: `${fallbackTitle} — Read Online`,
       path: `/manga/${titleSlug}`,
+      type: "article",
     });
   }
 
@@ -91,6 +130,13 @@ export async function generateMetadata({ params }) {
     type: "article",
     image: media.coverImage?.large,
   });
+}
+
+export async function generateJsonLd({ params }) {
+  const { title: titleSlug } = await params;
+  const media = await findManga(titleSlug);
+  if (!media) return [];
+  return [bookSchema(media, titleSlug)];
 }
 
 export default function MangaDetailLayout({ children }) {
