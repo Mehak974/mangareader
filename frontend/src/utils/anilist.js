@@ -8,29 +8,12 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      // Server components call AniList directly (no CORS on server).
-      // Client components go through the backend proxy to avoid CORS.
-      // Note: we use a direct fetch (not fetchApi) here because the backend's
-      // doubleCsrfProtection middleware is registered AFTER the /api/anilist
-      // route, so CSRF is not enforced on this endpoint. Using fetchApi would
-      // add a wasteful CSRF-token round-trip on every AniList request.
-      let res;
-      if (isServer) {
-        res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ query, variables }),
-          signal: controller.signal,
-          next: { revalidate: 86400 },
-        });
-      } else {
-        res = await fetch(`${API_BASE}/api/anilist`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ query, variables }),
-          signal: controller.signal,
-        });
-      }
+      const res = await fetch(`${API_BASE}/api/anilist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
       clearTimeout(timeoutId);
       if (res.status === 429) {
         const retryAfter = res.headers.get("Retry-After");
@@ -153,7 +136,7 @@ export function mapAnilistMedia(media) {
 
 export async function getMangaList(variables) {
   try {
-    const data = await fetchAnilist(MANGA_QUERY, variables, 3, 1000);
+    const data = await fetchAnilist(MANGA_QUERY, variables, 1, 1000);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,
@@ -172,7 +155,7 @@ export async function getMangaList(variables) {
 
 export async function getRecentMangaList(variables) {
   try {
-    const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 3, 1000);
+    const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 1, 1000);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,
