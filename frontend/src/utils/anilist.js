@@ -8,12 +8,23 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch(`${API_BASE}/api/anilist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ query, variables }),
-        signal: controller.signal,
-      });
+      let res;
+      if (isServer) {
+        res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ query, variables }),
+          signal: controller.signal,
+          next: { revalidate: 86400 },
+        });
+      } else {
+        res = await fetch(`${API_BASE}/api/anilist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ query, variables }),
+          signal: controller.signal,
+        });
+      }
       clearTimeout(timeoutId);
       if (res.status === 429) {
         const retryAfter = res.headers.get("Retry-After");
