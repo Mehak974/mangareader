@@ -510,6 +510,21 @@ const [chPage, setChPage] = useState(1);
             </select>
           </div>
 
+          {sourceId === "coffeemanga" && (
+            <div style={{
+              margin: "12px 0",
+              padding: "12px 16px",
+              background: "rgba(234, 179, 8, 0.1)",
+              border: "1px solid rgba(234, 179, 8, 0.3)",
+              borderRadius: "8px",
+              color: "#eab308",
+              fontSize: "13px",
+              lineHeight: 1.5
+            }}>
+              Server 2 is temporarily down. We are really sorry for the inconvenience it caused. We will make it work as soon as possible.
+            </div>
+          )}
+
           <div className="detail-actions">
             {chapters.length > 0 ? (
               <>
