@@ -74,7 +74,7 @@ export default function History() {
                   >
                     {h.cover && h.cover !== "undefined" && h.cover !== "null" && (h.cover.startsWith("http") || h.cover.startsWith("/")) ? (
                       <Image 
-                        src={proxyImage(h.cover)} 
+                         src={proxyImage(h.cover, 60)}
                         alt={h.t} 
                         fill
                         sizes="38px"

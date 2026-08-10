@@ -79,10 +79,10 @@ export default async function Home() {
   return (
     <>
       {featuredHero?.cover && (
-        <link rel="preload" as="image" href={proxyImage(featuredHero.cover, 300)} media="(max-width: 768px)" />
+        <link rel="preload" as="image" href={proxyImage(featuredHero.cover, 200)} media="(max-width: 768px)" />
       )}
       {desktopHero?.cover && (
-        <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 800)} media="(min-width: 769px)" />
+        <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 360)} media="(min-width: 769px)" />
       )}
       <div>
       {/* MOBILE HERO VIEWPORT */}

@@ -180,7 +180,7 @@ export default async function BlogPost({ params }) {
            <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', marginBottom: '28px', borderRadius: 'var(--rl)', overflow: 'hidden' }}>
               {article.coverImage ? (
                 <Image
-                  src={proxyImage(article.coverImage)}
+                   src={proxyImage(article.coverImage, 800)}
                   alt={article.title}
                   fill
                   sizes="(max-width: 768px) 100vw, 800px"

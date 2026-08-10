@@ -102,7 +102,7 @@ export default function LibraryPicker() {
               style={{ position: "relative", overflow: "hidden" }}
             >
                  <Image
-                   src={proxyImage(libraryPickerManga.cover)}
+                    src={proxyImage(libraryPickerManga.cover, 60)}
                    alt={`Cover for ${libraryPickerManga.t || libraryPickerManga.title || "Unknown"}`}
                    fill
                    sizes="40px"

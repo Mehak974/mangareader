@@ -113,7 +113,7 @@ export default async function Blog({ searchParams }) {
               >
                 {featured.coverImage && (
                   <Image
-                    src={proxyImage(featured.coverImage)}
+                     src={proxyImage(featured.coverImage, 800)}
                     alt={`Cover for ${featured.title}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 800px"
@@ -154,7 +154,7 @@ export default async function Blog({ searchParams }) {
                   >
                     {post.coverImage && (
                       <Image
-                        src={proxyImage(post.coverImage)}
+                         src={proxyImage(post.coverImage, 400)}
                         alt={`Cover for ${post.title}`}
                         fill
                         sizes="(max-width: 768px) 100vw, 400px"

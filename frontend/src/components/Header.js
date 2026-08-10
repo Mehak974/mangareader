@@ -307,7 +307,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     >
                       {m.cover ? (
                         <Image
-                          src={proxyImage(m.cover)}
+                           src={proxyImage(m.cover, 40)}
                           alt={`Cover for ${m.t}`}
                           fill
                            sizes="28px"

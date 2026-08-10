@@ -134,7 +134,7 @@ export default function BlogSidebar({ body, relatedBlogs = [] }) {
                   {b.coverImage && (
                     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 'var(--r)', overflow: 'hidden' }}>
                        <Image
-                         src={proxyImage(b.coverImage)}
+                          src={proxyImage(b.coverImage, 120)}
                          alt={b.title}
                          fill
                          sizes="(max-width: 1024px) 0px, 220px"

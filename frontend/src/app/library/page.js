@@ -66,7 +66,7 @@ function LibraryContent() {
                             {m.cover ? (
                               <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "4px", overflow: "hidden" }}>
                                 <Image
-                                  src={proxyImage(m.cover)}
+                                   src={proxyImage(m.cover, 60)}
                                   alt={`Cover for ${m.title}`}
                                   fill
                                   sizes="(max-width: 768px) 55px, 60px"
