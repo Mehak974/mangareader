@@ -21,11 +21,12 @@ export default async function Home() {
   // ── Critical path: fetch AniList data first (determines the hero image / LCP) ──
   // These are fetched in parallel. The backend /api/home fetch is deliberately
   // NOT in this Promise.all so a slow backend can't delay the hero image.
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const [popularNowRes, trendingRes, popularOverallRes] = await Promise.race([
     Promise.all([
       getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }),
-      getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }),
-      getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }),
+      delay(200).then(() => getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] })),
+      delay(400).then(() => getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] })),
     ]),
     new Promise(resolve => setTimeout(() => resolve([null, null, null]), 3000)),
   ]);
@@ -223,15 +224,14 @@ export default async function Home() {
                 }
               >
                  {desktopHero.cover ? (
-                  <img
-                     src={desktopHero.cover}
-                     alt={`Cover for ${desktopHero.t}`}
-                     style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-                     priority
-                     loading="eager"
-                     fetchPriority="high"
-                     referrerPolicy="no-referrer"
-                    />
+                   <img
+                      src={desktopHero.cover}
+                      alt={`Cover for ${desktopHero.t}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+                      loading="eager"
+                      fetchPriority="high"
+                      referrerPolicy="no-referrer"
+                     />
                  ) : (
                   "表紙"
                 )}

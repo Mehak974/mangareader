@@ -116,7 +116,7 @@ export function mapAnilistMedia(media) {
 
 export async function getMangaList(variables) {
   try {
-    const data = await fetchAnilist(MANGA_QUERY, variables, 1, 500);
+    const data = await fetchAnilist(MANGA_QUERY, variables, 3, 1000);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,
