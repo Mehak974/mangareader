@@ -79,7 +79,7 @@ export default async function Home() {
   return (
     <>
       {featuredHero?.cover && (
-        <link rel="preload" as="image" href={featuredHero.cover} media="(max-width: 768px)" />
+        <link rel="preload" as="image" href={proxyImage(featuredHero.cover, 300)} media="(max-width: 768px)" />
       )}
       {desktopHero?.cover && (
         <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 800)} media="(min-width: 769px)" />
@@ -97,18 +97,18 @@ export default async function Home() {
                   : {}
               }
             >
-                {featuredHero.cover ? (
-                  <img
-                     src={featuredHero.cover}
-                     alt={`Cover for ${featuredHero.t}`}
-                     style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-                     loading="eager"
-                     fetchPriority="high"
-                     referrerPolicy="no-referrer"
-                   />
-                ) : (
-                "表"
-              )}
+                 {featuredHero.cover ? (
+                   <img
+                      src={proxyImage(featuredHero.cover, 300)}
+                      alt={`Cover for ${featuredHero.t}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+                      loading="eager"
+                      fetchPriority="high"
+                      referrerPolicy="no-referrer"
+                    />
+                 ) : (
+                 "表"
+               )}
             </div>
             <div className="mob-resume-info">
               <div className="mob-eyebrow">🔥 Trending #1</div>
@@ -179,18 +179,18 @@ export default async function Home() {
                     : {}
                 }
               >
-                 {desktopHero.cover ? (
-                   <img
-                      src={desktopHero.cover}
-                      alt={`Cover for ${desktopHero.t}`}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-                      loading="eager"
-                      fetchPriority="high"
-                      referrerPolicy="no-referrer"
-                     />
-                 ) : (
-                  "表紙"
-                )}
+                  {desktopHero.cover ? (
+                    <img
+                       src={proxyImage(desktopHero.cover, 800)}
+                       alt={`Cover for ${desktopHero.t}`}
+                       style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+                       loading="eager"
+                       fetchPriority="high"
+                       referrerPolicy="no-referrer"
+                      />
+                  ) : (
+                   "表紙"
+                 )}
                 <div className="hc-rating" style={{ position: "relative", zIndex: 1 }}>★ {desktopHero.rating.toFixed(1)}</div>
               </div>
               <div className="hc-info">
