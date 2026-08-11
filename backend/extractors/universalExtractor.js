@@ -712,19 +712,29 @@ const SOURCE_SCRAPERS = {
         const chapters = [];
         try {
           const slug = url.replace('https://www.manganato.gg/manga/', '').replace(/\/$/, '');
-          const apiUrl = `https://www.manganato.gg/api/manga/${slug}/chapters`;
-          const apiRes = await fetchHTML(apiUrl, {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'X-Requested-With': 'XMLHttpRequest'
-          });
-          const apiData = typeof apiRes === 'string' ? JSON.parse(apiRes) : apiRes;
-          if (apiData.success && apiData.data?.chapters) {
-            for (const ch of apiData.data.chapters) {
-              chapters.push({
-                title: ch.chapter_name,
-                href: `https://www.manganato.gg/manga/${slug}/${ch.chapter_slug}`,
-                date: ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).replace(',', '') : null
-              });
+          let offset = 0;
+          const limit = 50;
+          let hasMore = true;
+          
+          while (hasMore) {
+            const apiUrl = `https://www.manganato.gg/api/manga/${slug}/chapters?limit=${limit}&offset=${offset}`;
+            const apiRes = await fetchHTML(apiUrl, {
+              'Accept': 'application/json, text/javascript, */*; q=0.01',
+              'X-Requested-With': 'XMLHttpRequest'
+            });
+            const apiData = typeof apiRes === 'string' ? JSON.parse(apiRes) : apiRes;
+            if (apiData.success && apiData.data?.chapters) {
+              for (const ch of apiData.data.chapters) {
+                chapters.push({
+                  title: ch.chapter_name,
+                  href: `https://www.manganato.gg/manga/${slug}/${ch.chapter_slug}`,
+                  date: ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).replace(',', '') : null
+                });
+              }
+              hasMore = apiData.data.pagination?.has_more === true;
+              offset += limit;
+            } else {
+              hasMore = false;
             }
           }
         } catch (apiErr) {
