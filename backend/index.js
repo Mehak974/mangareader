@@ -802,13 +802,14 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
 
+    const origin = parsed.origin;
     const refererMap = {
       'storage.waitst.com': 'https://www.manganato.gg/',
       'imgs-2.2xstorage.com': 'https://www.manganato.gg/',
       'img-r1.2xstorage.com': 'https://www.manganato.gg/',
       '2xstorage.com': 'https://www.manganato.gg/',
     };
-    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : origin + '/');
+    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : `${origin}/`);
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
         Referer: referer,
