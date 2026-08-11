@@ -55,7 +55,7 @@ const { getOrFetchMangaMetadata } = require('./utils/metadataFetcher');
 
 const app = express();
 app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // ── SECURITY HEADERS ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -1181,11 +1181,12 @@ app.get('/api/sitemap/blog', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => { console.error('[Error]', err.message); res.status(500).json({ error: 'Internal error' }); });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Manga Reader API on http://localhost:${PORT}`);
   console.log(`📚 Sources: ${Object.keys(SOURCE_SCRAPERS).join(', ')}`);
 });
