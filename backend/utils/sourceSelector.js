@@ -5,7 +5,8 @@ const SOURCE_PRIORITY = [
   'mangaread',
   'coffeemanga',
   'mangakatana',
-  'mangadex'
+  'mangadex',
+  'manganato'
 ];
 
 /**
