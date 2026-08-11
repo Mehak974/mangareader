@@ -389,6 +389,19 @@ async function performSearch(sourceId, query, origTitle) {
       if (bestId) return `https://mangadex.org/title/${bestId}`;
     }
   }
+  if (sourceId === 'manganato') {
+    const base = 'https://www.manganato.gg';
+    const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
+    let best = null, score = 0;
+    $('.search-story-item a, .list-story-item a, a[href*="/manga/"]').each((_, el) => {
+      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
+      if (!href || !href.includes('/manga/')) return;
+      if (!isGoodMatch(origTitle, text)) return;
+      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+      if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
+    });
+    if (score >= 1) return best;
+  }
   return null;
 }
 
@@ -424,6 +437,19 @@ async function searchSource(sourceId, title, mangaId = null) {
       }
     }
 
+    if (sourceId === 'manganato') {
+      const topTitlesForDirect = allTitles.slice(0, 8);
+      for (const t of topTitlesForDirect) {
+        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        if (!slug || slug.length < 2) continue;
+        const directUrl = `https://www.manganato.gg/manga/${slug}`;
+        try {
+          const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (res.status === 200 && res.data.includes('chapter-list-container')) return directUrl;
+        } catch (e) { }
+      }
+    }
+
     const topTitlesForSearch = allTitles.slice(0, 3);
     for (const t of topTitlesForSearch) {
       let link = await performSearch(sourceId, t, t);
@@ -444,6 +470,8 @@ function detectSource(url) {
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
+  if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
+  if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
   return null;
 }
 
