@@ -26,5 +26,8 @@ fix_reader.js
 add_search.js
 fix_manga.js
 
+# Test/debug HTML artifacts
+backend/*.html
+
 # Large local binaries / scrapers
 backend/chrome/

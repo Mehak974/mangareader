@@ -19,6 +19,26 @@ require('dotenv').config();
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
+const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
+const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
+const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
+let proxyIndex = 0;
+
+function getProxy() {
+  if (PROXY_ROTATION && PROXY_LIST.length > 0) {
+    const proxy = PROXY_LIST[proxyIndex % PROXY_LIST.length];
+    proxyIndex++;
+    return proxy;
+  }
+  return PROXY_URL;
+}
+
+const http = axios.create({
+  timeout: 15000,
+  maxRedirects: 5,
+  proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+});
+
 const Piscina = require('piscina');
 const path = require('path');
 const {
@@ -140,7 +160,7 @@ app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
     if (cachedData) {
       return res.json(cachedData);
     }
-    const r = await axios.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' }, timeout: 10000 });
+    const r = await http.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' }, timeout: 10000 });
     anilistCache.set(cacheKey, r.data);
     res.json(r.data);
   } catch (err) {
@@ -357,7 +377,7 @@ async function performSearch(sourceId, query, origTitle) {
     return score >= 1 ? best : null;
   }
   if (sourceId === 'mangadex') {
-    const r = await axios.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    const r = await http.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
     if (r.data?.data?.length) {
       let bestId = null, bestScore = 0;
       r.data.data.forEach(item => {
@@ -393,11 +413,11 @@ async function searchSource(sourceId, title, mangaId = null) {
 
         const urlsToTry = sourceId === 'mangaread'
           ? [`https://www.mangaread.org/manga/${slug}/`, `https://www.mangaread.org/manga/${slug}-manga/`]
-          : [`https://coffeemanga.ink/manga/${slug}/`];
+          : [`https://coffeemanga.net/manga/${slug}/`];
 
         for (const directUrl of urlsToTry) {
           try {
-            const res = await axios.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
             if (res.status === 200 && res.data.includes('post-title')) return directUrl;
           } catch (e) { }
         }
@@ -420,7 +440,7 @@ async function searchSource(sourceId, title, mangaId = null) {
 
 function detectSource(url) {
   const h = new URL(url).hostname;
-  if (h === 'coffeemanga.ink') return 'coffeemanga';
+  if (h === 'coffeemanga.net') return 'coffeemanga';
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
