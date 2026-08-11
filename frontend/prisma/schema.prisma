@@ -372,3 +372,22 @@ model MangaNote {
   @@index([mangaId])
   @@map("manga_notes")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEO: AUTO-DISCOVERED MANGA FROM USER CLICKS
+// ─────────────────────────────────────────────────────────────────────────────
+// Every time a user visits a manga detail page, its slug/title is recorded
+// here. The sitemap consumes this table so new titles get indexed without
+// any manual CMS work.
+
+model DiscoveredManga {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  chapterCount Int?     @map("chapter_count")
+  viewCount    Int      @default(1) @map("view_count")
+  lastViewedAt DateTime @default(now()) @updatedAt @map("last_viewed_at")
+
+  @@index([slug])
+  @@map("discovered_manga")
+}

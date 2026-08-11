@@ -596,6 +596,24 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
   } catch (err) { console.error('[source-chapters] error:', err); res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/manga/track-view', rateLimit(60000, 60), async (req, res) => {
+  const { slug, title, chapterCount } = req.query;
+  if (!slug || !title) return res.status(400).json({ error: 'slug and title required' });
+  try {
+    await db.query(
+      `INSERT INTO discovered_manga(slug, title, chapter_count, view_count, last_viewed_at)
+       VALUES($1, $2, $3, 1, NOW())
+       ON CONFLICT(slug) DO UPDATE SET
+         title = EXCLUDED.title,
+         chapter_count = COALESCE(EXCLUDED.chapter_count, discovered_manga.chapter_count),
+         view_count = discovered_manga.view_count + 1,
+         last_viewed_at = NOW()`,
+      [san(slug, 200), san(title, 300), chapterCount ? parseInt(chapterCount) : null]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/manga/recent', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 10, 50);
   try {

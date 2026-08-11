@@ -57,5 +57,23 @@ export default async function sitemap() {
     articleEntries = [];
   }
 
-  return [...staticEntries, ...articleEntries];
+  let discoveredEntries = [];
+  try {
+    const discovered = await prisma.$queryRaw`
+      SELECT slug, title, last_viewed_at AS "lastViewedAt", view_count AS "viewCount"
+      FROM discovered_manga
+      ORDER BY last_viewed_at DESC
+      LIMIT 5000
+    `;
+    discoveredEntries = discovered.map((m) => ({
+      url: `${SITE_URL}/manga/${m.slug}`,
+      lastModified: new Date(m.lastViewedAt),
+      changeFrequency: "weekly",
+      priority: Math.min(0.9, 0.5 + Math.min(m.viewCount / 100, 0.4)),
+    }));
+  } catch {
+    discoveredEntries = [];
+  }
+
+  return [...staticEntries, ...articleEntries, ...discoveredEntries];
 }

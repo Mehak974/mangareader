@@ -200,6 +200,13 @@ const [chPage, setChPage] = useState(1);
         setMangaId(resolvedId);
         setLoading(false);
 
+        if (typeof window !== 'undefined') {
+          fetch(`${apiBase}/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
+            method: 'GET',
+            keepalive: true,
+          }).catch(() => {});
+        }
+
         // 2. Fetch mapped chapters from backend on the fly using the title
         setLoadingChapters(true);
         try {
