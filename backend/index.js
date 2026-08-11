@@ -444,8 +444,8 @@ async function searchSource(sourceId, title, mangaId = null) {
         if (!slug || slug.length < 2) continue;
         const directUrl = `https://www.manganato.gg/manga/${slug}`;
         try {
-          const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-          if (res.status === 200 && res.data.includes('chapter-list-container')) return directUrl;
+          const html = await fetchHTML(directUrl);
+          if (html.includes('chapter-list-container')) return directUrl;
         } catch (e) { }
       }
     }
