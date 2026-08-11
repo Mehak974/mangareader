@@ -1181,6 +1181,7 @@ app.get('/api/sitemap/blog', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+app.get('/', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => { console.error('[Error]', err.message); res.status(500).json({ error: 'Internal error' }); });
 
