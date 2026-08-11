@@ -581,15 +581,19 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     let url = mr.length ? mr[0].source_slug : null;
     if (cached && (Date.now() - new Date(cached.fetched_at).getTime()) < 6 * 3600000 && cached.chapters?.length) return res.json({ data: { sourceId: sid, url, chapters: cached.chapters } });
     if (!url) {
+      console.log(`[source-chapters] Searching for ${sid}: ${title}`);
       url = await searchSource(sid, title, mangaId);
+      console.log(`[source-chapters] searchSource result:`, url);
       if (url) await db.query(`INSERT INTO source_mappings(manga_id,source_id,source_slug)VALUES($1,$2,$3)ON CONFLICT(manga_id,source_id)DO UPDATE SET source_slug=EXCLUDED.source_slug`, [mangaId, sid, url]);
     }
     if (!url) return res.status(404).json({ error: `Not found on source: ${sid}` });
+    console.log(`[source-chapters] Fetching detail from:`, url);
     const s = SOURCE_SCRAPERS[sid]; if (!s) return res.status(400).json({ error: `Unknown source: ${sid}` });
     const d = await s.getMangaDetail(url);
+    console.log(`[source-chapters] Detail result:`, d.title, d.chapters?.length, 'chapters');
     if (d.chapters?.length) await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
     res.json({ data: { sourceId: sid, url, chapters: d.chapters || [] } });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error('[source-chapters] error:', err); res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/manga/recent', async (req, res) => {
@@ -793,15 +797,21 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|i\.imgur\.com|githubusercontent\.com)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|coffeemanga\.net|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
 
-    const origin = parsed.origin;
+    const refererMap = {
+      'storage.waitst.com': 'https://www.manganato.gg/',
+      'imgs-2.2xstorage.com': 'https://www.manganato.gg/',
+      'img-r1.2xstorage.com': 'https://www.manganato.gg/',
+      '2xstorage.com': 'https://www.manganato.gg/',
+    };
+    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : origin + '/');
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
-        Referer: origin + '/',
+        Referer: referer,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'image/*,*/*;q=0.8'
       }, timeout: 3000
     });
