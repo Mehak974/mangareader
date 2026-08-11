@@ -1,4 +1,6 @@
-import { buildMetadata, absoluteUrl } from "@/lib/seo";
+import { buildMetadata, absoluteUrl, SITE_URL } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
+import { cache } from "react";
 
 /**
  * `page.js` in this route is a client component ("use client"), so it can't
@@ -54,7 +56,6 @@ async function findManga(titleSlug) {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query: SEARCH_QUERY, variables: { search: searchTitle } }),
-      // Metadata should be fast; don't let a slow AniList response hold up the page.
       next: { revalidate: 86400 },
     });
     if (!res.ok) return null;
@@ -68,6 +69,8 @@ async function findManga(titleSlug) {
     return null;
   }
 }
+
+const cachedFindManga = cache(findManga);
 
 function bookSchema(media, titleSlug) {
   const name = media.title.english || media.title.userPreferred || media.title.romaji;
@@ -106,7 +109,7 @@ function bookSchema(media, titleSlug) {
 
 export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
-  const media = await findManga(titleSlug);
+  const media = await cachedFindManga(titleSlug);
 
   if (!media) {
     const fallbackTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
@@ -134,11 +137,20 @@ export async function generateMetadata({ params }) {
 
 export async function generateJsonLd({ params }) {
   const { title: titleSlug } = await params;
-  const media = await findManga(titleSlug);
+  const media = await cachedFindManga(titleSlug);
   if (!media) return [];
   return [bookSchema(media, titleSlug)];
 }
 
-export default function MangaDetailLayout({ children }) {
-  return children;
+export default async function MangaDetailLayout({ children, params }) {
+  const { title: titleSlug } = await params;
+  const media = await cachedFindManga(titleSlug);
+  const schema = media ? bookSchema(media, titleSlug) : null;
+
+  return (
+    <>
+      {schema && <JsonLd data={schema} />}
+      {children}
+    </>
+  );
 }

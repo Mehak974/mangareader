@@ -5,9 +5,9 @@ import { SITE_URL } from "@/lib/seo";
  * Dynamic sitemap.
  *
  * Lists the public, indexable surface of the site: static marketing/app routes
- * plus every PUBLISHED article. Private and auth-gated routes (/admin, /login,
- * /signup, /settings, /profile) are deliberately excluded — they are also
- * disallowed in robots.js.
+ * plus every PUBLISHED article and manga detail page. Private and auth-gated
+ * routes (/admin, /login, /signup, /settings, /profile) are deliberately
+ * excluded — they are also disallowed in robots.js.
  *
  * This is a special Route Handler. Because it reads from the database it opts
  * into dynamic rendering rather than being cached at build time.
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 // per-user data behind client-side auth state and have no unique indexable
 // content for an anonymous crawler. They're also disallowed in robots.js.
 const STATIC_ROUTES = [
-  { path: "/", changeFrequency: "daily", priority: 1, lastModified: "2026-07-01" },
+  { path: "/", changeFrequency: "daily", priority: 1.0, lastModified: "2026-07-01" },
   { path: "/browse", changeFrequency: "daily", priority: 0.9, lastModified: "2026-07-01" },
   { path: "/blog", changeFrequency: "daily", priority: 0.8, lastModified: "2026-07-01" },
   { path: "/about", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-01-01" },
@@ -57,31 +57,5 @@ export default async function sitemap() {
     articleEntries = [];
   }
 
-  // Include manga detail pages so Google can discover them
-  let mangaEntries = [];
-  try {
-    const mangaList = await prisma.manga.findMany({
-      select: { id: true, title: true, updatedAt: true },
-      orderBy: { updatedAt: "desc" },
-      take: 5000,
-    });
-    mangaEntries = mangaList.map((m) => {
-      const slug = m.title
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/[\s_-]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-      return {
-        url: `${SITE_URL}/manga/${slug || m.id}`,
-        lastModified: m.updatedAt,
-        changeFrequency: "weekly",
-        priority: 0.8,
-      };
-    });
-  } catch {
-    mangaEntries = [];
-  }
-
-  return [...staticEntries, ...articleEntries, ...mangaEntries];
+  return [...staticEntries, ...articleEntries];
 }

@@ -10,10 +10,13 @@ export default function robots() {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
+      allow: ["/", "/api/og"],
       disallow: [
         "/admin",
         "/api",
+        "/api/auth",
+        "/_next",
+        "/static",
         "/login",
         "/signup",
         "/settings",
@@ -21,8 +24,13 @@ export default function robots() {
         "/library",
         "/history",
       ],
+      crawlDelay: 2,
     },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: [
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/sitemap-manga.xml`,
+      `${SITE_URL}/sitemap-blog.xml`,
+    ],
     host: SITE_URL,
   };
 }
