@@ -200,6 +200,10 @@ const [chPage, setChPage] = useState(1);
         setMangaId(resolvedId);
         setLoading(false);
 
+        if (queryCover) {
+          router.replace(`/manga/${titleSlug}`);
+        }
+
         if (typeof window !== 'undefined') {
           fetch(`${apiBase}/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
             method: 'GET',
