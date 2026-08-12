@@ -94,7 +94,7 @@ export default async function RootLayout({ children }) {
         <link rel="alternate" hrefLang="x-default" href={SITE_URL + "/"} />
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
         <meta name="yandex-verification" content="c8df678ff951f19e" />
-        <script dangerouslySetInnerHTML={{ __html: `(function(s){s.dataset.zone='11533092',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))` }} />
+        <script src="https://pl30803331.effectivecpmnetwork.com/17/fa/2a/17fa2a0abb1619ea7086df42c7fa7d40.js"></script>
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
