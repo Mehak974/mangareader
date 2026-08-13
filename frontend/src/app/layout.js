@@ -93,6 +93,7 @@ export default async function RootLayout({ children }) {
         <link rel="alternate" hrefLang="zh" href={SITE_URL + "/"} />
         <link rel="alternate" hrefLang="x-default" href={SITE_URL + "/"} />
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
+        <meta name="7A3B9K2" content="7A3B9K2" />
         <meta name="yandex-verification" content="c8df678ff951f19e" />
         <script src="https://pl30803331.effectivecpmnetwork.com/17/fa/2a/17fa2a0abb1619ea7086df42c7fa7d40.js"></script>
       </head>
