@@ -95,7 +95,7 @@ export default async function RootLayout({ children }) {
         <meta name="6a97888e-site-verification" content="96070b758f3aa1bd8cc49f6ef180d595" />
         <meta name="7A3B9K2" content="7A3B9K2" />
         <meta name="yandex-verification" content="c8df678ff951f19e" />
-        <script src="https://revolthem.com/90/5d/47/905d4791e244975132854b89993a6975.js"></script>
+        <meta name="e0f19b24e15dad77283ca491bc40b2333383dd0e" content="e0f19b24e15dad77283ca491bc40b2333383dd0e" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
