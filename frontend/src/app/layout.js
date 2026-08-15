@@ -97,6 +97,7 @@ export default async function RootLayout({ children }) {
         <meta name="7A3B9K2" content="7A3B9K2" />
         <meta name="yandex-verification" content="c8df678ff951f19e" />
         <meta name="e0f19b24e15dad77283ca491bc40b2333383dd0e" content="e0f19b24e15dad77283ca491bc40b2333383dd0e" />
+        <meta name="popads-verification-3664867" value="557f27c1e5809a5da647c2f8f236ef13" />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
