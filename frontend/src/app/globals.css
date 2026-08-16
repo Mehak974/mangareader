@@ -179,11 +179,11 @@ body.incognito .incognito-bar {
 
 /* ── MARQUEE NOTIFICATION ── */
 .marquee-bar {
-  background: linear-gradient(90deg, var(--accent), #a855f7);
-  color: #fff;
-  font-size: 12px;
+  background: #fef08a;
+  color: #000;
+  font-size: 13px;
   font-weight: 500;
-  padding: 6px 0;
+  padding: 7px 0;
   overflow: hidden;
   white-space: nowrap;
   position: sticky;
@@ -193,7 +193,7 @@ body.incognito .incognito-bar {
 
 .marquee-track {
   display: inline-block;
-  animation: marqueeScroll 25s linear infinite;
+  animation: marqueeScroll 45s linear infinite;
   padding-left: 100%;
 }
 
