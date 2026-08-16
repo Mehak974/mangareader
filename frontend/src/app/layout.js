@@ -106,6 +106,11 @@ export default async function RootLayout({ children }) {
         <AppProvider>
           <MaintenanceGuard>
             <div id="app">
+              <div className="marquee-bar" aria-live="polite">
+                <div className="marquee-track">
+                  We are really sorry for inconvenience... I am also a reader just like you guys , if you ever experience any issue dont hesitate to ping me via contact form &lt;3&nbsp;&nbsp;&nbsp;&nbsp;We are really sorry for inconvenience... I am also a reader just like you guys , if you ever experience any issue dont hesitate to ping me via contact form &lt;3&nbsp;&nbsp;&nbsp;&nbsp;
+                </div>
+              </div>
               <InkDots />
               <Header />
               <Sidebar />
