@@ -1,31 +1,18 @@
-import { API_BASE } from "./api";
-
-const isServer = typeof window === 'undefined';
-
 export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1500) {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      let res;
-      if (isServer) {
-        res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ query, variables }),
-          signal: controller.signal,
-          next: { revalidate: 86400 },
-        });
-      } else {
-        res = await fetch(`${API_BASE}/api/anilist`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ query, variables }),
-          signal: controller.signal,
-        });
-      }
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
+
       clearTimeout(timeoutId);
+
       if (res.status === 429) {
         const retryAfter = res.headers.get("Retry-After");
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay * Math.pow(2, i);
@@ -33,10 +20,12 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         continue;
       }
+
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`Anilist API failure: ${res.status} - ${text}`);
       }
+
       const json = await res.json();
       return json.data;
     } catch (err) {
