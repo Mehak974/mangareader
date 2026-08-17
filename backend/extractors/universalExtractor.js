@@ -7,11 +7,93 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const BROWSER_HEADERS = [
+  {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+  },
+  {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+  },
+  {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+  },
+];
+let headerIndex = 0;
+function getBrowserHeaders() {
+  const h = BROWSER_HEADERS[headerIndex % BROWSER_HEADERS.length];
+  headerIndex++;
+  return h;
+}
+
+const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
+const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
+const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
+let proxyIndex = 0;
+
+function getProxy() {
+  if (PROXY_ROTATION && PROXY_LIST.length > 0) {
+    const proxy = PROXY_LIST[proxyIndex % PROXY_LIST.length];
+    proxyIndex++;
+    return proxy;
+  }
+  return PROXY_URL;
+}
+
+const http = axios.create({
+  headers: getBrowserHeaders(),
+  timeout: 15000,
+  maxRedirects: 5,
+  proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+});
+
+const REFERERS = {
+  'coffeemanga.net': 'https://coffeemanga.net/',
+  'mangaread.org': 'https://www.mangaread.org/',
+  'manganato.gg': 'https://www.manganato.gg/',
+  'mangakakalot.gg': 'https://www.mangakakalot.gg/',
+};
+
 let puppeteer = null;
 async function getPuppeteer() {
   if (!puppeteer) {
     try {
-      puppeteer = require('puppeteer');
+      const pptr = require('puppeteer-extra');
+      const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+      pptr.use(StealthPlugin());
+      puppeteer = pptr;
     } catch {
       return null;
     }
@@ -25,6 +107,7 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
   const domain = new URL(url).hostname;
   const referer = REFERERS[domain] || `https://${domain}/`;
   const proxy = getProxy();
+  const headers = getBrowserHeaders();
   const browser = await pp.launch({
     headless: 'new',
     args: [
@@ -32,17 +115,34 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
+      '--disable-blink-features=AutomationControlled',
       proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
     ].filter(Boolean),
   });
   try {
     const page = await browser.newPage();
-    await page.setUserAgent(BROWSER_HEADERS['User-Agent']);
+    await page.setUserAgent(headers['User-Agent']);
     await page.setExtraHTTPHeaders({
       ...extraHeaders,
       Referer: referer,
-      'Accept-Language': BROWSER_HEADERS['Accept-Language'],
+      'Accept-Language': headers['Accept-Language'],
+      'Accept': headers['Accept'],
+      'Accept-Encoding': headers['Accept-Encoding'],
+      'Cache-Control': headers['Cache-Control'],
+      'Pragma': headers['Pragma'],
+      'Upgrade-Insecure-Requests': headers['Upgrade-Insecure-Requests'],
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
     });
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    });
+    await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     if (!response || !response.ok()) throw new Error(`HTTP ${response?.status()} for ${url}`);
     const html = await page.content();
@@ -67,12 +167,14 @@ async function fetchWithJinaAI(url) {
  * Fetch HTML from a URL with proper headers for the source domain
  */
 async function fetchHTML(url, extraHeaders = {}) {
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 1500));
   const domain = new URL(url).hostname;
   const referer = REFERERS[domain] || `https://${domain}/`;
+  const headers = getBrowserHeaders();
 
   const response = await http.get(url, {
     headers: {
-      ...BROWSER_HEADERS,
+      ...headers,
       Referer: referer,
       ...extraHeaders,
     },
@@ -427,7 +529,7 @@ const SOURCE_SCRAPERS = {
               new URLSearchParams({ action: 'manga_get_chapters' }).toString(),
               {
                 headers: {
-                  ...BROWSER_HEADERS,
+                  ...getBrowserHeaders(),
                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                   'X-Requested-With': 'XMLHttpRequest',
                   'Referer': url,
