@@ -192,6 +192,27 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_manga_title ON manga(title);
       CREATE INDEX IF NOT EXISTS idx_chapters_manga_id ON chapters(manga_id);
       CREATE INDEX IF NOT EXISTS idx_chapters_release_time ON chapters(release_time DESC);
+
+      -- Repair serial sequences in case they drifted out of sync
+      DO $$
+      DECLARE
+        tbl TEXT;
+        seq TEXT;
+        max_id BIGINT;
+      BEGIN
+        FOR tbl IN
+          SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN (
+            'source_mappings','chapters','genres','tags','authors','reading_history','bookmarks','collections'
+          )
+        LOOP
+          seq := pg_get_serial_sequence('"' || tbl || '"', 'id');
+          IF seq IS NOT NULL THEN
+            EXECUTE format('SELECT COALESCE(MAX(id), 0) FROM %I', tbl) INTO max_id;
+            EXECUTE format('SELECT setval(%L, %s, false)', seq, max_id);
+            RAISE NOTICE 'Repaired sequence for %.%s -> %s', tbl, 'id', max_id + 1;
+          END IF;
+        END LOOP;
+      END $$;
     `);
     console.log('PostgreSQL database schemas initialized successfully.');
   } catch (err) {
