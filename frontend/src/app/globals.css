@@ -177,29 +177,6 @@ body.incognito .incognito-bar {
   display: flex
 }
 
-/* ── MARQUEE NOTIFICATION ── */
-.marquee-bar {
-  background: #fef08a;
-  color: #000;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 7px 0;
-  overflow: hidden;
-  white-space: nowrap;
-  z-index: 200;
-}
-
-.marquee-track {
-  display: inline-block;
-  animation: marqueeScroll 45s linear infinite;
-  padding-left: 100%;
-}
-
-@keyframes marqueeScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
-}
-
 /* ── NAV ── */
 .nav {
   height: var(--nav-h);
