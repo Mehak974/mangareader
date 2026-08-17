@@ -197,11 +197,8 @@ async function fetchManganatoChapters(title) {
           
           allChapters.push(...batch);
 
-          if (apiData.data.chapters.length < PAGE_SIZE || apiData.data.total <= allChapters.length) {
-            hasMore = false;
-          } else {
-            offset += PAGE_SIZE;
-          }
+          hasMore = apiData.data.pagination?.has_more === true;
+          offset += PAGE_SIZE;
         } else {
           hasMore = false;
         }
