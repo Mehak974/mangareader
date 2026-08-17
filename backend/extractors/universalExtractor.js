@@ -101,6 +101,13 @@ async function getPuppeteer() {
   return puppeteer;
 }
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms)),
+  ]);
+}
+
 async function fetchWithPuppeteer(url, extraHeaders = {}) {
   const pp = await getPuppeteer();
   if (!pp) throw new Error('Puppeteer not available');
@@ -108,19 +115,23 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
   const referer = REFERERS[domain] || `https://${domain}/`;
   const proxy = getProxy();
   const headers = getBrowserHeaders();
-  const browser = await pp.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-blink-features=AutomationControlled',
-      proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
-    ].filter(Boolean),
-  });
+  const browser = await withTimeout(
+    pp.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled',
+        proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
+      ].filter(Boolean),
+    }),
+    15000,
+    'puppeteer launch'
+  );
   try {
-    const page = await browser.newPage();
+    const page = await withTimeout(browser.newPage(), 10000, 'browser.newPage');
     await page.setUserAgent(headers['User-Agent']);
     await page.setExtraHTTPHeaders({
       ...extraHeaders,
@@ -143,21 +154,21 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
       Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
     });
     await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const response = await withTimeout(page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }), 35000, 'page.goto');
     if (!response || !response.ok()) throw new Error(`HTTP ${response?.status()} for ${url}`);
     const html = await page.content();
     return html;
   } finally {
-    await browser.close();
+    try { await browser.close(); } catch (_) { }
   }
 }
 
 async function fetchWithJinaAI(url) {
   const target = new URL(url);
-  const jinaUrl = `https://r.jina.ai/http://${target.hostname}${target.pathname}${target.search}`;
+  const jinaUrl = `https://r.jina.ai/https://${target.hostname}${target.pathname}${target.search}`;
   const response = await axios.get(jinaUrl, {
     headers: { 'Accept': 'text/plain, text/markdown' },
-    timeout: 30000,
+    timeout: 20000,
     maxRedirects: 5,
   });
   return response.data;
@@ -479,16 +490,42 @@ const SOURCE_SCRAPERS = {
       }
       let html;
       let usedHeadless = false;
+      let fallbackUsed = 'none';
+
+      // Step 1: Direct HTTP fetch with stealth headers
       try {
+        console.log(`[mangaread] Attempting direct HTTP fetch: ${url}`);
         html = await fetchHTML(url);
-      } catch {
+        fallbackUsed = 'http';
+        console.log(`[mangaread] Direct HTTP fetch succeeded`);
+      } catch (httpErr) {
+        console.warn(`[mangaread] Direct HTTP fetch failed: ${httpErr.message}`);
+
+        // Step 2: Try Jina AI reader (often works when direct fetch is blocked)
         try {
-          html = await fetchWithPuppeteer(url);
-          usedHeadless = true;
-        } catch {
+          console.log(`[mangaread] Attempting Jina AI fallback: ${url}`);
           const markdown = await fetchWithJinaAI(url);
           html = markdownToHtml(markdown);
           usedHeadless = true;
+          fallbackUsed = 'jina';
+          console.log(`[mangaread] Jina AI fallback succeeded`);
+        } catch (jinaErr) {
+          console.warn(`[mangaread] Jina AI fallback failed: ${jinaErr.message}`);
+
+          // Step 3: Last resort - headless browser (may fail on servers without Chrome)
+          try {
+            console.log(`[mangaread] Attempting headless browser fallback: ${url}`);
+            html = await fetchWithPuppeteer(url);
+            usedHeadless = true;
+            fallbackUsed = 'puppeteer';
+            console.log(`[mangaread] Headless browser fallback succeeded`);
+          } catch (ppErr) {
+            console.error(`[mangaread] All fetch methods failed for ${url}`);
+            console.error(`[mangaread] HTTP: ${httpErr.message}`);
+            console.error(`[mangaread] JinaAI: ${jinaErr.message}`);
+            console.error(`[mangaread] Puppeteer: ${ppErr.message}`);
+            return { title: '', cover: '', description: '', status: '', genres: [], chapters: [] };
+          }
         }
       }
       const $ = cheerio.load(html);
