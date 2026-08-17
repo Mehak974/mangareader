@@ -176,46 +176,59 @@ async function fetchManganatoChapters(title) {
   const url = `https://www.manganato.gg/manga/${slug}`;
 
   try {
-    // Try paginated API first (more reliable than DOM scraping)
-    try {
-      const apiUrl = `https://www.manganato.gg/api/manga/${slug}/chapters?limit=100&offset=0`;
-      const apiData = await clientFetchJSON(apiUrl, {
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'X-Requested-With': 'XMLHttpRequest',
-      });
+    const allChapters = [];
+    const PAGE_SIZE = 100;
+    let offset = 0;
+    let hasMore = true;
 
-      if (apiData.success && apiData.data?.chapters?.length > 0) {
-        const chapters = apiData.data.chapters.map(ch => ({
-          title: ch.chapter_name || `Chapter ${ch.chapter_num || ''}`,
-          href: `https://www.manganato.gg/manga/${slug}/${ch.chapter_slug || ''}`,
-        })).filter(ch => ch.href && ch.href !== `https://www.manganato.gg/manga/${slug}/`);
+    while (hasMore) {
+      try {
+        const apiUrl = `https://www.manganato.gg/api/manga/${slug}/chapters?limit=${PAGE_SIZE}&offset=${offset}`;
+        const apiData = await clientFetchJSON(apiUrl, {
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'X-Requested-With': 'XMLHttpRequest',
+        });
 
-        // Get metadata from the manga page
-        try {
-          const html = await clientFetchHTML(url);
-          const meta = extractMetaFromHTML(html, 'manganato', title);
-          return {
-            sourceId: 'manganato',
-            url,
-            title: meta.title,
-            cover: meta.cover,
-            chapters,
-          };
-        } catch {
-          return {
-            sourceId: 'manganato',
-            url,
-            title,
-            cover: '',
-            chapters,
-          };
+        if (apiData.success && apiData.data?.chapters?.length > 0) {
+          const batch = apiData.data.chapters.map(ch => ({
+            title: ch.chapter_name || `Chapter ${ch.chapter_num || ''}`,
+            href: `https://www.manganato.gg/manga/${slug}/${ch.chapter_slug || ''}`,
+          })).filter(ch => ch.href && ch.href !== `https://www.manganato.gg/manga/${slug}/`);
+          
+          allChapters.push(...batch);
+
+          if (apiData.data.chapters.length < PAGE_SIZE || apiData.data.total <= allChapters.length) {
+            hasMore = false;
+          } else {
+            offset += PAGE_SIZE;
+          }
+        } else {
+          hasMore = false;
         }
+      } catch (e) {
+        hasMore = false;
       }
-    } catch {
-      // API failed, fall back to DOM scraping
     }
 
-    // Fallback to DOM scraping
+    if (allChapters.length > 0) {
+      const seen = new Set();
+      const uniqueChapters = allChapters.filter(ch => {
+        if (seen.has(ch.href)) return false;
+        seen.add(ch.href);
+        return true;
+      });
+
+      const html = await clientFetchHTML(url);
+      const meta = extractMetaFromHTML(html, 'manganato', title);
+      return {
+        sourceId: 'manganato',
+        url,
+        title: meta.title,
+        cover: meta.cover,
+        chapters: uniqueChapters,
+      };
+    }
+
     const html = await clientFetchHTML(url);
     const chapters = extractChaptersFromHTML(html, 'manganato', title);
     if (chapters.length > 0) {
