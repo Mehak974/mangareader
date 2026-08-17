@@ -197,7 +197,9 @@ async function fetchManganatoChapters(title) {
           
           allChapters.push(...batch);
 
-          hasMore = apiData.data.pagination?.has_more === true;
+          const reachedEnd = apiData.data.chapters.length < PAGE_SIZE ||
+            (apiData.data.total && allChapters.length >= apiData.data.total);
+          hasMore = !reachedEnd;
           offset += PAGE_SIZE;
         } else {
           hasMore = false;
