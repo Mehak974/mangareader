@@ -14,6 +14,7 @@ import CommentSection from "@/components/CommentSection";
 import MangaNote from "@/components/MangaNote";
 import { MANGA, abbr, COVER_GRADS } from "@/data/mockData";
 import { proxyImage } from "@/utils/api";
+import { fetchChaptersWithFallback, fetchChaptersFromSource } from "@/utils/clientChapters";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -211,39 +212,57 @@ const [chPage, setChPage] = useState(1);
           }).catch(() => {});
         }
 
-        // 2. Fetch mapped chapters from backend on the fly using the title
+        // 2. Fetch chapters — client-side FIRST (bypasses Railway IP blocks),
+        //    backend only as fallback.
         setLoadingChapters(true);
+        let chaptersLoaded = false;
+        const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
+
         try {
-          const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
-          const mapRes = await fetch(prefSource ? `${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
-          if (mapRes.ok) {
-            const mapData = await mapRes.json();
-            if (mapData.data) {
-              setChapters(mapData.data.chapters || []);
-              setSourceId(mapData.data.sourceId || "");
-              setSourceUrl(mapData.data.url || "");
-              
-              // Poll once after 12s in case background scrape found better source
-              setTimeout(async () => {
-                try {
-                  const bgRes = await fetch(`${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
-                  if (bgRes.ok) {
-                    const bgData = await bgRes.json();
-                    if (bgData.data && bgData.data.chapters?.length > (mapData.data.chapters?.length || 0)) {
-                      setChapters(bgData.data.chapters);
-                      setSourceId(bgData.data.sourceId);
-                      setSourceUrl(bgData.data.url);
-                    }
-                  }
-                } catch (e) {}
-              }, 12000);
+          const clientData = await fetchChaptersWithFallback(normalizedManga.title, prefSource);
+          if (clientData && clientData.chapters.length > 0) {
+            setChapters(clientData.chapters);
+            setSourceId(clientData.sourceId);
+            setSourceUrl(clientData.url);
+            if (clientData.cover) {
+              setManga(prev => prev ? { ...prev, cover: clientData.cover } : prev);
+            }
+            if (clientData.title && (!manga || !manga.description)) {
+              setManga(prev => prev ? { ...prev, title: clientData.title, description: normalizedManga.description || prev?.description, status: prev?.status, genres: prev?.genres } : prev);
+            }
+            chaptersLoaded = true;
+            if (clientData.sourceId) {
+              localStorage.setItem(`preferred_source_${resolvedId}`, clientData.sourceId);
             }
           }
-        } catch (mapErr) {
-          console.warn("Failed to dynamically map title to sources:", mapErr.message);
-        } finally {
-          setLoadingChapters(false);
+        } catch (clientErr) {
+          console.warn("Client-side chapter fetch failed:", clientErr.message);
         }
+
+        if (!chaptersLoaded) {
+          try {
+            const mapRes = await fetch(prefSource ? `${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
+            if (mapRes.ok) {
+              const mapData = await mapRes.json();
+              if (mapData.data && mapData.data.chapters?.length > 0) {
+                setChapters(mapData.data.chapters || []);
+                setSourceId(mapData.data.sourceId || "");
+                setSourceUrl(mapData.data.url || "");
+                if (mapData.data.cover && (!manga || !manga.cover)) {
+                  setManga(prev => prev ? { ...prev, cover: mapData.data.cover } : prev);
+                }
+                if (mapData.data.title && (!manga || !manga.description)) {
+                  setManga(prev => prev ? { ...prev, title: mapData.data.title, description: mapData.data.description || prev?.description, status: prev?.status, genres: prev?.genres } : prev);
+                }
+                chaptersLoaded = true;
+              }
+            }
+          } catch (mapErr) {
+            console.warn("Backend chapter fetch also failed:", mapErr.message);
+          }
+        }
+
+        setLoadingChapters(false);
 
       } catch (err) {
         console.error("Failed to load manga details:", err.message);
@@ -261,26 +280,53 @@ const [chPage, setChPage] = useState(1);
     if (!manga) return;
     setLoadingChapters(true);
     setChPage(1);
+    let loaded = false;
+
     try {
-      const res = await fetch(`${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(manga.title)}&source=${newSourceId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          setChapters(data.data.chapters || []);
-          setSourceId(data.data.sourceId || "");
-          setSourceUrl(data.data.url || "");
+      const clientData = await fetchChaptersFromSource(newSourceId, manga.title);
+      if (clientData && clientData.chapters.length > 0) {
+        setChapters(clientData.chapters);
+        setSourceId(clientData.sourceId);
+        setSourceUrl(clientData.url);
+        if (clientData.cover) {
+          setManga(prev => prev ? { ...prev, cover: clientData.cover } : prev);
         }
-      } else {
-        setChapters([]);
-        setSourceId(newSourceId);
-        setSourceUrl("");
+        loaded = true;
       }
-    } catch (err) {
-      console.warn("Failed to switch source:", err.message);
-      setChapters([]);
-    } finally {
-      setLoadingChapters(false);
+    } catch (clientErr) {
+      console.warn("Client-side source switch failed:", clientErr.message);
     }
+
+    if (!loaded) {
+      try {
+        const res = await fetch(`${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(manga.title)}&source=${newSourceId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.data) {
+            setChapters(data.data.chapters || []);
+            setSourceId(data.data.sourceId || "");
+            setSourceUrl(data.data.url || "");
+            if (data.data.cover) {
+              setManga(prev => prev ? { ...prev, cover: data.data.cover } : prev);
+            }
+            if (data.data.title) {
+              setManga(prev => prev ? { ...prev, title: data.data.title, description: data.data.description || prev.description, status: data.data.status || prev.status, genres: data.data.genres || prev.genres } : prev);
+            }
+            loaded = true;
+          }
+        }
+      } catch (err) {
+        console.warn("Backend source switch also failed:", err.message);
+      }
+    }
+
+    if (!loaded) {
+      setChapters([]);
+      setSourceId(newSourceId);
+      setSourceUrl("");
+    }
+
+    setLoadingChapters(false);
   };
 
   if (loading) {

@@ -363,9 +363,9 @@ const SOURCE_SCRAPERS = {
         }
       });
 
-      // MangaRead uses WordPress Madara theme — the static HTML often lists only a
-      // partial set of chapters. Always hit the AJAX endpoint and merge (dedup by
-      // href), so the complete list wins instead of a truncated static snapshot.
+      // MangaRead serves the full chapter list directly in the page HTML.
+      // Parse chapters from static markup. If none are found, fall back to
+      // the dedicated chapter-list endpoint used by newer Madara versions.
       {
         // Extract the numeric post ID from the page (data-id attribute on .rating-post-id or similar)
         const mangaId = $('[id^="manga-chapters-holder"]').attr('data-id') ||
@@ -374,37 +374,7 @@ const SOURCE_SCRAPERS = {
           $('script:contains("manga_id")').html()?.match(/"manga_id"\s*:\s*"?(\d+)"?/)?.[1] ||
           $('body').attr('class')?.match(/postid-(\d+)/)?.[1];
 
-        if (mangaId) {
-          try {
-            const ajaxRes = await http.post(
-              'https://www.mangaread.org/wp-admin/admin-ajax.php',
-              new URLSearchParams({ action: 'manga_get_chapters', manga: mangaId }).toString(),
-              {
-                headers: {
-                  ...BROWSER_HEADERS,
-                  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                  'X-Requested-With': 'XMLHttpRequest',
-                  'Referer': url,
-                },
-                timeout: 20000,
-              }
-            );
-            const $ajax = cheerio.load(ajaxRes.data);
-            $ajax('li.wp-manga-chapter a').each((_, el) => {
-              const href = $ajax(el).attr('href') || '';
-              const chTitle = $ajax(el).text().trim();
-              const date = $ajax(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
-              if (href && !chapters.some(c => c.href === href)) {
-                chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
-              }
-            });
-          } catch (ajaxErr) {
-            console.warn(`[mangaread] AJAX chapter fetch failed for ${url}:`, ajaxErr.message);
-          }
-        }
-
-        // Last resort: try the dedicated chapter-list AJAX endpoint used by newer Madara versions
-        if (chapters.length === 0) {
+        if (chapters.length === 0 && mangaId) {
           try {
             const chapterListRes = await http.post(
               `${url.replace(/\/$/, '')}/ajax/load_chapters/`,
@@ -419,11 +389,11 @@ const SOURCE_SCRAPERS = {
                 timeout: 20000,
               }
             );
-            const $ajax2 = cheerio.load(chapterListRes.data);
-            $ajax2('li.wp-manga-chapter a').each((_, el) => {
-              const href = $ajax2(el).attr('href') || '';
-              const chTitle = $ajax2(el).text().trim();
-              const date = $ajax2(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
+            const $ajax = cheerio.load(chapterListRes.data);
+            $ajax('li.wp-manga-chapter a').each((_, el) => {
+              const href = $ajax(el).attr('href') || '';
+              const chTitle = $ajax(el).text().trim();
+              const date = $ajax(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
               if (href && !chapters.some(c => c.href === href)) {
                 chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
               }
