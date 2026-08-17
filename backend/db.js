@@ -128,6 +128,14 @@ async function initDB() {
         UNIQUE(user_id, manga_id)
       );
 
+      CREATE TABLE IF NOT EXISTS discovered_manga (
+        slug VARCHAR(255) PRIMARY KEY,
+        title VARCHAR(500) NOT NULL,
+        chapter_count INTEGER,
+        view_count INTEGER DEFAULT 1,
+        last_viewed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS bookmarks (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) DEFAULT 'anonymous',

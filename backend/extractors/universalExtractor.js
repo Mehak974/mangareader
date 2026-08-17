@@ -7,46 +7,61 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-// Realistic browser headers to avoid basic bot detection
-const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.5',
-  'Connection': 'keep-alive',
-};
-
-// Proxy configuration from environment variables
-const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
-const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
-const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
-let proxyIndex = 0;
-
-function getProxy() {
-  if (PROXY_ROTATION && PROXY_LIST.length > 0) {
-    const proxy = PROXY_LIST[proxyIndex % PROXY_LIST.length];
-    proxyIndex++;
-    return proxy;
+let puppeteer = null;
+async function getPuppeteer() {
+  if (!puppeteer) {
+    try {
+      puppeteer = require('puppeteer');
+    } catch {
+      return null;
+    }
   }
-  return PROXY_URL;
+  return puppeteer;
 }
 
-// Shared axios instance with proxy support
-const http = axios.create({
-  headers: {
-    ...BROWSER_HEADERS,
-  },
-  timeout: 15000,
-  maxRedirects: 5,
-  proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
-});
+async function fetchWithPuppeteer(url, extraHeaders = {}) {
+  const pp = await getPuppeteer();
+  if (!pp) throw new Error('Puppeteer not available');
+  const domain = new URL(url).hostname;
+  const referer = REFERERS[domain] || `https://${domain}/`;
+  const proxy = getProxy();
+  const browser = await pp.launch({
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
+    ].filter(Boolean),
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(BROWSER_HEADERS['User-Agent']);
+    await page.setExtraHTTPHeaders({
+      ...extraHeaders,
+      Referer: referer,
+      'Accept-Language': BROWSER_HEADERS['Accept-Language'],
+    });
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!response || !response.ok()) throw new Error(`HTTP ${response?.status()} for ${url}`);
+    const html = await page.content();
+    return html;
+  } finally {
+    await browser.close();
+  }
+}
 
-// Referer headers required by each source's CDN
-const REFERERS = {
-  'coffeemanga.net': 'https://coffeemanga.net/',
-  'mangaread.org': 'https://www.mangaread.org/',
-  'manganato.gg': 'https://www.manganato.gg/',
-  'mangakakalot.gg': 'https://www.mangakakalot.gg/',
-};
+async function fetchWithJinaAI(url) {
+  const target = new URL(url);
+  const jinaUrl = `https://r.jina.ai/http://${target.hostname}${target.pathname}${target.search}`;
+  const response = await axios.get(jinaUrl, {
+    headers: { 'Accept': 'text/plain, text/markdown' },
+    timeout: 30000,
+    maxRedirects: 5,
+  });
+  return response.data;
+}
 
 /**
  * Fetch HTML from a URL with proper headers for the source domain
@@ -67,6 +82,24 @@ async function fetchHTML(url, extraHeaders = {}) {
   });
 
   return response.data;
+}
+
+function markdownToHtml(markdown) {
+  if (!markdown) return '<html><body></body></html>';
+  let html = markdown
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2">$1</a>');
+  html = html.replace(/^\s*-\s+(.*$)/gim, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  html = html.replace(/\n/g, '<br>');
+  return `<html><body>${html}</body></html>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,7 +375,20 @@ const SOURCE_SCRAPERS = {
       if (!url.startsWith('http')) {
         url = `https://www.mangaread.org/manga/${url.replace(/^\/+|\/+$/g, '')}/`;
       }
-      const html = await fetchHTML(url);
+      let html;
+      let usedHeadless = false;
+      try {
+        html = await fetchHTML(url);
+      } catch {
+        try {
+          html = await fetchWithPuppeteer(url);
+          usedHeadless = true;
+        } catch {
+          const markdown = await fetchWithJinaAI(url);
+          html = markdownToHtml(markdown);
+          usedHeadless = true;
+        }
+      }
       const $ = cheerio.load(html);
 
       const title = $('h1.post-title, .manga-title, h1').first().text().trim();
@@ -399,6 +445,20 @@ const SOURCE_SCRAPERS = {
               }
             });
           } catch (_) { }
+        }
+      }
+
+      // If still no chapters and we used headless browser, try extracting from markdown links
+      if (chapters.length === 0 && usedHeadless) {
+        const markdownLinks = $('a').map((_, el) => {
+          const href = $(el).attr('href') || '';
+          const text = $(el).text().trim();
+          return { text, href };
+        }).get().filter(l => l.href && /chapter/i.test(l.href));
+        for (const link of markdownLinks) {
+          if (!chapters.some(c => c.href === link.href)) {
+            chapters.push({ title: link.text, href: toAbsolute(link.href, 'https://www.mangaread.org'), date: null });
+          }
         }
       }
 
