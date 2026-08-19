@@ -208,8 +208,8 @@ async function initDB() {
           seq := pg_get_serial_sequence('"' || tbl || '"', 'id');
           IF seq IS NOT NULL THEN
             EXECUTE format('SELECT COALESCE(MAX(id), 0) FROM %I', tbl) INTO max_id;
-            EXECUTE format('SELECT setval(%L, %s, false)', seq, max_id);
-            RAISE NOTICE 'Repaired sequence for %.%s -> %s', tbl, 'id', max_id + 1;
+            EXECUTE format('SELECT setval(%L, %s, true)', seq, max_id);
+            RAISE NOTICE 'Repaired sequence for %.%s -> %s', tbl, 'id', max_id;
           END IF;
         END LOOP;
       END $$;
