@@ -3,18 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Ordered lifecycle so the "advance" button knows the next step.
 const NEXT = { NEW: "IN_PROGRESS", IN_PROGRESS: "RESOLVED" };
 const NEXT_LABEL = { NEW: "Start", IN_PROGRESS: "Resolve" };
 
-/**
- * Row actions for a contact message: advance status through the lifecycle,
- * mark as spam, and delete. Each mutation calls the API then refreshes the list.
- */
 export default function MessageRowActions({ id, status, message }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
 
   const patchStatus = async (next) => {
     setBusy(true);
@@ -60,14 +57,42 @@ export default function MessageRowActions({ id, status, message }) {
     }
   };
 
-  const next = NEXT[status];
+  const sendReply = async () => {
+    if (!replyText.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/admin/messages/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text: replyText.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.error || "Could not send reply.");
+        setSending(false);
+        return;
+      }
+      setReplyText("");
+      router.refresh();
+      setSending(false);
+    } catch {
+      window.alert("Network error. Please try again.");
+      setSending(false);
+    }
+  };
+
+  const replies = Array.isArray(message?.replies) ? message.replies : [];
+  const replyCount = replies.length;
 
   return (
     <>
       <div className="admin-row-actions">
-        <button className="admin-row-link" onClick={() => setViewing(true)}>View</button>
-        {next && (
-          <button className="admin-row-link" onClick={() => patchStatus(next)} disabled={busy}>
+        <button className="admin-row-link" onClick={() => setViewing(true)}>
+          View {replyCount > 0 ? `(${replyCount})` : ""}
+        </button>
+        {NEXT[status] && (
+          <button className="admin-row-link" onClick={() => patchStatus(NEXT[status])} disabled={busy}>
             {NEXT_LABEL[status]}
           </button>
         )}
@@ -85,17 +110,72 @@ export default function MessageRowActions({ id, status, message }) {
           {busy ? "…" : "Delete"}
         </button>
       </div>
-      
+
       {viewing && (
         <div className="admin-modal-overlay" onClick={() => setViewing(false)}>
-          <div className="admin-modal-content" onClick={e => e.stopPropagation()}>
+          <div className="admin-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600, width: "90%" }}>
             <h3>{message.subject || "No Subject"}</h3>
-            <div style={{ marginBottom: "16px", color: "var(--text3)", fontSize: "13px" }}>
-              From: <b>{message.name}</b> ({message.email})
+            <div style={{ marginBottom: 16, color: "var(--text3)", fontSize: 13 }}>
+              From: <b>{message.name}</b> ({message.email}) · {new Date(message.createdAt).toLocaleString()}
             </div>
-            <p style={{ whiteSpace: "pre-wrap", margin: "1rem 0", lineHeight: "1.5" }}>{message.message}</p>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+
+            <div style={{ background: "var(--bg2)", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+              <p style={{ whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.5 }}>{message.message}</p>
+            </div>
+
+            {replies.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: "var(--text2)" }}>Conversation</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {replies.map((r) => (
+                    <div
+                      key={r.id}
+                      style={{
+                        background: r.sender === "admin" ? "var(--accent)" : "var(--bg3)",
+                        color: r.sender === "admin" ? "#fff" : "var(--text)",
+                        padding: "10px 14px",
+                        borderRadius: 12,
+                        maxWidth: "85%",
+                        alignSelf: r.sender === "admin" ? "flex-end" : "flex-start",
+                      }}
+                    >
+                      <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>
+                        {r.sender === "admin" ? "You" : message.name} · {new Date(r.createdAt).toLocaleString()}
+                      </div>
+                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.4 }}>{r.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply..."
+                rows={3}
+                style={{
+                  flex: 1,
+                  background: "var(--bg2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: 10,
+                  color: "var(--text)",
+                  fontSize: 14,
+                  resize: "vertical",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
               <button className="admin-btn" onClick={() => setViewing(false)}>Close</button>
+              <button
+                className="admin-btn admin-btn-primary"
+                onClick={sendReply}
+                disabled={sending || !replyText.trim()}
+              >
+                {sending ? "Sending…" : "Send Reply"}
+              </button>
             </div>
           </div>
         </div>

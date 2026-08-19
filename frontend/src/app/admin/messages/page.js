@@ -47,6 +47,7 @@ export default async function AdminMessagesPage({ searchParams }) {
         subject: true,
         message: true,
         status: true,
+        replies: true,
         createdAt: true,
       },
     }),
@@ -133,14 +134,17 @@ export default async function AdminMessagesPage({ searchParams }) {
                 <th>Status</th>
                 <th>
                   <a href={sortHref("createdAt")} className="admin-sort-link">
-                    Received {sort === "createdAt" ? (order === "asc" ? "▲" : "▼") : ""}
+                    Received {sort === "createdAt" ? (order === "asc" ? "â–²" : "â–¼") : ""}
                   </a>
                 </th>
+                <th>Replies</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
-              {items.map((m) => (
+              {items.map((m) => {
+                const replyCount = Array.isArray(m.replies) ? m.replies.length : 0;
+                return (
                 <tr key={m.id}>
                   <td>
                     <div className="cell-strong">{m.name}</div>
@@ -158,10 +162,18 @@ export default async function AdminMessagesPage({ searchParams }) {
                   </td>
                   <td>{fmt(m.createdAt)}</td>
                   <td>
+                    {replyCount > 0 ? (
+                      <span className="admin-badge admin-badge-published">{replyCount}</span>
+                    ) : (
+                      <span style={{ color: "var(--text3)" }}>—</span>
+                    )}
+                  </td>
+                  <td>
                     <MessageRowActions id={m.id} status={m.status} message={m} />
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
