@@ -50,8 +50,6 @@ export const AppProvider = ({ children }) => {
       const key = uid ? `mr:state:${uid}` : "mr:state:guest";
       let raw = localStorage.getItem(key);
       
-      // Migrate old data if the new key doesn't exist, OR if it was accidentally wiped
-      // and contains no reading history/bookmarks (fixing the previous reset bug).
       let needsMigration = !raw;
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -83,8 +81,43 @@ export const AppProvider = ({ children }) => {
           }
           setReadChapters(migrated);
         }
+        return s;
       }
+      return {};
+    } catch (_) {
+      return {};
+    }
+  };
+
+  const saveLocalState = (uid, state) => {
+    try {
+      const key = uid ? `mr:state:${uid}` : "mr:state:guest";
+      localStorage.setItem(key, JSON.stringify(state));
     } catch (_) {}
+  };
+
+  const mergeHistory = (local, server) => {
+    const map = new Map();
+    for (const entry of [...(local || []), ...(server || [])]) {
+      const key = entry.mangaId || entry.t;
+      const prev = map.get(key);
+      if (!prev || new Date(entry.time) > new Date(prev.time)) {
+        map.set(key, entry);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => new Date(b.time) - new Date(a.time));
+  };
+
+  const mergeChapters = (local, server) => {
+    const merged = { ...(server || {}) };
+    for (const [mangaId, chapters] of Object.entries(local || {})) {
+      const set = new Set(merged[mangaId] || []);
+      for (const ch of chapters) {
+        set.add(ch);
+      }
+      merged[mangaId] = [...set].sort((a, b) => a - b);
+    }
+    return merged;
   };
 
   const fetchLibraries = async () => {
@@ -116,8 +149,30 @@ export const AppProvider = ({ children }) => {
         if (data?.user) {
           setUser(data.user);
           setIsLoggedIn(true);
-          // If the backend has history, we can load it. For now we load local state.
-          loadLocalState(data.user.id);
+          
+          const local = loadLocalState(data.user.id);
+          const serverHistory = data.user.readingHistory || [];
+          const serverChapters = data.user.readChapters || {};
+          
+          if (serverHistory.length || Object.keys(serverChapters).length) {
+            const mergedHistory = mergeHistory(local.readingHistory, serverHistory);
+            const mergedChapters = mergeChapters(local.readChapters, serverChapters);
+            setReadingHistory(mergedHistory);
+            setReadChapters(mergedChapters);
+            setBookmarks(local.bookmarks || []);
+            setReadManga(local.readManga || []);
+            saveLocalState(data.user.id, {
+              ...local,
+              readingHistory: mergedHistory,
+              readChapters: mergedChapters,
+            });
+          } else {
+            setReadingHistory(local.readingHistory || []);
+            setReadChapters(local.readChapters || {});
+            setBookmarks(local.bookmarks || []);
+            setReadManga(local.readManga || []);
+          }
+          
           fetchLibraries();
         } else {
           loadLocalState(null);
@@ -366,10 +421,38 @@ export const AppProvider = ({ children }) => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || "Login failed." };
-      setUser(data.user);
-      setIsLoggedIn(true);
-      setSigninSheetOpen(false);
-      fetchLibraries();
+      
+      const meRes = await fetch("/api/auth/me", { credentials: "include" });
+      const meData = await meRes.json().catch(() => ({}));
+      
+      if (meData?.user) {
+        setUser(meData.user);
+        setIsLoggedIn(true);
+        setSigninSheetOpen(false);
+        
+        const local = loadLocalState(meData.user.id);
+        const serverHistory = meData.user.readingHistory || [];
+        const serverChapters = meData.user.readChapters || {};
+        
+        if (serverHistory.length || Object.keys(serverChapters).length) {
+          const mergedHistory = mergeHistory(local.readingHistory, serverHistory);
+          const mergedChapters = mergeChapters(local.readChapters, serverChapters);
+          setReadingHistory(mergedHistory);
+          setReadChapters(mergedChapters);
+          saveLocalState(meData.user.id, {
+            ...local,
+            readingHistory: mergedHistory,
+            readChapters: mergedChapters,
+          });
+        } else {
+          setReadingHistory(local.readingHistory || []);
+          setReadChapters(local.readChapters || {});
+        }
+        
+        setBookmarks(local.bookmarks || []);
+        setReadManga(local.readManga || []);
+        fetchLibraries();
+      }
       return { ok: true };
     } catch {
       return { ok: false, error: "Network error. Please try again." };
@@ -386,10 +469,35 @@ export const AppProvider = ({ children }) => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || "Sign up failed." };
-      setUser(data.user);
-      setIsLoggedIn(true);
-      setSigninSheetOpen(false);
-      fetchLibraries();
+      
+      if (data?.user) {
+        setUser(data.user);
+        setIsLoggedIn(true);
+        setSigninSheetOpen(false);
+        
+        const local = loadLocalState(data.user.id);
+        const serverHistory = data.user.readingHistory || [];
+        const serverChapters = data.user.readChapters || {};
+        
+        if (serverHistory.length || Object.keys(serverChapters).length) {
+          const mergedHistory = mergeHistory(local.readingHistory, serverHistory);
+          const mergedChapters = mergeChapters(local.readChapters, serverChapters);
+          setReadingHistory(mergedHistory);
+          setReadChapters(mergedChapters);
+          saveLocalState(data.user.id, {
+            ...local,
+            readingHistory: mergedHistory,
+            readChapters: mergedChapters,
+          });
+        } else {
+          setReadingHistory(local.readingHistory || []);
+          setReadChapters(local.readChapters || {});
+        }
+        
+        setBookmarks(local.bookmarks || []);
+        setReadManga(local.readManga || []);
+        fetchLibraries();
+      }
       return { ok: true };
     } catch {
       return { ok: false, error: "Network error. Please try again." };
@@ -406,7 +514,9 @@ export const AppProvider = ({ children }) => {
     setIsLoggedIn(false);
     setLibraries([]);
     setBookmarks([]);
-    loadLocalState(null); // Load guest history
+    setReadingHistory([]);
+    setReadChapters({});
+    loadLocalState(null);
   };
 
   return (

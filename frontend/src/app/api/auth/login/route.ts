@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSession } from "@/lib/auth";
-import { loginSchema } from "@/lib/validation";
+import { loginSchema, publicUser } from "@/lib/validation";
 import { checkRateLimit, recordAttempt } from "@/lib/ratelimit";
 import { clientIp, userAgent, jsonError } from "@/lib/request";
 
@@ -52,6 +52,6 @@ export async function POST(req: NextRequest) {
   await createSession(user.id, { ip, userAgent: userAgent(req) });
 
   return Response.json({
-    user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role },
+    user: publicUser(user),
   });
 }

@@ -14,13 +14,42 @@ export async function POST(req) {
       return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
 
-    const data = {};
-    if (readingHistory !== undefined) data.readingHistory = readingHistory;
-    if (readChapters !== undefined) data.readChapters = readChapters;
+    const existing = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { readingHistory: true, readChapters: true },
+    });
+
+    const existingHistory = Array.isArray(existing?.readingHistory) ? existing.readingHistory : [];
+    const incomingHistory = Array.isArray(readingHistory) ? readingHistory : [];
+    const historyMap = new Map();
+    for (const entry of [...existingHistory, ...incomingHistory]) {
+      const key = entry.mangaId || entry.t;
+      const prev = historyMap.get(key);
+      if (!prev || new Date(entry.time) > new Date(prev.time)) {
+        historyMap.set(key, entry);
+      }
+    }
+    const mergedHistory = Array.from(historyMap.values()).sort((a, b) =>
+      new Date(b.time) - new Date(a.time)
+    );
+
+    const existingChapters = (existing?.readChapters && typeof existing.readChapters === "object") ? existing.readChapters : {};
+    const incomingChapters = (readChapters && typeof readChapters === "object") ? readChapters : {};
+    const mergedChapters = { ...existingChapters };
+    for (const [mangaId, chapters] of Object.entries(incomingChapters)) {
+      const set = new Set(mergedChapters[mangaId] || []);
+      for (const ch of chapters) {
+        set.add(ch);
+      }
+      mergedChapters[mangaId] = [...set].sort((a, b) => a - b);
+    }
 
     await prisma.user.update({
       where: { id: user.id },
-      data,
+      data: {
+        readingHistory: mergedHistory,
+        readChapters: mergedChapters,
+      },
     });
 
     return NextResponse.json({ success: true });

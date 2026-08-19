@@ -137,6 +137,8 @@ export type PublicUser = {
   displayName: string;
   avatarUrl: string | null;
   role: "USER" | "EDITOR" | "ADMIN";
+  readingHistory: unknown[];
+  readChapters: Record<string, number[]>;
 };
 
 /** Strip a Prisma User down to client-safe fields. */
@@ -146,6 +148,8 @@ export function publicUser(user: {
   displayName: string;
   avatarUrl: string | null;
   role: "USER" | "EDITOR" | "ADMIN";
+  readingHistory: unknown;
+  readChapters: unknown;
 }): PublicUser {
   return {
     id: user.id,
@@ -153,5 +157,7 @@ export function publicUser(user: {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     role: user.role,
+    readingHistory: (user.readingHistory as unknown[]) || [],
+    readChapters: (user.readChapters as Record<string, number[]>) || {},
   };
 }

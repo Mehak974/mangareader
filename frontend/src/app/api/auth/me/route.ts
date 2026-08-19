@@ -7,9 +7,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { publicUser } from "@/lib/validation";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ user: null }, { status: 401 });
+    }
+    return NextResponse.json({ user: publicUser(user) });
+  } catch (error) {
+    console.error("Failed to get current user:", error);
     return NextResponse.json({ user: null }, { status: 401 });
   }
-  return NextResponse.json({ user: publicUser(user) });
 }
