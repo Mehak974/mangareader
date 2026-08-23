@@ -14,7 +14,12 @@ export const metadata = {
 // redirected to login; the real role check is a DB session lookup, so it
 // cannot be bypassed from the client.
 export default async function AdminLayout({ children }) {
-  const user = await getCurrentUser();
+  let user = null;
+  try {
+    user = await getCurrentUser();
+  } catch {
+    redirect("/login?next=/admin");
+  }
 
   if (!hasRole(user, "EDITOR")) {
     redirect("/login?next=/admin");

@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, hasRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,33 @@ function fmtDate(d) {
 }
 
 export default async function AdminDashboard() {
-  const [user, stats] = await Promise.all([getCurrentUser(), getStats()]);
+  let user = null;
+  try {
+    user = await getCurrentUser();
+  } catch {
+    redirect("/admin");
+  }
+  if (!hasRole(user, "EDITOR")) {
+    redirect("/admin");
+  }
+
+  let stats = null;
+  try {
+    stats = await getStats();
+  } catch {
+    stats = {
+      totalUsers: 0,
+      newUsersWeek: 0,
+      publishedArticles: 0,
+      draftArticles: 0,
+      totalReviews: 0,
+      unreadMessages: 0,
+      newsletterSubs: 0,
+      recentArticles: [],
+      recentMessages: [],
+      dayAgo: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    };
+  }
 
   const cards = [
     { label: "Total Users", value: stats.totalUsers, sub: `+${stats.newUsersWeek} this week`, accent: "var(--accent)" },
