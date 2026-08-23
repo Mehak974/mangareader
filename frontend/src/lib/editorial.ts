@@ -176,7 +176,11 @@ export async function createArticle(input: ArticleInput, createdById: string) {
       relatedMangaIds: input.relatedMangaIds ?? [],
       readingMinutes: readingMinutes(input.body),
       ...life,
-      tags: { connect: tags },
+      ArticleToArticleTag: {
+        create: tags.map((t) => ({
+          article_tags: { connect: { id: t.id } },
+        })),
+      },
       ...(reviewWrite(input.review) ? { review: { create: reviewWrite(input.review)!.create } } : {}),
     },
     select: { id: true, slug: true },
@@ -223,8 +227,12 @@ export async function updateArticle(id: string, input: ArticleInput) {
       relatedMangaIds: input.relatedMangaIds ?? [],
       readingMinutes: readingMinutes(input.body),
       ...life,
-      // Replace the tag set entirely to reflect the submitted list.
-      tags: { set: tags },
+      ArticleToArticleTag: {
+        deleteMany: {},
+        create: tags.map((t) => ({
+          article_tags: { connect: { id: t.id } },
+        })),
+      },
       ...(review ? { review: { upsert: { create: review.create, update: review.update } } } : {}),
     },
     select: { id: true, slug: true },
@@ -317,10 +325,17 @@ export async function listAdminArticles(opts?: {
 
 /** Full article for the admin editor (any status). */
 export async function getAdminArticle(id: string) {
-  return prisma.article.findUnique({
+  const article = await prisma.article.findUnique({
     where: { id },
-    include: { tags: true, review: true, byline: true, category: true },
+    include: {
+      ArticleToArticleTag: { include: { article_tags: true } },
+      review: true,
+      byline: true,
+      category: true,
+    },
   });
+  if (!article) return null;
+  return { ...article, tags: article.ArticleToArticleTag.map((r) => r.article_tags) };
 }
 
 /** A single published article by slug (public detail). Increments view count. */
@@ -330,10 +345,10 @@ export const getPublishedArticle = cache(async function getPublishedArticle(slug
     include: {
       byline: true,
       category: true,
-      tags: true,
+      ArticleToArticleTag: { include: { article_tags: true } },
       review: true,
     },
   });
   if (!article) return null;
-  return article;
+  return { ...article, tags: article.ArticleToArticleTag.map((r) => r.article_tags) };
 });

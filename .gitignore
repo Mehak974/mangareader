@@ -31,3 +31,25 @@ backend/*.html
 
 # Large local binaries / scrapers
 backend/chrome/
+
+# Database table exports — never commit these
+contact_messages.js
+discovered_manga.js
+editorial_authors.js
+editorial_categories.js
+genres.js
+libraries.js
+library_manga.js
+login_attempts.js
+manga.js
+manga_authors.js
+manga_genres.js
+manga_notes.js
+manga_tags.js
+metadata.js
+newsletter_subscribers.js
+reviews.js
+sessions.js
+site_settings.js
+source_mapping.js
+tags.js

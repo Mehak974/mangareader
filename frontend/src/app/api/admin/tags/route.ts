@@ -15,7 +15,7 @@ export const GET = withRole("EDITOR", async () => {
       id: true,
       slug: true,
       name: true,
-      _count: { select: { articles: true } },
+      _count: { select: { ArticleToArticleTag: true } },
     },
   });
   return NextResponse.json({ tags });
