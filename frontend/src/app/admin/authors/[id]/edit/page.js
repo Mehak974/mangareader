@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import AuthorEditor from "@/components/admin/AuthorEditor";
 
 export const metadata = { title: "Edit author · Admin", robots: { index: false } };
+export const dynamic = "force-dynamic";
 
 export default async function EditAuthorPage({ params }) {
   const { id } = await params;

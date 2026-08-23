@@ -1,6 +1,6 @@
 import AuthorEditor from "@/components/admin/AuthorEditor";
-
 export const metadata = { title: "New author · Admin", robots: { index: false } };
+export const dynamic = "force-dynamic";
 
 export default function NewAuthorPage() {
   return (

@@ -5,10 +5,11 @@ import AdminNav from "@/components/admin/AdminNav";
 import "./admin.css";
 
 export const metadata = {
-  title: "Admin · MangaReader",
+  title: "Admin Â· MangaReader",
   // Admin is never for search engines.
   robots: { index: false, follow: false },
 };
+export const dynamic = "force-dynamic";
 
 // Server-side guard: runs before any admin UI renders. A non-editor is
 // redirected to login; the real role check is a DB session lookup, so it
