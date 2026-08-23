@@ -3,10 +3,10 @@ const db = require('../db');
 // Default priority hierarchy (lower index = higher priority)
 const SOURCE_PRIORITY = [
   'mangaread',
+  'manganato',
   'coffeemanga',
   'mangakatana',
-  'mangadex',
-  'manganato'
+  'mangadex'
 ];
 
 /**

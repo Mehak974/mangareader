@@ -515,7 +515,7 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     }
 
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
-    const sourceIds = isManga ? ['mangakatana', 'mangadex'] : ['mangaread', 'coffeemanga', 'mangakatana', 'mangadex'];
+    const sourceIds = isManga ? ['mangaread', 'manganato', 'mangakatana', 'mangadex'] : ['mangaread', 'manganato', 'coffeemanga', 'mangakatana', 'mangadex'];
 
     let mappings = (await db.query('SELECT source_id,source_slug FROM source_mappings WHERE manga_id=$1', [mangaId])).rows;
     if (!mappings.length) {
