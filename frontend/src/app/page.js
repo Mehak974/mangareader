@@ -39,8 +39,8 @@ export default async function Home() {
       await Promise.all([
         fetchHomeSection('popular_now').catch(() => ({ data: [] })),
         fetchHomeSection('readers_also_love').catch(() => ({ data: [] })),
-        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000),
-        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000).catch(() => ({ media: [] })),
+        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000).catch(() => ({ media: [] })),
       ]);
 
     popularNow = popularNowData?.data?.length > 0 ? popularNowData.data : [];
@@ -63,6 +63,16 @@ export default async function Home() {
       ]);
       if (popularNow.length === 0) popularNow = fallbackPopularNow?.media?.length > 0 ? fallbackPopularNow.media : [];
       if (popularOverall.length === 0) popularOverall = fallbackPopularOverall?.media?.length > 0 ? fallbackPopularOverall.media : [];
+    } catch {
+      // leave empty
+    }
+  }
+
+  // Fallback for trending if the primary sort returned nothing
+  if (trending.length === 0) {
+    try {
+      const fallbackTrending = await withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000);
+      if (fallbackTrending?.media?.length > 0) trending = fallbackTrending.media;
     } catch {
       // leave empty
     }
