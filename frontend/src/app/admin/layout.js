@@ -18,10 +18,12 @@ export default async function AdminLayout({ children }) {
   try {
     user = await getCurrentUser();
   } catch {
+    console.error("[admin] getCurrentUser threw in layout");
     redirect("/login?next=/admin");
   }
 
   if (!hasRole(user, "EDITOR")) {
+    console.warn("[admin] access denied", user ? { role: user.role, id: user.id } : "no user");
     redirect("/login?next=/admin");
   }
 

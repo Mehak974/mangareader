@@ -83,22 +83,33 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE)?.value;
-    if (!token) return null;
+    if (!token) {
+      console.warn("[auth] no session cookie found");
+      return null;
+    }
 
     const session = await prisma.session.findUnique({
       where: { tokenHash: hashToken(token) },
       include: { user: true },
     });
 
-    if (!session) return null;
-    if (session.expiresAt < new Date()) {
-      await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+    if (!session) {
+      console.warn("[auth] session not found for token hash");
       return null;
     }
-    if (session.user.banned) return null;
+    if (session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+      console.warn("[auth] session expired");
+      return null;
+    }
+    if (session.user.banned) {
+      console.warn("[auth] user is banned");
+      return null;
+    }
 
     return session.user;
-  } catch {
+  } catch (err) {
+    console.error("[auth] getCurrentUser error:", err);
     return null;
   }
 }

@@ -104,6 +104,19 @@ export default async function RootLayout({ children }) {
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
         <Toaster position="bottom-right" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for (var i = 0; i < registrations.length; i++) {
+                    registrations[i].unregister();
+                  }
+                }).catch(function() {});
+              }
+            `,
+          }}
+        />
         <AppProvider>
           <MaintenanceGuard>
             <div id="app">
