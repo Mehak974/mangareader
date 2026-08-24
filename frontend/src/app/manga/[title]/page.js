@@ -91,15 +91,18 @@ const [chPage, setChPage] = useState(1);
    const [selected, setSelected] = useState(() => new Set()); // chapter numbers
    const CHS_PER_PAGE = 20;
 
-   // eslint-disable-next-line react-hooks/set-state-in-effect
-   useEffect(() => {
-     setChPage(1);
-     setSelected(new Set());
-     setSelectMode(false);
-   }, [titleSlug]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    useEffect(() => {
+      setChPage(1);
+      setSelected(new Set());
+      setSelectMode(false);
+      redirectDoneRef.current = false;
+    }, [titleSlug]);
 
   const longPressTimerRef = useRef(null);
   const LONG_PRESS_DURATION = 500;
+
+  const redirectDoneRef = useRef(false);
 
   useEffect(() => {
     async function loadMangaDetail() {
@@ -200,7 +203,8 @@ const [chPage, setChPage] = useState(1);
         setMangaId(resolvedId);
         setLoading(false);
 
-        if (queryCover) {
+        if (queryCover && !redirectDoneRef.current) {
+          redirectDoneRef.current = true;
           router.replace(`/manga/${titleSlug}`);
         }
 
@@ -258,7 +262,7 @@ const [chPage, setChPage] = useState(1);
     if (titleSlug) {
       loadMangaDetail();
     }
-  }, [titleSlug, queryCover]);
+  }, [titleSlug]);
 
   const handleSourceChange = async (newSourceId) => {
     localStorage.setItem(`preferred_source_${mangaId}`, newSourceId);
