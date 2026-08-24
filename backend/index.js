@@ -5,7 +5,6 @@
 
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const { doubleCsrf } = require('csrf-csrf');
 const crypto = require('crypto');
 const dns = require('dns');
@@ -14,8 +13,11 @@ const cheerio = require('cheerio');
 const bcrypt = require('bcryptjs');
 const NodeCache = require('node-cache');
 const cookieParser = require('cookie-parser');
-const expressRateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+const { initAuth, requireAdmin } = require('./middleware/auth');
+const { initRateLimit, rateLimit, getRedisClient } = require('./middleware/rateLimit');
+const helpers = require('./utils/helpers');
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
@@ -116,40 +118,7 @@ app.use((req, res, next) => {
 });
 
 // ── RATE LIMITING ─────────────────────────────────────────────────────────────
-const { RedisStore } = require('rate-limit-redis');
-const Redis = require('ioredis');
-
-let redisClient;
-if (process.env.REDIS_URL) {
-  redisClient = new Redis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
-    retryStrategy(times) {
-      if (times > 3) return null; // stop retrying after 3 times
-      return Math.min(times * 50, 2000);
-    }
-  });
-  redisClient.on('error', (err) => console.error('Redis Client Error', err));
-}
-
-function rateLimit(windowMs = 60000, maxRequests = 60) {
-  return expressRateLimit({
-    windowMs,
-    max: maxRequests,
-    standardHeaders: true,
-    legacyHeaders: false,
-    passOnStoreError: true,
-    store: redisClient ? new RedisStore({
-      sendCommand: (...args) => {
-        if (redisClient.status !== 'ready') return Promise.reject(new Error('Redis not ready'));
-        return redisClient.call(...args);
-      },
-    }) : undefined,
-    message: { error: 'Too many requests — please slow down.' }
-  });
-}
-
-const limiter = rateLimit(15 * 60 * 1000, 200);
+initRateLimit();
 
 const anilistCache = new NodeCache({ stdTTL: 86400, checkperiod: 3600 }); // Cache for 24 hours
 
@@ -189,7 +158,6 @@ app.get('/api/csrf-token', (req, res) => {
 
 
 // ── ADMIN AUTH ────────────────────────────────────────────────────────────────
-const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth.routes');
 
 // Fail fast rather than silently falling back to a public, hardcoded secret.
@@ -205,33 +173,11 @@ if (!process.env.ADMIN_TOKEN) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_TOKEN_BUF = Buffer.from(process.env.ADMIN_TOKEN);
+initAuth();
 
 // Rate-limited: this route gates access to everything behind requireAdmin,
 // so it must not accept unlimited password guesses.
 app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
-
-function requireAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Fallback to legacy token for existing active client sessions during transition
-    const legacyToken = req.headers['x-admin-token'];
-    if (legacyToken) {
-      const tokenBuf = Buffer.from(legacyToken);
-      if (tokenBuf.length === ADMIN_TOKEN_BUF.length && crypto.timingSafeEqual(tokenBuf, ADMIN_TOKEN_BUF)) {
-        return next();
-      }
-    }
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: 'Forbidden: Invalid token' });
-  }
-}
 
 // ── CACHE ─────────────────────────────────────────────────────────────────────
 const memCache = new NodeCache({ stdTTL: 86400, checkperiod: 600 });
@@ -258,226 +204,9 @@ async function setCached(key, data, ttlMs = 86400000) {
   memCache.set(key, data, Math.floor(ttlMs / 1000));
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function san(str, max = 500) {
-  if (typeof str !== 'string') return '';
-  return str.replace(/<[^>]*>/g, '').replace(/[<>\\]/g, '').trim().slice(0, max);
-}
-function isValidUrl(str) {
-  try { const u = new URL(str); return u.protocol === 'http:' || u.protocol === 'https:'; } catch { return false; }
-}
-
-// ── SOURCE SEARCH HELPERS (unchanged logic) ───────────────────────────────────
-async function getAlternativeTitles(mangaId) {
-  try {
-    const res = await db.query(`SELECT english_title,romaji_title,alternative_titles,synonyms FROM metadata WHERE manga_id=$1`, [mangaId]);
-    if (!res.rows.length) return [];
-    const row = res.rows[0]; const alts = new Set();
-    if (row.english_title) alts.add(row.english_title);
-    if (row.romaji_title) alts.add(row.romaji_title);
-    for (const field of ['alternative_titles', 'synonyms']) {
-      const arr = typeof row[field] === 'string' ? JSON.parse(row[field]) : row[field];
-      if (Array.isArray(arr)) arr.forEach(t => alts.add(t));
-    }
-    return [...alts];
-  } catch { return []; }
-}
-
-function isGoodMatch(orig, found) {
-  if (!orig || !found) return false;
-  const co = orig.toLowerCase().replace(/[^\w\s]/g, '').trim();
-  const cf = found.toLowerCase().replace(/[^\w\s]/g, '').trim();
-  if (co.length < 4 || cf.length < 4) return false;
-  if (co === cf) return true;
-  const seq = ['ragnarok', 'sequel', 'spin-off', 'spinoff', 'gaiden', 'side-story', 'special', 'extra'];
-  if (cf.includes(co) || co.includes(cf)) {
-    const extra = cf.replace(co, '').trim().split(/\s+/).filter(Boolean);
-    if (extra.some(w => seq.includes(w)) && !co.split(/\s+/).some(w => seq.includes(w))) return false;
-    return true;
-  }
-  const stopWords = new Set(['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from']);
-  const words = co.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-  if (!words.length) return false;
-  let m = 0; words.forEach(w => { if (cf.includes(w)) m++; });
-  const thresh = Math.max(2, Math.ceil(words.length * 0.5));
-  const match = m >= Math.min(words.length, thresh);
-  if (match) {
-    const extra = cf.split(/\s+/).filter(w => !co.includes(w) && !stopWords.has(w));
-    if (extra.some(w => seq.includes(w)) && !co.split(/\s+/).some(w => seq.includes(w))) return false;
-  }
-  return match;
-}
-
-function checkDirectRedirect($, baseUrl) {
-  const can = $('link[rel="canonical"]').attr('href') || $('meta[property="og:url"]').attr('content');
-  if (!can) return null;
-  const cl = can.toLowerCase();
-  if ((cl.includes('/manga/') || cl.includes('/series/') || cl.includes('/novel/')) &&
-    !cl.endsWith('/manga') && !cl.endsWith('/series') && !cl.endsWith('/novel') &&
-    !cl.includes('?s=') && !cl.includes('search')) {
-    return can.startsWith('http') ? can : `${baseUrl}${can.startsWith('/') ? '' : '/'}${can}`;
-  }
-  return null;
-}
-
-async function verifyRedirectLink(link, orig) {
-  if (!link) return null;
-  try {
-    const $r = cheerio.load(await fetchHTML(link));
-    const t = $r('h1.post-title,.manga-title,h1,.series-title').first().text().trim();
-    return isGoodMatch(orig, t) ? link : null;
-  } catch { return null; }
-}
-
-async function performSearch(sourceId, query, origTitle) {
-  if (['coffeemanga', 'mangaread'].includes(sourceId)) {
-    const base = SOURCE_SCRAPERS[sourceId].baseUrl;
-    const $ = cheerio.load(await fetchHTML(`${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`));
-    const redir = checkDirectRedirect($, base);
-    if (redir) { const v = await verifyRedirectLink(redir, origTitle); if (v) return v; }
-    let best = null, score = 0, cands = [];
-    $('.post-title a,.c-tabs-item__content a,.tab-summary a,.manga-name a,a[href*="/manga/"]').each((_, el) => {
-      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
-      if (!href || href.includes('?m_orderby') || href.endsWith('/manga') || href.endsWith('/manga/') || href.includes('-novel') || href.includes('/novel/')) return;
-      const full = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
-      if (!cands.some(c => c.url === full)) cands.push({ url: full, text });
-      if (!isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = full; }
-    });
-    const mc = origTitle.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/).filter(w => w.length > 2).length;
-    if (score >= 2 || (mc <= 1 && score >= 1)) return best;
-    for (let i = 0; i < Math.min(cands.length, 3); i++) {
-      try {
-        const $d = cheerio.load(await fetchHTML(cands[i].url));
-        let alts = [];
-        $d('.post-content_item').each((_, it) => {
-          const h = $d(it).find('.summary-heading').text().toLowerCase();
-          if (h.includes('alternative') || h.includes('alt title')) {
-            $d(it).find('.summary-content').text().split(/[,;\n]+/).forEach(v => { const c = v.trim(); if (c) alts.push(c); });
-          }
-        });
-        if (alts.some(a => isGoodMatch(origTitle, a))) return cands[i].url;
-      } catch { }
-    }
-    return null;
-  }
-  if (sourceId === 'mangakatana') {
-    const base = 'https://mangakatana.com';
-    const $ = cheerio.load(await fetchHTML(`${base}/?search=${encodeURIComponent(query)}`));
-    const redir = checkDirectRedirect($, base); if (redir) { const v = await verifyRedirectLink(redir, origTitle); if (v) return v; }
-    let best = null, score = 0;
-    $('.title a,a[href*="/manga/"]').each((_, el) => {
-      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
-      if (!href || (!href.startsWith('https://mangakatana.com/manga/') && !href.startsWith('/manga/'))) return;
-      if (!isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = href; }
-    });
-    return score >= 1 ? best : null;
-  }
-  if (sourceId === 'mangadex') {
-    const r = await http.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
-    if (r.data?.data?.length) {
-      let bestId = null, bestScore = 0;
-      r.data.data.forEach(item => {
-        const titles = Object.values(item.attributes.title || {}).concat((item.attributes.altTitles || []).map(t => Object.values(t)[0])).map(t => t.toLowerCase());
-        if (!titles.some(t => isGoodMatch(origTitle, t))) return;
-        const words = origTitle.toLowerCase().split(/\s+/);
-        titles.forEach(t => { let s = 0; words.forEach(w => { if (w.length > 2 && t.includes(w)) s++; }); if (s > bestScore) { bestScore = s; bestId = item.id; } });
-      });
-      if (bestId) return `https://mangadex.org/title/${bestId}`;
-    }
-  }
-  if (sourceId === 'manganato') {
-    const base = 'https://www.manganato.gg';
-    const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
-    let best = null, score = 0;
-    $('.search-story-item a, .list-story-item a, a[href*="/manga/"]').each((_, el) => {
-      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
-      if (!href || !href.includes('/manga/')) return;
-      if (!isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
-    });
-    if (score >= 1) return best;
-  }
-  return null;
-}
-
-async function searchSource(sourceId, title, mangaId = null) {
-  try {
-    let allTitles = [title];
-    if (mangaId) {
-      const alts = await getAlternativeTitles(mangaId);
-      for (const alt of alts) {
-        if (!allTitles.map(t => t.toLowerCase()).includes(alt.toLowerCase())) {
-          allTitles.push(alt);
-        }
-      }
-    }
-
-    if (sourceId === 'mangaread' || sourceId === 'coffeemanga') {
-      const axios = require('axios');
-      const topTitlesForDirect = allTitles.slice(0, 8);
-      for (const t of topTitlesForDirect) {
-        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        if (!slug || slug.length < 2) continue;
-
-        const urlsToTry = sourceId === 'mangaread'
-          ? [`https://www.mangaread.org/manga/${slug}/`, `https://www.mangaread.org/manga/${slug}-manga/`]
-          : [`https://coffeemanga.net/manga/${slug}/`];
-
-        for (const directUrl of urlsToTry) {
-          try {
-            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-            if (res.status === 200 && res.data.includes('post-title')) return directUrl;
-          } catch (e) { }
-        }
-      }
-    }
-
-    if (sourceId === 'manganato') {
-      const topTitlesForDirect = allTitles.slice(0, 8);
-      for (const t of topTitlesForDirect) {
-        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        if (!slug || slug.length < 2) continue;
-        const directUrl = `https://www.manganato.gg/manga/${slug}`;
-        try {
-          const html = await fetchHTML(directUrl);
-          if (html.includes('chapter-list-container')) return directUrl;
-        } catch (e) { }
-      }
-    }
-
-    const topTitlesForSearch = allTitles.slice(0, 3);
-    for (const t of topTitlesForSearch) {
-      let link = await performSearch(sourceId, t, t);
-      if (link) return link;
-      let clean = t.replace(/[^\w\s]/g, '').trim();
-      if (clean !== t) {
-        link = await performSearch(sourceId, clean, t);
-        if (link) return link;
-      }
-    }
-  } catch (err) { console.warn(`Search failed for ${sourceId}:`, err.message); }
-  return null;
-}
-
-function detectSource(url) {
-  const h = new URL(url).hostname;
-  if (h === 'coffeemanga.net') return 'coffeemanga';
-  if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
-  if (h === 'mangadex.org') return 'mangadex';
-  if (h === 'mangakatana.com') return 'mangakatana';
-  if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
-  if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
-  return null;
-}
-
 // ── MANGA API (preserved + secured) ──────────────────────────────────────────
 app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
-  const title = san(req.query.title, 200);
+  const title = helpers.san(req.query.title, 200);
   if (!title) return res.status(400).json({ error: 'title required' });
   try {
     const mangaId = await getOrFetchMangaMetadata(title);
@@ -575,9 +304,9 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
   const { title, source: sid } = req.query;
   if (!title || !sid) return res.status(400).json({ error: 'title and source required' });
   try {
-    const mangaId = await getOrFetchMangaMetadata(san(title, 200));
+    const mangaId = await getOrFetchMangaMetadata(helpers.san(title, 200));
     const cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, sid])).rows[0];
-    const mr = (await db.query('SELECT source_slug FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, san(sid, 50)])).rows;
+    const mr = (await db.query('SELECT source_slug FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, helpers.san(sid, 50)])).rows;
     let url = mr.length ? mr[0].source_slug : null;
     if (cached && (Date.now() - new Date(cached.fetched_at).getTime()) < 6 * 3600000 && cached.chapters?.length) return res.json({ data: { sourceId: sid, url, chapters: cached.chapters } });
     if (!url) {
@@ -608,7 +337,7 @@ app.get('/api/manga/track-view', rateLimit(60000, 60), async (req, res) => {
          chapter_count = COALESCE(EXCLUDED.chapter_count, discovered_manga.chapter_count),
          view_count = discovered_manga.view_count + 1,
          last_viewed_at = NOW()`,
-      [san(slug, 200), san(title, 300), chapterCount ? parseInt(chapterCount) : null]
+      [helpers.san(slug, 200), helpers.san(title, 300), chapterCount ? parseInt(chapterCount) : null]
     );
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -639,10 +368,16 @@ app.get('/api/manga/search', async (req, res) => {
     const order = sort === 'Top Rated' ? 'm.rating DESC,m.popularity DESC' : sort === 'New Releases' ? 'm.created_at DESC' : sort === 'A–Z' ? 'm.title ASC' : 'm.popularity DESC';
     base += ` ORDER BY ${order} LIMIT $${p++} OFFSET $${p++}`;
     const rows = (await db.query(base, [...vals, parseInt(limit), parseInt(offset)])).rows;
-    const results = await Promise.all(rows.map(async row => {
-      const g = (await db.query(`SELECT g.name FROM genres g JOIN manga_genres mg ON g.id=mg.genre_id WHERE mg.manga_id=$1`, [row.id])).rows.map(r => r.name);
-      return { ...row, genres: g };
-    }));
+    const mangaIds = rows.map(r => r.id);
+    const genreRows = mangaIds.length ? await db.query(
+      'SELECT mg.manga_id, g.name FROM genres g JOIN manga_genres mg ON g.id=mg.genre_id WHERE mg.manga_id = ANY($1::text[])',
+      [mangaIds]
+    ) : [];
+    const genreMap = genreRows.rows.reduce((m, r) => {
+      (m[r.manga_id] ||= []).push(r.name);
+      return m;
+    }, {});
+    const results = rows.map(row => ({ ...row, genres: genreMap[row.id] || [] }));
     res.json({ data: results, total });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -686,6 +421,151 @@ app.post('/api/admin/home/sections/:key', requireAdmin, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+async function performSearch(sourceId, query, origTitle) {
+  if (['coffeemanga', 'mangaread'].includes(sourceId)) {
+    const base = SOURCE_SCRAPERS[sourceId].baseUrl;
+    const $ = cheerio.load(await fetchHTML(`${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`));
+    const redir = helpers.checkDirectRedirect($, base);
+    if (redir) { const v = await helpers.verifyRedirectLink(redir, origTitle); if (v) return v; }
+    let best = null, score = 0, cands = [];
+    $('.post-title a,.c-tabs-item__content a,.tab-summary a,.manga-name a,a[href*="/manga/"]').each((_, el) => {
+      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
+      if (!href || href.includes('?m_orderby') || href.endsWith('/manga') || href.endsWith('/manga/') || href.includes('-novel') || href.includes('/novel/')) return;
+      const full = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
+      if (!cands.some(c => c.url === full)) cands.push({ url: full, text });
+      if (!helpers.isGoodMatch(origTitle, text)) return;
+      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+      if (s > score) { score = s; best = full; }
+    });
+    const mc = origTitle.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/).filter(w => w.length > 2).length;
+    if (score >= 2 || (mc <= 1 && score >= 1)) return best;
+    for (let i = 0; i < Math.min(cands.length, 3); i++) {
+      try {
+        const $d = cheerio.load(await fetchHTML(cands[i].url));
+        let alts = [];
+        $d('.post-content_item').each((_, it) => {
+          const h = $d(it).find('.summary-heading').text().toLowerCase();
+          if (h.includes('alternative') || h.includes('alt title')) {
+            $d(it).find('.summary-content').text().split(/[,;\n]+/).forEach(v => { const c = v.trim(); if (c) alts.push(c); });
+          }
+        });
+        if (alts.some(a => helpers.isGoodMatch(origTitle, a))) return cands[i].url;
+      } catch { }
+    }
+    return null;
+  }
+  if (sourceId === 'mangakatana') {
+    const base = 'https://mangakatana.com';
+    const $ = cheerio.load(await fetchHTML(`${base}/?search=${encodeURIComponent(query)}`));
+    const redir = helpers.checkDirectRedirect($, base); if (redir) { const v = await helpers.verifyRedirectLink(redir, origTitle); if (v) return v; }
+    let best = null, score = 0;
+    $('.title a,a[href*="/manga/"]').each((_, el) => {
+      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
+      if (!href || (!href.startsWith('https://mangakatana.com/manga/') && !href.startsWith('/manga/'))) return;
+      if (!helpers.isGoodMatch(origTitle, text)) return;
+      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+      if (s > score) { score = s; best = href; }
+    });
+    return score >= 1 ? best : null;
+  }
+  if (sourceId === 'mangadex') {
+    const r = await http.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    if (r.data?.data?.length) {
+      let bestId = null, bestScore = 0;
+      r.data.data.forEach(item => {
+        const titles = Object.values(item.attributes.title || {}).concat((item.attributes.altTitles || []).map(t => Object.values(t)[0])).map(t => t.toLowerCase());
+        if (!titles.some(t => helpers.isGoodMatch(origTitle, t))) return;
+        const words = origTitle.toLowerCase().split(/\s+/);
+        titles.forEach(t => { let s = 0; words.forEach(w => { if (w.length > 2 && t.includes(w)) s++; }); if (s > bestScore) { bestScore = s; bestId = item.id; } });
+      });
+      if (bestId) return `https://mangadex.org/title/${bestId}`;
+    }
+  }
+  if (sourceId === 'manganato') {
+    const base = 'https://www.manganato.gg';
+    const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
+    let best = null, score = 0;
+    $('.search-story-item a, .list-story-item a, a[href*="/manga/"]').each((_, el) => {
+      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
+      if (!href || !href.includes('/manga/')) return;
+      if (!helpers.isGoodMatch(origTitle, text)) return;
+      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+      if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
+    });
+    if (score >= 1) return best;
+  }
+  return null;
+}
+
+async function searchSource(sourceId, title, mangaId = null) {
+  try {
+    let allTitles = [title];
+    if (mangaId) {
+      const alts = await helpers.getAlternativeTitles(mangaId);
+      for (const alt of alts) {
+        if (!allTitles.map(t => t.toLowerCase()).includes(alt.toLowerCase())) {
+          allTitles.push(alt);
+        }
+      }
+    }
+
+    if (sourceId === 'mangaread' || sourceId === 'coffeemanga') {
+      const topTitlesForDirect = allTitles.slice(0, 8);
+      for (const t of topTitlesForDirect) {
+        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        if (!slug || slug.length < 2) continue;
+
+        const urlsToTry = sourceId === 'mangaread'
+          ? [`https://www.mangaread.org/manga/${slug}/`, `https://www.mangaread.org/manga/${slug}-manga/`]
+          : [`https://coffeemanga.net/manga/${slug}/`];
+
+        for (const directUrl of urlsToTry) {
+          try {
+            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+            if (res.status === 200 && res.data.includes('post-title')) return directUrl;
+          } catch (e) { }
+        }
+      }
+    }
+
+    if (sourceId === 'manganato') {
+      const topTitlesForDirect = allTitles.slice(0, 8);
+      for (const t of topTitlesForDirect) {
+        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        if (!slug || slug.length < 2) continue;
+        const directUrl = `https://www.manganato.gg/manga/${slug}`;
+        try {
+          const html = await fetchHTML(directUrl);
+          if (html.includes('chapter-list-container')) return directUrl;
+        } catch (e) { }
+      }
+    }
+
+    const topTitlesForSearch = allTitles.slice(0, 3);
+    for (const t of topTitlesForSearch) {
+      let link = await performSearch(sourceId, t, t);
+      if (link) return link;
+      let clean = t.replace(/[^\w\s]/g, '').trim();
+      if (clean !== t) {
+        link = await performSearch(sourceId, clean, t);
+        if (link) return link;
+      }
+    }
+  } catch (err) { console.warn(`Search failed for ${sourceId}:`, err.message); }
+  return null;
+}
+
+function detectSource(url) {
+  const h = new URL(url).hostname;
+  if (h === 'coffeemanga.net') return 'coffeemanga';
+  if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
+  if (h === 'mangadex.org') return 'mangadex';
+  if (h === 'mangakatana.com') return 'mangakatana';
+  if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
+  if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
+  return null;
+}
 
 const ANILIST_MANGA_QUERY = `
   query ($page: Int, $perPage: Int, $genre: String, $search: String, $sort: [MediaSort], $status: MediaStatus, $countryOfOrigin: CountryCode, $startDate_greater: FuzzyDateInt, $startDate_lesser: FuzzyDateInt, $averageScore_greater: Int) {
@@ -753,8 +633,8 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
 
 app.get('/api/manga', async (req, res) => {
   const { url, source: sid } = req.query;
-  if (!url || !isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
-  const src = SOURCE_SCRAPERS[sid || detectSource(url)];
+  if (!url || !helpers.isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
+  const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
   if (!src) return res.status(400).json({ error: 'Unknown source' });
   try { const d = await src.getMangaDetail(url); res.json({ data: { ...d, sourceId: src.id, url }, cached: false }); }
   catch (err) { res.status(500).json({ error: err.message }); }
@@ -762,9 +642,9 @@ app.get('/api/manga', async (req, res) => {
 
 app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   const { url, source: sid } = req.query;
-  if (!url || !isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
+  if (!url || !helpers.isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
   const ck = `ch:${url}`; const c = await getCached(ck); if (c) return res.json({ data: c, cached: true });
-  const src = SOURCE_SCRAPERS[sid || detectSource(url)];
+  const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
   const MIN = 3; let result = null, usedSrc = sid;
   if (src) { try { const d = await src.getChapterImages(url); if (d.images?.length >= MIN) { result = d; usedSrc = sid; } } catch (err) { console.warn(`[${sid}] Failed:`, err.message); } }
   if (!result) {
@@ -799,7 +679,7 @@ const IMAGE_CACHE_MAX = 500;
 
 app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
   const { url, w, q } = req.query;
-  if (!url || !isValidUrl(url)) return res.status(400).send('Invalid url');
+  if (!url || !helpers.isValidUrl(url)) return res.status(400).send('Invalid url');
   const cacheKey = `${url}|${w || ''}|${q || ''}`;
   const cached = imageCache.get(cacheKey);
   if (cached) {
@@ -812,7 +692,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (parsed.protocol !== 'https:') return res.status(400).send('Only HTTPS URLs allowed');
     if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1') return res.status(400).send('URL not allowed');
     if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) return res.status(400).send('URL not allowed');
-    if (isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
+    if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
     const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|coffeemanga\.net|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com)$/i;
@@ -836,21 +716,18 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     });
     let buf, ct = 'image/webp';
     try {
-      let p = sharp(Buffer.from(r.data));
-      if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p = p.resize({ width: wi, withoutEnlargement: true }); }
+      const p = sharp(Buffer.from(r.data));
+      if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p.resize({ width: wi, withoutEnlargement: true }); }
       const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
-      buf = await p.webp({ quality }).toBuffer();
-    } catch {
       try {
-        let p = sharp(Buffer.from(r.data));
-        if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p = p.resize({ width: wi, withoutEnlargement: true }); }
-        const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
+        buf = await p.webp({ quality }).toBuffer();
+      } catch {
         buf = await p.jpeg({ quality, progressive: true }).toBuffer();
         ct = 'image/jpeg';
-      } catch {
-        buf = Buffer.from(r.data);
-        ct = r.headers['content-type'] || 'image/jpeg';
       }
+    } catch {
+      buf = Buffer.from(r.data);
+      ct = r.headers['content-type'] || 'image/jpeg';
     }
 
     // Cache processed image (evict oldest if over cap)
@@ -871,8 +748,8 @@ app.get('/api/blog', async (req, res) => {
   const { category, tag, status = 'published', limit = 20, offset = 0, search, featured } = req.query;
   try {
     let conds = ['bp.status=$1'], vals = [status], p = 2;
-    if (category) { conds.push(`bc.slug=$${p++}`); vals.push(san(category, 100)); }
-    if (search) { conds.push(`(bp.title ILIKE $${p} OR bp.excerpt ILIKE $${p})`); vals.push(`%${san(search, 100)}%`); p++; }
+    if (category) { conds.push(`bc.slug=$${p++}`); vals.push(helpers.san(category, 100)); }
+    if (search) { conds.push(`(bp.title ILIKE $${p} OR bp.excerpt ILIKE $${p})`); vals.push(`%${helpers.san(search, 100)}%`); p++; }
     if (featured === 'true') { conds.push(`bp.is_featured=true`); }
     const where = `WHERE ${conds.join(' AND ')}`;
     const total = parseInt((await db.query(`SELECT COUNT(*)as total FROM blog_posts bp LEFT JOIN blog_categories bc ON bp.category_id=bc.id ${where}`, vals)).rows[0].total);
@@ -911,7 +788,7 @@ app.get('/api/blog-tags', async (req, res) => {
 // ── CONTACT / NEWSLETTER ──────────────────────────────────────────────────────
 app.post('/api/contact', rateLimit(60000, 5), async (req, res) => {
   const { name, email, subject, message, type = 'general' } = req.body;
-  const sn = san(name, 100), se = san(email, 200), ss = san(subject, 200), sm = san(message, 5000);
+  const sn = helpers.san(name, 100), se = helpers.san(email, 200), ss = helpers.san(subject, 200), sm = helpers.san(message, 5000);
   const st = ['general', 'bug', 'feature', 'dmca', 'business', 'complaint'].includes(type) ? type : 'general';
   if (!sn || !se || !sm) return res.status(400).json({ error: 'Name, email and message required' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(se)) return res.status(400).json({ error: 'Invalid email' });
@@ -922,7 +799,7 @@ app.post('/api/contact', rateLimit(60000, 5), async (req, res) => {
 });
 
 app.post('/api/newsletter', rateLimit(60000, 5), async (req, res) => {
-  const se = san(req.body.email, 200);
+  const se = helpers.san(req.body.email, 200);
   if (!se || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(se)) return res.status(400).json({ error: 'Valid email required' });
   try {
     await db.query('INSERT INTO newsletter_subscribers(email,created_at)VALUES($1,NOW())ON CONFLICT(email)DO NOTHING', [se]);
@@ -945,10 +822,10 @@ app.get('/api/admin/blog', requireAdmin, async (req, res) => {
 app.post('/api/admin/blog', requireAdmin, async (req, res) => {
   const { slug, title, excerpt, content, category_id, author_id, featured_image, meta_title, meta_description, tags = [], status = 'draft', scheduled_at, is_featured = false, faq = [], table_of_contents = '' } = req.body;
   if (!slug || !title || !content) return res.status(400).json({ error: 'slug, title, content required' });
-  const sl = san(slug, 200).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const sl = helpers.san(slug, 200).toLowerCase().replace(/[^a-z0-9-]/g, '-');
   const rt = Math.max(1, Math.round(content.split(/\s+/).length / 200));
   try {
-    const r = (await db.query(`INSERT INTO blog_posts(slug,title,excerpt,content,category_id,author_id,featured_image,meta_title,meta_description,status,reading_time,scheduled_at,is_featured,faq,table_of_contents,published_at,created_at,updated_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,CASE WHEN $10='published' THEN NOW() ELSE NULL END,NOW(),NOW())RETURNING id,slug`, [sl, san(title, 300), san(excerpt, 500), content, category_id || null, author_id || null, featured_image || null, san(meta_title || title, 300), san(meta_description || excerpt, 500), status, rt, scheduled_at || null, is_featured, JSON.stringify(faq), table_of_contents])).rows[0];
+    const r = (await db.query(`INSERT INTO blog_posts(slug,title,excerpt,content,category_id,author_id,featured_image,meta_title,meta_description,status,reading_time,scheduled_at,is_featured,faq,table_of_contents,published_at,created_at,updated_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,CASE WHEN $10='published' THEN NOW() ELSE NULL END,NOW(),NOW())RETURNING id,slug`, [sl, helpers.san(title, 300), helpers.san(excerpt, 500), content, category_id || null, author_id || null, featured_image || null, helpers.san(meta_title || title, 300), helpers.san(meta_description || excerpt, 500), status, rt, scheduled_at || null, is_featured, JSON.stringify(faq), table_of_contents])).rows[0];
     if (tags.length) for (const t of tags) await db.query('INSERT INTO blog_post_tags(post_id,tag_id)VALUES($1,$2)ON CONFLICT DO NOTHING', [r.id, t]);
     res.json({ success: true, ...r });
   } catch (err) {
@@ -961,7 +838,7 @@ app.put('/api/admin/blog/:id', requireAdmin, async (req, res) => {
   const { title, excerpt, content, category_id, author_id, featured_image, meta_title, meta_description, status, tags = [], is_featured, faq, table_of_contents } = req.body;
   const rt = content ? Math.max(1, Math.round(content.split(/\s+/).length / 200)) : null;
   try {
-    await db.query(`UPDATE blog_posts SET title=COALESCE($2,title),excerpt=COALESCE($3,excerpt),content=COALESCE($4,content),category_id=COALESCE($5,category_id),author_id=COALESCE($6,author_id),featured_image=COALESCE($7,featured_image),meta_title=COALESCE($8,meta_title),meta_description=COALESCE($9,meta_description),status=COALESCE($10,status),reading_time=COALESCE($11,reading_time),is_featured=COALESCE($12,is_featured),faq=COALESCE($13,faq),table_of_contents=COALESCE($14,table_of_contents),published_at=CASE WHEN $10='published' AND published_at IS NULL THEN NOW() ELSE published_at END,updated_at=NOW() WHERE id=$1`, [req.params.id, title ? san(title, 300) : null, excerpt ? san(excerpt, 500) : null, content || null, category_id || null, author_id || null, featured_image || null, meta_title ? san(meta_title, 300) : null, meta_description ? san(meta_description, 500) : null, status || null, rt, is_featured ?? null, faq ? JSON.stringify(faq) : null, table_of_contents || null]);
+    await db.query(`UPDATE blog_posts SET title=COALESCE($2,title),excerpt=COALESCE($3,excerpt),content=COALESCE($4,content),category_id=COALESCE($5,category_id),author_id=COALESCE($6,author_id),featured_image=COALESCE($7,featured_image),meta_title=COALESCE($8,meta_title),meta_description=COALESCE($9,meta_description),status=COALESCE($10,status),reading_time=COALESCE($11,reading_time),is_featured=COALESCE($12,is_featured),faq=COALESCE($13,faq),table_of_contents=COALESCE($14,table_of_contents),published_at=CASE WHEN $10='published' AND published_at IS NULL THEN NOW() ELSE published_at END,updated_at=NOW() WHERE id=$1`, [req.params.id, title ? helpers.san(title, 300) : null, excerpt ? helpers.san(excerpt, 500) : null, content || null, category_id || null, author_id || null, featured_image || null, meta_title ? helpers.san(meta_title, 300) : null, meta_description ? helpers.san(meta_description, 500) : null, status || null, rt, is_featured ?? null, faq ? JSON.stringify(faq) : null, table_of_contents || null]);
     await db.query('DELETE FROM blog_post_tags WHERE post_id=$1', [req.params.id]);
     if (tags.length) for (const t of tags) await db.query('INSERT INTO blog_post_tags(post_id,tag_id)VALUES($1,$2)ON CONFLICT DO NOTHING', [req.params.id, t]);
     res.json({ success: true });
@@ -976,21 +853,21 @@ app.delete('/api/admin/blog/:id', requireAdmin, async (req, res) => {
 app.post('/api/admin/blog-categories', requireAdmin, async (req, res) => {
   const { name, slug, description = '', sort_order = 0 } = req.body;
   if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
-  try { const r = (await db.query('INSERT INTO blog_categories(name,slug,description,sort_order)VALUES($1,$2,$3,$4)RETURNING id', [san(name, 100), san(slug, 100).toLowerCase(), san(description, 500), sort_order])).rows[0]; res.json({ success: true, ...r }); }
+  try { const r = (await db.query('INSERT INTO blog_categories(name,slug,description,sort_order)VALUES($1,$2,$3,$4)RETURNING id', [helpers.san(name, 100), helpers.san(slug, 100).toLowerCase(), helpers.san(description, 500), sort_order])).rows[0]; res.json({ success: true, ...r }); }
   catch (err) { if (err.code === '23505') return res.status(409).json({ error: 'Slug exists' }); res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/admin/blog-tags', requireAdmin, async (req, res) => {
   const { name, slug } = req.body;
   if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
-  try { const r = (await db.query('INSERT INTO blog_tags(name,slug)VALUES($1,$2)RETURNING id', [san(name, 100), san(slug, 100).toLowerCase()])).rows[0]; res.json({ success: true, ...r }); }
+  try { const r = (await db.query('INSERT INTO blog_tags(name,slug)VALUES($1,$2)RETURNING id', [helpers.san(name, 100), helpers.san(slug, 100).toLowerCase()])).rows[0]; res.json({ success: true, ...r }); }
   catch (err) { if (err.code === '23505') return res.status(409).json({ error: 'Slug exists' }); res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/admin/blog-authors', requireAdmin, async (req, res) => {
   const { name, slug, bio = '', avatar = '', twitter = '' } = req.body;
   if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
-  try { const r = (await db.query('INSERT INTO blog_authors(name,slug,bio,avatar,twitter)VALUES($1,$2,$3,$4,$5)RETURNING id', [san(name, 100), san(slug, 100).toLowerCase(), san(bio, 1000), avatar, twitter])).rows[0]; res.json({ success: true, ...r }); }
+  try { const r = (await db.query('INSERT INTO blog_authors(name,slug,bio,avatar,twitter)VALUES($1,$2,$3,$4,$5)RETURNING id', [helpers.san(name, 100), helpers.san(slug, 100).toLowerCase(), helpers.san(bio, 1000), avatar, twitter])).rows[0]; res.json({ success: true, ...r }); }
   catch (err) { if (err.code === '23505') return res.status(409).json({ error: 'Slug exists' }); res.status(500).json({ error: err.message }); }
 });
 
