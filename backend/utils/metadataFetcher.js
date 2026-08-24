@@ -1,103 +1,25 @@
-const axios = require('axios');
 const db = require('../db');
+const anilistClient = require('./anilistClient');
 
-const ANILIST_URL = 'https://graphql.anilist.co';
 
-const ANILIST_QUERY = `
-  query ($search: String, $id: Int) {
-    Media (search: $search, id: $id, type: MANGA) {
-      id
-      idMal
-      title {
-        english
-        romaji
-        native
-        userPreferred
-      }
-      synonyms
-      coverImage {
-        extraLarge
-        large
-        medium
-      }
-      bannerImage
-      description
-      genres
-      tags {
-        name
-      }
-      staff {
-        edges {
-          role
-          node {
-            name {
-              full
-            }
-          }
-        }
-      }
-      status
-      startDate {
-        year
-        month
-        day
-      }
-      endDate {
-        year
-        month
-        day
-      }
-      averageScore
-      popularity
-      favourites
-      chapters
-      countryOfOrigin
-      format
+async function fetchFromAnilist(searchQuery, id = null) {
+  try {
+    if (id) {
+      const media = await anilistClient.getMangaById(id);
+      if (media) return media;
     }
-  }
-`;
-
-async function fetchFromAnilist(searchQuery, id = null, retries = 3, delay = 2000) {
-  const variables = id ? { id: parseInt(id) } : { search: searchQuery };
-  
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await axios.post(ANILIST_URL, {
-        query: ANILIST_QUERY,
-        variables,
-      }, {
-        timeout: 10000,
-      });
-
-      if (response.data && response.data.errors) {
-        const has429 = response.data.errors.some(e => e.status === 429 || e.message.includes('Too Many Requests'));
-        if (has429) {
-          const waitTime = delay * Math.pow(2, i);
-          console.warn(`AniList Backend Rate Limit (429) hit. Waiting ${waitTime}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-          continue;
-        }
-      }
-
-      if (response.data && response.data.data && response.data.data.Media) {
-        return response.data.data.Media;
-      }
-    } catch (err) {
-      if (err.response && err.response.status === 429) {
-        const waitTime = delay * Math.pow(2, i);
-        console.warn(`AniList Backend Rate Limit (429) status hit. Waiting ${waitTime}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue;
-      }
-      if (i === retries - 1) {
-        console.warn('AniList metadata fetch failed after retries:', err.message);
-        break;
-      }
-      const waitTime = delay * Math.pow(2, i);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+    const results = await anilistClient.searchManga(searchQuery, 1);
+    if (results.length > 0) return results[0];
+    return null;
+  } catch (err) {
+    const status = err._anilistStatus;
+    if (status === 429) {
+      console.warn('[metadataFetcher] AniList still rate-limited after client retry');
+    } else {
+      console.warn('AniList metadata fetch failed:', err.message);
     }
+    return null;
   }
-  return null;
 }
 
 

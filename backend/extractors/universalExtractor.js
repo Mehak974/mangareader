@@ -174,27 +174,91 @@ async function fetchWithJinaAI(url) {
   return response.data;
 }
 
+const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'http://localhost:8191/v1';
+let flaresolverrAvailable = true;
+
 /**
- * Fetch HTML from a URL with proper headers for the source domain
+ * Fetch HTML via FlareSolverr — bypasses Cloudflare and other anti-bot protections.
+ * Used as a fallback when direct HTTP requests are blocked.
  */
-async function fetchHTML(url, extraHeaders = {}) {
-  await new Promise(r => setTimeout(r, 500 + Math.random() * 1500));
+async function fetchWithFlareSolverr(url, extraHeaders = {}) {
+  if (!flaresolverrAvailable) throw new Error('FlareSolverr not available');
   const domain = new URL(url).hostname;
   const referer = REFERERS[domain] || `https://${domain}/`;
   const headers = getBrowserHeaders();
-
-  const response = await http.get(url, {
+  const response = await axios.post(FLARESOLVERR_URL, {
+    cmd: 'request.get',
+    url,
+    maxTimeout: 60000,
     headers: {
       ...headers,
       Referer: referer,
       ...extraHeaders,
     },
-    timeout: 15000,
-    maxRedirects: 5,
-    proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+  }, {
+    timeout: 65000,
   });
 
-  return response.data;
+  const data = response.data;
+  if (data?.solution?.status === 'ok' && data.solution.response) {
+    return data.solution.response;
+  }
+  if (data?.solution?.error) {
+    throw new Error(`FlareSolverr error: ${data.solution.error}`);
+  }
+  throw new Error(`FlareSolverr failed for ${url}`);
+}
+
+function isCloudflareChallenge(html, status, headers) {
+  if (status === 403 || status === 429) return true;
+  if (html && typeof html === 'string') {
+    const lower = html.toLowerCase();
+    if (lower.includes('cloudflare') && lower.includes('checking your browser')) return true;
+    if (lower.includes('attention required') || lower.includes('just a moment')) return true;
+  }
+  return false;
+}
+
+/**
+ * Fetch HTML from a URL with proper headers for the source domain.
+ * Falls back to FlareSolverr when Cloudflare or anti-bot protections block
+ * direct HTTP requests.
+ */
+async function fetchHTML(url, extraHeaders = {}) {
+  const domain = new URL(url).hostname;
+  const referer = REFERERS[domain] || `https://${domain}/`;
+  const headers = getBrowserHeaders();
+
+  try {
+    await new Promise(r => setTimeout(r, 200 + Math.random() * 800));
+    const response = await http.get(url, {
+      headers: {
+        ...headers,
+        Referer: referer,
+        ...extraHeaders,
+      },
+      timeout: 15000,
+      maxRedirects: 5,
+      proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+    });
+
+    if (!isCloudflareChallenge(response.data, response.status, response.headers)) {
+      return response.data;
+    }
+    console.warn(`[fetchHTML] Cloudflare challenge detected for ${url}, falling back to FlareSolverr`);
+  } catch (err) {
+    if (err.response) {
+      if (!isCloudflareChallenge(null, err.response.status, err.response.headers)) {
+        throw err;
+      }
+      console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);
+    } else {
+      throw err;
+    }
+  }
+
+  const fsResult = await fetchWithFlareSolverr(url, extraHeaders);
+  return fsResult;
 }
 
 function markdownToHtml(markdown) {
@@ -1039,4 +1103,4 @@ function findMangaArrays(obj, depth = 0) {
   return [];
 }
 
-module.exports = { SOURCE_SCRAPERS, fetchHTML, strategy1_embeddedJSON, strategy2_nextData, strategy3_domSelectors };
+module.exports = { SOURCE_SCRAPERS, fetchHTML, fetchWithFlareSolverr, strategy1_embeddedJSON, strategy2_nextData, strategy3_domSelectors };

@@ -39,4 +39,4 @@ function getRedisClient() {
   return redisClient;
 }
 
-module.exports = { initRateLimit, rateLimit, getRedisClient };
+module.exports = { initRateLimit, rateLimit, getRedisClient, redisClient };

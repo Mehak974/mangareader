@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    ports:
+      - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+      - TZ=UTC
+    volumes:
+      - flaresolverr_data:/app/.config
+
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - FLARESOLVERR_URL=http://flaresolverr:8191/v1
+    depends_on:
+      redis:
+        condition: service_healthy
+      flaresolverr:
+        condition: service_started
+    volumes:
+      - ./images:/app/images
+
+volumes:
+  redis_data:
+  flaresolverr_data:

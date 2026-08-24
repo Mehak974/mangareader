@@ -54,6 +54,8 @@ const extractionWorker = new Piscina({
 
 const db = require('./db');
 const { getOrFetchMangaMetadata } = require('./utils/metadataFetcher');
+const cache = require('./utils/cache');
+const anilistClient = require('./utils/anilistClient');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -120,20 +122,51 @@ app.use((req, res, next) => {
 // ── RATE LIMITING ─────────────────────────────────────────────────────────────
 initRateLimit();
 
-const anilistCache = new NodeCache({ stdTTL: 86400, checkperiod: 3600 }); // Cache for 24 hours
+// ── CACHE ─────────────────────────────────────────────────────────────────────
+const memCache = new NodeCache({ stdTTL: 86400, checkperiod: 600 });
+async function getCached(key) {
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      const data = await redisClient.get(key);
+      return data ? JSON.parse(data) : null;
+    } catch (err) {
+      console.error('Redis get error', err);
+    }
+  }
+  return memCache.get(key) || null;
+}
+async function setCached(key, data, ttlMs = 86400000) {
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      await redisClient.set(key, JSON.stringify(data), 'PX', ttlMs);
+      return;
+    } catch (err) {
+      console.error('Redis set error', err);
+    }
+  }
+  memCache.set(key, data, Math.floor(ttlMs / 1000));
+}
 
+// ── ANILIST PROXY (rate-limited + cached + deduplicated) ───────────────────────
 app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
   try {
     const cacheKey = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
-    const cachedData = anilistCache.get(cacheKey);
-    if (cachedData) {
-      return res.json(cachedData);
-    }
-    const r = await http.post('https://graphql.anilist.co', req.body, { headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' }, timeout: 10000 });
-    anilistCache.set(cacheKey, r.data);
-    res.json(r.data);
+    const result = await cache.getOrFetch(
+      'anilist_proxy',
+      cacheKey,
+      cache.TTL.anilist_meta_search,
+      async () => {
+        const r = await anilistClient.callAniList(req.body.query, req.body.variables);
+        if (r.errors && r.errors.some(e => e.status === 429)) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          return anilistClient.callAniList(req.body.query, req.body.variables);
+        }
+        return r;
+      }
+    );
+    res.json(result.data);
   } catch (err) {
-    if (err.response) res.status(err.response.status).json(err.response.data);
+    if (err._anilistStatus) res.status(err._anilistStatus).json(err._anilistData || { error: err.message });
     else res.status(500).json({ error: err.message });
   }
 });
@@ -179,31 +212,6 @@ initAuth();
 // so it must not accept unlimited password guesses.
 app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
 
-// ── CACHE ─────────────────────────────────────────────────────────────────────
-const memCache = new NodeCache({ stdTTL: 86400, checkperiod: 600 });
-async function getCached(key) {
-  if (redisClient && redisClient.status === 'ready') {
-    try {
-      const data = await redisClient.get(key);
-      return data ? JSON.parse(data) : null;
-    } catch (err) {
-      console.error('Redis get error', err);
-    }
-  }
-  return memCache.get(key) || null;
-}
-async function setCached(key, data, ttlMs = 86400000) {
-  if (redisClient && redisClient.status === 'ready') {
-    try {
-      await redisClient.set(key, JSON.stringify(data), 'PX', ttlMs);
-      return;
-    } catch (err) {
-      console.error('Redis set error', err);
-    }
-  }
-  memCache.set(key, data, Math.floor(ttlMs / 1000));
-}
-
 // ── MANGA API (preserved + secured) ──────────────────────────────────────────
 app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
   const title = helpers.san(req.query.title, 200);
@@ -218,8 +226,13 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
         const s = SOURCE_SCRAPERS[m.source_id]; if (!s) return null;
         const d = await s.getMangaDetail(m.source_slug);
         if (d?.chapters?.length) {
+          const cacheKey = `chapcache:${mangaId}:${m.source_id}`;
+          const ts = Date.now();
+          const result = { source_id: m.source_id, source_slug: m.source_slug, chapters: d.chapters, fetched_at: ts, detail: d };
+          await cache.set('chapter_list', cacheKey, result, cache.TTL.chapter_list);
           await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, m.source_id, JSON.stringify(d.chapters)]);
-          return { sourceId: m.source_id, url: m.source_slug, detail: d };
+          const { detail, ...rest } = result;
+          return { sourceId: rest.source_id, url: rest.source_slug, detail: d };
         }
       } catch (err) { console.warn(`Scrape failed ${m.source_id}:`, err.message); }
       return null;
@@ -229,7 +242,15 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     const isPreferredValid = mData.preferred_source_id && mData.last_source_check && (now - new Date(mData.last_source_check).getTime()) < 30 * 24 * 60 * 60 * 1000;
 
     if (isPreferredValid) {
-      const cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, mData.preferred_source_id])).rows[0];
+      const redisKey = `chapcache:${mangaId}:${mData.preferred_source_id}`;
+      const redisCached = await cache.get('chapter_list', redisKey);
+      let cached = redisCached;
+      if (cached && (now - cached.fetched_at) < cache.TTL.chapter_list * 1000 && cached.chapters?.length) {
+        return res.json({ data: { sourceId: cached.source_id, url: cached.source_slug, title: cached.detail?.title, cover: cached.detail?.cover, description: cached.detail?.description, status: cached.detail?.status, genres: cached.detail?.genres, chapters: cached.detail.chapters }, cached: true });
+      }
+      if (!cached) {
+        cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, mData.preferred_source_id])).rows[0];
+      }
       let detail = null;
       if (cached && (now - new Date(cached.fetched_at).getTime()) < 6 * 3600000 && cached.chapters?.length) {
         // Just return from chapters_cache
@@ -266,14 +287,30 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
       Promise.allSettled(promises).catch(() => { });
     }
     if (!mappings.length) return res.status(404).json({ error: 'No source mappings found' });
-    const TTL = 6 * 3600000;
-    const cached = (await db.query('SELECT source_id,chapters,fetched_at FROM chapters_cache WHERE manga_id=$1', [mangaId])).rows
-      .reduce((m, r) => { m[r.source_id] = { chapters: r.chapters, ts: new Date(r.fetched_at).getTime() }; return m; }, {});
+    const TTL_MS = cache.TTL.chapter_list * 1000;
+    
+    // Build cache from Redis first, then DB for fallback
+    const cached = {};
+    for (const m of mappings) {
+      const redisKey = `chapcache:${mangaId}:${m.source_id}`;
+      const rc = await cache.get('chapter_list', redisKey);
+      if (rc && rc.chapters?.length) {
+        cached[m.source_id] = { chapters: rc.chapters, ts: rc.fetched_at, detail: rc.detail };
+      } else {
+        const dbRow = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, m.source_id])).rows[0];
+        if (dbRow) {
+          cached[m.source_id] = { chapters: dbRow.chapters, ts: new Date(dbRow.fetched_at).getTime() };
+          // Backfill Redis
+          const ts = cached[m.source_id].ts;
+          await cache.set('chapter_list', redisKey, { source_id: m.source_id, source_slug: m.source_slug, chapters: dbRow.chapters, fetched_at: ts, detail: null }, cache.TTL.chapter_list);
+        }
+      }
+    }
 
     const fresh = [], stale = [];
     for (const m of mappings) {
       const c = cached[m.source_id];
-      if (c && (now - c.ts) < TTL && c.chapters?.length) fresh.push({ sourceId: m.source_id, url: m.source_slug, detail: { chapters: c.chapters } });
+      if (c && (now - c.ts) < TTL_MS && c.chapters?.length) fresh.push({ sourceId: m.source_id, url: m.source_slug, detail: { chapters: c.chapters, ...(c.detail || {}) } });
       else stale.push(m);
     }
     let active = [...fresh];
@@ -305,10 +342,17 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
   if (!title || !sid) return res.status(400).json({ error: 'title and source required' });
   try {
     const mangaId = await getOrFetchMangaMetadata(helpers.san(title, 200));
-    const cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, sid])).rows[0];
+    const redisKey = `chapcache:${mangaId}:${sid}`;
+    const redisCached = await cache.get('chapter_list', redisKey);
+    let cached = redisCached;
+    let cachedTs = redisCached ? redisCached.fetched_at : 0;
+    if (!cached) {
+      cached = (await db.query('SELECT chapters, fetched_at FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, sid])).rows[0];
+      if (cached) cachedTs = new Date(cached.fetched_at).getTime();
+    }
     const mr = (await db.query('SELECT source_slug FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, helpers.san(sid, 50)])).rows;
     let url = mr.length ? mr[0].source_slug : null;
-    if (cached && (Date.now() - new Date(cached.fetched_at).getTime()) < 6 * 3600000 && cached.chapters?.length) return res.json({ data: { sourceId: sid, url, chapters: cached.chapters } });
+    if (cached && (Date.now() - cachedTs) < cache.TTL.chapter_list * 1000 && cached.chapters?.length) return res.json({ data: { sourceId: sid, url, chapters: cached.chapters }, cached: true });
     if (!url) {
       console.log(`[source-chapters] Searching for ${sid}: ${title}`);
       url = await searchSource(sid, title, mangaId);
@@ -320,7 +364,11 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     const s = SOURCE_SCRAPERS[sid]; if (!s) return res.status(400).json({ error: `Unknown source: ${sid}` });
     const d = await s.getMangaDetail(url);
     console.log(`[source-chapters] Detail result:`, d.title, d.chapters?.length, 'chapters');
-    if (d.chapters?.length) await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
+    if (d.chapters?.length) {
+      const ts = Date.now();
+      await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
+      await cache.set('chapter_list', redisKey, { source_id: sid, source_slug: url, chapters: d.chapters, fetched_at: ts, detail: null }, cache.TTL.chapter_list);
+    }
     res.json({ data: { sourceId: sid, url, chapters: d.chapters || [] } });
   } catch (err) { console.error('[source-chapters] error:', err); res.status(500).json({ error: err.message }); }
 });
@@ -383,7 +431,8 @@ app.get('/api/manga/search', async (req, res) => {
 });
 
 app.get('/api/home', rateLimit(60000, 30), async (req, res) => {
-  const c = await getCached('home'); if (c) return res.json({ data: c, cached: true });
+  const c = await getCached('home');
+  if (c) return res.json({ data: c, cached: true });
   const results = await Promise.allSettled(Object.values(SOURCE_SCRAPERS).map(async s => {
     try {
       const d = await Promise.race([s.getHome(), new Promise((_, rej) => setTimeout(() => rej(new Error('Home scraper timeout')), 8000))]);
@@ -391,14 +440,20 @@ app.get('/api/home', rateLimit(60000, 30), async (req, res) => {
     } catch (err) { return { sourceId: s.id, items: [], error: err.message }; }
   }));
   const sections = results.map(r => r.status === 'fulfilled' ? r.value : { items: [], error: r.reason?.message });
-  await setCached('home', sections); res.json({ data: sections, cached: false });
+  await setCached('home', sections, 600000);
+  await cache.set('scraper_search', 'home', sections, 600);
+  res.json({ data: sections, cached: false });
 });
 
 app.get('/api/home/sections/:key', rateLimit(60000, 30), async (req, res) => {
   const { key } = req.params;
   try {
+    const redisKey = `home_section:${key}`;
+    const cached = await cache.get('anilist_trending', redisKey);
+    if (cached) return res.json({ data: cached, cached: true });
     const result = await db.query('SELECT media, updated_at FROM home_sections WHERE section_key = $1', [key]);
     if (!result.rows.length) return res.status(404).json({ error: 'Section not found' });
+    await cache.set('anilist_trending', redisKey, result.rows[0].media, cache.TTL.anilist_trending);
     res.json({ data: result.rows[0].media, updated_at: result.rows[0].updated_at });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -499,6 +554,11 @@ async function performSearch(sourceId, query, origTitle) {
 }
 
 async function searchSource(sourceId, title, mangaId = null) {
+  const searchKey = `${sourceId}:${title.toLowerCase().trim()}`;
+  const cachedSearch = await cache.get('scraper_search', searchKey);
+  if (cachedSearch !== null) return cachedSearch;
+
+  let result = null;
   try {
     let allTitles = [title];
     if (mangaId) {
@@ -523,13 +583,14 @@ async function searchSource(sourceId, title, mangaId = null) {
         for (const directUrl of urlsToTry) {
           try {
             const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-            if (res.status === 200 && res.data.includes('post-title')) return directUrl;
+            if (res.status === 200 && res.data.includes('post-title')) { result = directUrl; break; }
           } catch (e) { }
         }
+        if (result) break;
       }
     }
 
-    if (sourceId === 'manganato') {
+    if (!result && sourceId === 'manganato') {
       const topTitlesForDirect = allTitles.slice(0, 8);
       for (const t of topTitlesForDirect) {
         const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -537,23 +598,29 @@ async function searchSource(sourceId, title, mangaId = null) {
         const directUrl = `https://www.manganato.gg/manga/${slug}`;
         try {
           const html = await fetchHTML(directUrl);
-          if (html.includes('chapter-list-container')) return directUrl;
+          if (html.includes('chapter-list-container')) { result = directUrl; break; }
         } catch (e) { }
       }
     }
 
-    const topTitlesForSearch = allTitles.slice(0, 3);
-    for (const t of topTitlesForSearch) {
-      let link = await performSearch(sourceId, t, t);
-      if (link) return link;
-      let clean = t.replace(/[^\w\s]/g, '').trim();
-      if (clean !== t) {
-        link = await performSearch(sourceId, clean, t);
-        if (link) return link;
+    if (!result) {
+      const topTitlesForSearch = allTitles.slice(0, 3);
+      for (const t of topTitlesForSearch) {
+        result = await performSearch(sourceId, t, t);
+        if (result) break;
+        const clean = t.replace(/[^\w\s]/g, '').trim();
+        if (clean !== t) {
+          result = await performSearch(sourceId, clean, t);
+          if (result) break;
+        }
       }
     }
   } catch (err) { console.warn(`Search failed for ${sourceId}:`, err.message); }
-  return null;
+
+  if (result) {
+    await cache.set('scraper_search', searchKey, result, cache.TTL.scraper_search);
+  }
+  return result;
 }
 
 function detectSource(url) {
@@ -614,20 +681,29 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
       return res.status(400).json({ error: 'Unknown section key' });
   }
   try {
-    const r = await axios.post('https://graphql.anilist.co', { query, variables }, {
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'MangaReader/1.0 (+https://www.mangareader.pro)' },
-      timeout: 15000,
-    });
-    const media = (r.data?.data?.Page?.media || []).map(mapAnilistMedia);
+    const cacheKey = `anilist_home:${key}:${JSON.stringify(variables)}`;
+    const result = await cache.getOrFetch(
+      'anilist_trending',
+      cacheKey,
+      cache.TTL.anilist_trending,
+      async () => {
+        return anilistClient.callAniList(ANILIST_MANGA_QUERY, variables);
+      }
+    );
+    const media = (result.data?.data?.Page?.media || []).map(mapAnilistMedia);
     await db.query(
       `INSERT INTO home_sections (section_key, media, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP)
        ON CONFLICT (section_key) DO UPDATE SET media = EXCLUDED.media, updated_at = EXCLUDED.updated_at`,
       [key, JSON.stringify(media)]
     );
-    await setCached(`home_section:${key}`, media, 86400000);
+    await cache.set('anilist_trending', `home_section:${key}`, media, cache.TTL.anilist_trending);
+    await setCached(`home_section:${key}`, media, cache.TTL.anilist_trending * 1000);
+    await cache.del('home');
+    await cache.del('scraper_search', `home`);
     res.json({ success: true, section_key: key, count: media.length, source: 'anilist' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err._anilistStatus) res.status(err._anilistStatus).json(err._anilistData || { error: err.message });
+    else res.status(500).json({ error: err.message });
   }
 });
 
@@ -643,7 +719,9 @@ app.get('/api/manga', async (req, res) => {
 app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   const { url, source: sid } = req.query;
   if (!url || !helpers.isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
-  const ck = `ch:${url}`; const c = await getCached(ck); if (c) return res.json({ data: c, cached: true });
+  const ck = `ch:${url}`;
+  const c = await getCached(ck);
+  if (c) return res.json({ data: c, cached: true });
   const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
   const MIN = 3; let result = null, usedSrc = sid;
   if (src) { try { const d = await src.getChapterImages(url); if (d.images?.length >= MIN) { result = d; usedSrc = sid; } } catch (err) { console.warn(`[${sid}] Failed:`, err.message); } }
@@ -655,7 +733,8 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   }
   if (!result?.images?.length) return res.status(404).json({ error: 'No images found', url });
   const resp = { ...result, url, usedSource: usedSrc };
-  await setCached(ck, resp, 4 * 3600000);
+  await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);
+  await setCached(ck, resp, cache.TTL.chapter_images);
   res.json({ data: resp, cached: false });
 });
 
@@ -673,7 +752,6 @@ function isPrivateIP(hostname) {
   return false;
 }
 
-// In-memory cache for proxied images (10MB cap, 1-hour TTL)
 const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 const IMAGE_CACHE_MAX = 500;
 
@@ -681,11 +759,22 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
   const { url, w, q } = req.query;
   if (!url || !helpers.isValidUrl(url)) return res.status(400).send('Invalid url');
   const cacheKey = `${url}|${w || ''}|${q || ''}`;
-  const cached = imageCache.get(cacheKey);
-  if (cached) {
-    res.setHeader('Content-Type', cached.ct);
+
+  // Try Redis cache first (persistent, survives restarts, shared across instances)
+  const redisKey = `img:${cacheKey}`;
+  const redisCached = await cache.get('image_proxy', redisKey);
+  if (redisCached) {
+    res.setHeader('Content-Type', redisCached.ct);
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
-    return res.send(cached.buf);
+    return res.send(Buffer.from(redisCached.buf));
+  }
+
+  // Fall back to in-memory cache
+  const memCached = imageCache.get(cacheKey);
+  if (memCached) {
+    res.setHeader('Content-Type', memCached.ct);
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+    return res.send(memCached.buf);
   }
   try {
     const parsed = new URL(url);
@@ -730,7 +819,10 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       ct = r.headers['content-type'] || 'image/jpeg';
     }
 
-    // Cache processed image (evict oldest if over cap)
+    // Cache processed image in both Redis (persistent) and memory (fast)
+    const cacheData = { buf: buf.toString('base64'), ct };
+    await cache.set('image_proxy', redisKey, cacheData, cache.TTL.image_proxy);
+
     if (Object.keys(imageCache.keys()).length >= IMAGE_CACHE_MAX) {
       const keys = imageCache.keys();
       imageCache.del(keys[0]);
