@@ -9,7 +9,6 @@ import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
-import AdManager from "@/components/AdManager";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -27,6 +26,30 @@ const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
 
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";
+
+let adsScript = "";
+try {
+  const fs = require("fs");
+  const path = require("path");
+  const adsPath = path.join(process.cwd(), "public", "ads.js");
+  const adsTxtPath = path.join(process.cwd(), "ads.txt");
+  
+  let adsContent = "";
+  try {
+    adsContent = fs.readFileSync(adsPath, "utf8");
+  } catch {
+    try {
+      adsContent = fs.readFileSync(adsTxtPath, "utf8");
+    } catch {}
+  }
+  
+  const matches = [...adsContent.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
+  if (matches.length) {
+    adsScript = matches[matches.length - 1][1].trim();
+  }
+} catch (e) {
+  console.error("Failed to load ads:", e);
+}
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -99,6 +122,7 @@ export default async function RootLayout({ children }) {
         <meta name="e0f19b24e15dad77283ca491bc40b2333383dd0e" content="e0f19b24e15dad77283ca491bc40b2333383dd0e" />
         <meta name="popads-verification-3664867" value="557f27c1e5809a5da647c2f8f236ef13" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
+        {adsScript && <script dangerouslySetInnerHTML={{ __html: adsScript }} />}
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
@@ -126,9 +150,8 @@ export default async function RootLayout({ children }) {
               <main>{children}</main>
               <MobileNav />
               <AchievementToast />
-              <PWAInstall />
-              <LibraryPicker />
-              <AdManager />
+               <PWAInstall />
+               <LibraryPicker />
             </div>
           </MaintenanceGuard>
         </AppProvider>
