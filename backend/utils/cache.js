@@ -7,7 +7,7 @@
 const NodeCache = require('node-cache');
 const { getRedisClient } = require('../middleware/rateLimit');
 
-const memFallback = new NodeCache({ stdTTL: 86400, checkperiod: 3600 });
+const memFallback = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 5000 });
 
 const TTL = {
   anilist_manga_info: 60 * 60 * 24 * 7,       // 7 days

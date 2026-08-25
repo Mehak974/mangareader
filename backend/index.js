@@ -123,7 +123,7 @@ app.use((req, res, next) => {
 initRateLimit();
 
 // ── CACHE ─────────────────────────────────────────────────────────────────────
-const memCache = new NodeCache({ stdTTL: 86400, checkperiod: 600 });
+const memCache = new NodeCache({ stdTTL: 600, checkperiod: 600, maxKeys: 10000 });
 async function getCached(key) {
   if (redisClient && redisClient.status === 'ready') {
     try {
@@ -752,7 +752,7 @@ function isPrivateIP(hostname) {
   return false;
 }
 
-const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
+const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 500 });
 const IMAGE_CACHE_MAX = 500;
 
 app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
@@ -763,7 +763,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
   // Try Redis cache first (persistent, survives restarts, shared across instances)
   const redisKey = `img:${cacheKey}`;
   const redisCached = await cache.get('image_proxy', redisKey);
-  if (redisCached) {
+  if (redisCached && redisCached.buf) {
     res.setHeader('Content-Type', redisCached.ct);
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
     return res.send(Buffer.from(redisCached.buf));
@@ -819,15 +819,13 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       ct = r.headers['content-type'] || 'image/jpeg';
     }
 
-    // Cache processed image in both Redis (persistent) and memory (fast)
-    const cacheData = { buf: buf.toString('base64'), ct };
-    await cache.set('image_proxy', redisKey, cacheData, cache.TTL.image_proxy);
-
-    if (Object.keys(imageCache.keys()).length >= IMAGE_CACHE_MAX) {
+    // Cache processed image — in-memory only (images are large; Redis storage
+    // of base64 buffers causes memory pressure). NodeCache evicts oldest at IMAGE_CACHE_MAX.
+    if (imageCache.keys().length >= IMAGE_CACHE_MAX) {
       const keys = imageCache.keys();
       imageCache.del(keys[0]);
     }
-    imageCache.set(cacheKey, { buf, ct });
+    imageCache.set(cacheKey, { buf, ct }, cache.TTL.image_proxy);
 
     res.setHeader('Content-Type', ct); res.removeHeader('Content-Disposition');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

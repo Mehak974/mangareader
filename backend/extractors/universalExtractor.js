@@ -87,6 +87,30 @@ const REFERERS = {
 };
 
 let puppeteer = null;
+let puppeteerBusy = 0;
+const PUPPETEER_CONCURRENCY_LIMIT = parseInt(process.env.PUPPETEER_CONCURRENCY || '1', 10);
+const puppeteerQueue = [];
+
+function acquirePuppeteerSlot() {
+  return new Promise(resolve => {
+    if (puppeteerBusy < PUPPETEER_CONCURRENCY_LIMIT) {
+      puppeteerBusy++;
+      resolve();
+    } else {
+      puppeteerQueue.push(resolve);
+    }
+  });
+}
+function releasePuppeteerSlot() {
+  puppeteerBusy--;
+  if (puppeteerBusy < 0) puppeteerBusy = 0;
+  if (puppeteerQueue.length > 0) {
+    const next = puppeteerQueue.shift();
+    puppeteerBusy++;
+    next();
+  }
+}
+
 async function getPuppeteer() {
   if (!puppeteer) {
     try {
@@ -115,22 +139,30 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
   const referer = REFERERS[domain] || `https://${domain}/`;
   const proxy = getProxy();
   const headers = getBrowserHeaders();
-  const browser = await withTimeout(
-    pp.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
-      ].filter(Boolean),
-    }),
-    15000,
-    'puppeteer launch'
-  );
+
+  await acquirePuppeteerSlot();
+  let browser;
   try {
+    browser = await withTimeout(
+      pp.launch({
+        headless: 'new',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-blink-features=AutomationControlled',
+          '--memory-pressure-off',
+          '--js-flags=--max_old_space_size=128',
+          proxy ? `--proxy-server=${proxy.protocol || 'http'}://${proxy.host}:${proxy.port}` : '',
+        ].filter(Boolean),
+        defaultViewport: { width: 1366, height: 768 },
+        handleSIGINT: false,
+        handleSIGTERM: false,
+      }),
+      15000,
+      'puppeteer launch'
+    );
     const page = await withTimeout(browser.newPage(), 10000, 'browser.newPage');
     await page.setUserAgent(headers['User-Agent']);
     await page.setExtraHTTPHeaders({
@@ -157,9 +189,14 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
     const response = await withTimeout(page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }), 35000, 'page.goto');
     if (!response || !response.ok()) throw new Error(`HTTP ${response?.status()} for ${url}`);
     const html = await page.content();
+    await page.close();
     return html;
   } finally {
-    try { await browser.close(); } catch (_) { }
+    if (browser) {
+      try { await browser.close(); } catch (_) { }
+      try { await browser.kill(); } catch (_) { }
+    }
+    releasePuppeteerSlot();
   }
 }
 
@@ -219,46 +256,76 @@ function isCloudflareChallenge(html, status, headers) {
   return false;
 }
 
+// ── Concurrency limiter for fetchHTML (prevents memory exhaustion from
+//    too many concurrent HTML responses buffered in memory) ──────────────
+let fetchHtmlBusy = 0;
+const FETCH_HTML_LIMIT = parseInt(process.env.FETCH_HTML_CONCURRENCY || '15', 10);
+const fetchHtmlQueue = [];
+
+function acquireFetchSlot() {
+  return new Promise(resolve => {
+    if (fetchHtmlBusy < FETCH_HTML_LIMIT) {
+      fetchHtmlBusy++;
+      resolve();
+    } else {
+      fetchHtmlQueue.push(resolve);
+    }
+  });
+}
+function releaseFetchSlot() {
+  fetchHtmlBusy--;
+  if (fetchHtmlBusy < 0) fetchHtmlBusy = 0;
+  if (fetchHtmlQueue.length > 0) {
+    fetchHtmlBusy++;
+    fetchHtmlQueue.shift()();
+  }
+}
+
 /**
  * Fetch HTML from a URL with proper headers for the source domain.
  * Falls back to FlareSolverr when Cloudflare or anti-bot protections block
  * direct HTTP requests.
  */
 async function fetchHTML(url, extraHeaders = {}) {
-  const domain = new URL(url).hostname;
-  const referer = REFERERS[domain] || `https://${domain}/`;
-  const headers = getBrowserHeaders();
-
+  await acquireFetchSlot();
   try {
-    await new Promise(r => setTimeout(r, 200 + Math.random() * 800));
-    const response = await http.get(url, {
-      headers: {
-        ...headers,
-        Referer: referer,
-        ...extraHeaders,
-      },
-      timeout: 15000,
-      maxRedirects: 5,
-      proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
-    });
+    const domain = new URL(url).hostname;
+    const referer = REFERERS[domain] || `https://${domain}/`;
+    const headers = getBrowserHeaders();
 
-    if (!isCloudflareChallenge(response.data, response.status, response.headers)) {
-      return response.data;
-    }
-    console.warn(`[fetchHTML] Cloudflare challenge detected for ${url}, falling back to FlareSolverr`);
-  } catch (err) {
-    if (err.response) {
-      if (!isCloudflareChallenge(null, err.response.status, err.response.headers)) {
+    try {
+      await new Promise(r => setTimeout(r, 200 + Math.random() * 800));
+      const response = await http.get(url, {
+        headers: {
+          ...headers,
+          Referer: referer,
+          ...extraHeaders,
+        },
+        timeout: 15000,
+        maxRedirects: 5,
+        proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+      });
+
+      if (!isCloudflareChallenge(response.data, response.status, response.headers)) {
+        return response.data;
+      }
+      console.warn(`[fetchHTML] Cloudflare challenge detected for ${url}, falling back to FlareSolverr`);
+    } catch (err) {
+      if (err.response) {
+        if (!isCloudflareChallenge(null, err.response.status, err.response.headers)) {
+          throw err;
+        }
+        console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);
+      } else {
         throw err;
       }
-      console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);
-    } else {
-      throw err;
     }
-  }
 
-  const fsResult = await fetchWithFlareSolverr(url, extraHeaders);
-  return fsResult;
+    const fsResult = await fetchWithFlareSolverr(url, extraHeaders);
+    return fsResult;
+  } finally {
+    releaseFetchSlot();
+  }
 }
 
 function markdownToHtml(markdown) {
