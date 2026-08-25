@@ -388,7 +388,13 @@ app.get('/api/manga/track-view', rateLimit(60000, 60), async (req, res) => {
       [helpers.san(slug, 200), helpers.san(title, 300), chapterCount ? parseInt(chapterCount) : null]
     );
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    // track-view is a non-critical analytics call — don't surface DB errors
+    // to the frontend. This prevents console errors when the discovered_manga
+    // table hasn't been created yet (e.g. DB was unavailable at startup).
+    console.warn('[track-view] DB write failed:', err.message);
+    res.json({ success: true });
+  }
 });
 
 app.get('/api/manga/recent', async (req, res) => {
