@@ -73,12 +73,28 @@ app.use((req, res, next) => {
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
+// ALLOWED_ORIGINS supports exact origins and wildcard subdomains:
+//   ALLOWED_ORIGINS="https://app.example.com,https://*.example.com"
+// The wildcard entry allows any subdomain of example.com.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
+const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
+  if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
+    const domain = o.split('*.')[1];
+    return new RegExp(`^https?://[^.]+\\.${domain.replace(/\./g, '\\.')}$`);
+  }
+  return null;
+}).filter(Boolean);
+
+function isOriginAllowed(origin) {
+  if (ALLOWED_ORIGINS.includes('*')) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return ALLOWED_ORIGIN_PATTERNS.some(re => re.test(origin));
+}
+
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    if (ALLOWED_ORIGINS.includes('*')) return cb(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (isOriginAllowed(origin)) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -728,8 +744,28 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   const ck = `ch:${url}`;
   const c = await getCached(ck);
   if (c) return res.json({ data: c, cached: true });
+
+  // Stale-while-revalidate: return stale cache while refreshing in background
+  const stale = await cache.get('chapter_images', ck);
+  if (stale) {
+    setImmediate(async () => {
+      try { await fetchAndCacheChapterImages(url, sid, ck); } catch (_) {}
+    });
+    return res.json({ data: stale, cached: true, stale: true });
+  }
+
+  try {
+    const resp = await withTimeout(fetchAndCacheChapterImages(url, sid, ck), 25000, 'chapter-images');
+    res.json({ data: resp, cached: false });
+  } catch (err) {
+    console.warn('[chapter/images] Timeout or error:', err.message);
+    res.status(504).json({ error: 'Chapter images fetch timed out. Try refreshing.', url });
+  }
+});
+
+async function fetchAndCacheChapterImages(url, sid, ck) {
   const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
-  const MIN = 3; let result = null, usedSrc = sid;
+  const MIN = 3; let result = null, usedSrc = sid || 'fallback';
   if (src) { try { const d = await src.getChapterImages(url); if (d.images?.length >= MIN) { result = d; usedSrc = sid; } } catch (err) { console.warn(`[${sid}] Failed:`, err.message); } }
   if (!result) {
     try {
@@ -737,12 +773,12 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
       if (imgs && imgs.length > 0) { result = { images: imgs, source: 'fallback' }; usedSrc = 'fallback'; }
     } catch (err) { console.warn('[fallback] Failed:', err.message); }
   }
-  if (!result?.images?.length) return res.status(404).json({ error: 'No images found', url });
+  if (!result?.images?.length) throw new Error('No images found');
   const resp = { ...result, url, usedSource: usedSrc };
   await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);
   await setCached(ck, resp, cache.TTL.chapter_images);
-  res.json({ data: resp, cached: false });
-});
+  return resp;
+}
 
 function isPrivateIP(hostname) {
   if (hostname === 'localhost' || hostname === '::1' || hostname === '0.0.0.0') return true;
