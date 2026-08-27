@@ -212,28 +212,46 @@ async function fetchWithJinaAI(url) {
 }
 
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'http://localhost:8191/v1';
-let flaresolverrAvailable = true;
+let flaresolverrHealthy = null;
+let flaresolverrCheckedAt = 0;
+const FLARESOLVERR_HEALTH_TTL = 30000;
+
+async function checkFlareSolverrHealth() {
+  const now = Date.now();
+  if (now - flaresolverrCheckedAt < FLARESOLVERR_HEALTH_TTL) return flaresolverrHealthy;
+  flaresolverrCheckedAt = now;
+  try {
+    await Promise.race([
+      axios.get(FLARESOLVERR_URL.replace(/\/v1$/, '')),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('health check timeout')), 2000)),
+    ]);
+    flaresolverrHealthy = true;
+  } catch (err) {
+    flaresolverrHealthy = false;
+  }
+  return flaresolverrHealthy;
+}
 
 /**
  * Fetch HTML via FlareSolverr — bypasses Cloudflare and other anti-bot protections.
  * Used as a fallback when direct HTTP requests are blocked.
  */
 async function fetchWithFlareSolverr(url, extraHeaders = {}) {
-  if (!flaresolverrAvailable) throw new Error('FlareSolverr not available');
+  if (!await checkFlareSolverrHealth()) throw new Error('FlareSolverr not available');
   const domain = new URL(url).hostname;
   const referer = REFERERS[domain] || `https://${domain}/`;
   const headers = getBrowserHeaders();
   const response = await axios.post(FLARESOLVERR_URL, {
     cmd: 'request.get',
     url,
-    maxTimeout: 60000,
+    maxTimeout: 10000,
     headers: {
       ...headers,
       Referer: referer,
       ...extraHeaders,
     },
   }, {
-    timeout: 65000,
+    timeout: 10000,
   });
 
   const data = response.data;
@@ -247,11 +265,15 @@ async function fetchWithFlareSolverr(url, extraHeaders = {}) {
 }
 
 function isCloudflareChallenge(html, status, headers) {
-  if (status === 403 || status === 429) return true;
+  if (status === 429) return true;
+  if (status === 403 && html && typeof html === 'string') {
+    const lower = html.toLowerCase();
+    return lower.includes('cloudflare') && (lower.includes('checking your browser') || lower.includes('attention required'));
+  }
   if (html && typeof html === 'string') {
     const lower = html.toLowerCase();
     if (lower.includes('cloudflare') && lower.includes('checking your browser')) return true;
-    if (lower.includes('attention required') || lower.includes('just a moment')) return true;
+    if (lower.includes('just a moment')) return true;
   }
   return false;
 }
@@ -301,18 +323,20 @@ async function fetchHTML(url, extraHeaders = {}) {
           Referer: referer,
           ...extraHeaders,
         },
-        timeout: 15000,
+        timeout: 10000,
         maxRedirects: 5,
         proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+        validateStatus: (status) => status < 500,
       });
 
       if (!isCloudflareChallenge(response.data, response.status, response.headers)) {
+        if (response.status >= 400) throw Object.assign(new Error(`HTTP ${response.status}`), { response: { status: response.status, data: response.data, headers: response.headers } });
         return response.data;
       }
       console.warn(`[fetchHTML] Cloudflare challenge detected for ${url}, falling back to FlareSolverr`);
     } catch (err) {
       if (err.response) {
-        if (!isCloudflareChallenge(null, err.response.status, err.response.headers)) {
+        if (!isCloudflareChallenge(err.response.data, err.response.status, err.response.headers)) {
           throw err;
         }
         console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);

@@ -80,7 +80,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
 const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
   if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
     const domain = o.split('*.')[1];
-    return new RegExp(`^https?://[^.]+\\.${domain.replace(/\./g, '\\.')}$`);
+    const escapedDomain = domain.replace(/\./g, '\\.');
+    return new RegExp(`^https?://([^.]+\\.)*${escapedDomain}$`);
   }
   return null;
 }).filter(Boolean);
@@ -140,10 +141,18 @@ initRateLimit();
 
 // ── CACHE ─────────────────────────────────────────────────────────────────────
 const memCache = new NodeCache({ stdTTL: 600, checkperiod: 600, maxKeys: 10000 });
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms)),
+  ]);
+}
 async function getCached(key) {
-  if (redisClient && redisClient.status === 'ready') {
+  const rc = getRedisClient();
+  if (rc && rc.status === 'ready') {
     try {
-      const data = await redisClient.get(key);
+      const data = await rc.get(key);
       return data ? JSON.parse(data) : null;
     } catch (err) {
       console.error('Redis get error', err);
@@ -152,9 +161,10 @@ async function getCached(key) {
   return memCache.get(key) || null;
 }
 async function setCached(key, data, ttlMs = 86400000) {
-  if (redisClient && redisClient.status === 'ready') {
+  const rc = getRedisClient();
+  if (rc && rc.status === 'ready') {
     try {
-      await redisClient.set(key, JSON.stringify(data), 'PX', ttlMs);
+       await rc.set(key, JSON.stringify(data), 'PX', ttlMs);
       return;
     } catch (err) {
       console.error('Redis set error', err);
@@ -769,7 +779,10 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
   if (src) { try { const d = await src.getChapterImages(url); if (d.images?.length >= MIN) { result = d; usedSrc = sid; } } catch (err) { console.warn(`[${sid}] Failed:`, err.message); } }
   if (!result) {
     try {
-      const imgs = await extractionWorker.run({ url });
+      const imgs = await Promise.race([
+        extractionWorker.run({ url }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Worker timeout')), 8000)),
+      ]);
       if (imgs && imgs.length > 0) { result = { images: imgs, source: 'fallback' }; usedSrc = 'fallback'; }
     } catch (err) { console.warn('[fallback] Failed:', err.message); }
   }
