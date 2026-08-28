@@ -1206,7 +1206,15 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toI
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/', (req, res) => res.json({ status: 'ok' }));
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
-app.use((err, req, res, next) => { console.error('[Error]', err.message); res.status(500).json({ error: 'Internal error' }); });
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  res.status(500).json({ error: 'Internal error' });
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Manga Reader API on http://localhost:${PORT}`);
