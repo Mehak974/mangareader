@@ -74,7 +74,7 @@ function getProxy() {
 
 const http = axios.create({
   headers: getBrowserHeaders(),
-  timeout: 15000,
+  timeout: 10000,
   maxRedirects: 5,
   proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
 });

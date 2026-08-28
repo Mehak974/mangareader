@@ -76,7 +76,7 @@ app.use((req, res, next) => {
 // ALLOWED_ORIGINS supports exact origins and wildcard subdomains:
 //   ALLOWED_ORIGINS="https://app.example.com,https://*.example.com"
 // The wildcard entry allows any subdomain of example.com.
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://www.mangareader.pro,https://mangareader.pro,https://*.mangareader.pro').split(',').map(s => s.trim());
 const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
   if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
     const domain = o.split('*.')[1];
@@ -769,7 +769,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     res.json({ data: resp, cached: false });
   } catch (err) {
     console.warn('[chapter/images] Timeout or error:', err.message);
-    res.status(504).json({ error: 'Chapter images fetch timed out. Try refreshing.', url });
+    res.status(504).json({ error: err.message.includes('Timeout') ? 'Chapter images fetch timed out. Try refreshing.' : `Failed to fetch chapter images: ${err.message}. The source may be blocking requests.`, url });
   }
 });
 
@@ -781,7 +781,7 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
     try {
       const imgs = await Promise.race([
         extractionWorker.run({ url }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Worker timeout')), 8000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Worker timeout')), 5000)),
       ]);
       if (imgs && imgs.length > 0) { result = { images: imgs, source: 'fallback' }; usedSrc = 'fallback'; }
     } catch (err) { console.warn('[fallback] Failed:', err.message); }
