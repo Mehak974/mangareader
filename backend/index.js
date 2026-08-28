@@ -75,7 +75,7 @@ app.use((req, res, next) => {
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // ALLOWED_ORIGINS supports exact origins and wildcard subdomains:
 //   ALLOWED_ORIGINS="https://app.example.com,https://*.example.com"
-// The wildcard entry allows any subdomain of example.com.
+// The wildcard entry allows any subdomain of example.com (including apex).
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://www.mangareader.pro,https://mangareader.pro,https://*.mangareader.pro').split(',').map(s => s.trim());
 const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
   if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
@@ -92,14 +92,26 @@ function isOriginAllowed(origin) {
   return ALLOWED_ORIGIN_PATTERNS.some(re => re.test(origin));
 }
 
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (isOriginAllowed(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-}));
+// Manual CORS — more reliable than the cors package for error responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    if (isOriginAllowed(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    } else {
+      console.warn('[CORS] Origin not allowed:', origin);
+    }
+  }
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+  next();
+});
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
