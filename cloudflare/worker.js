@@ -130,7 +130,12 @@ async function handleImageProxy(request, env, ctx) {
   const targetUrl = url.searchParams.get('url');
 
   if (!targetUrl)                    return new Response('Missing ?url=', { status: 400 });
-  if (!isAllowedImageDomain(targetUrl)) return new Response('Domain not allowed', { status: 403 });
+  if (!isAllowedImageDomain(targetUrl)) {
+    return new Response('Domain not allowed', {
+      status: 403,
+      headers: { 'Content-Type': 'text/plain', ...CORS_HEADERS, 'Cache-Control': 'no-store' },
+    });
+  }
 
   const cache    = caches.default;
   const cacheKey = new Request(`https://img-proxy/${btoa(encodeURIComponent(targetUrl))}`);
