@@ -76,7 +76,8 @@ export default {
       if (path.startsWith('/api/mangadex'))     return handleMangaDex(request, env, ctx);
       if (path.startsWith('/api/manganato'))    return handleManganato(request, env, ctx);
       if (path.startsWith('/api/mangakatana'))  return handleMangaKatana(request, env, ctx);
-      if (path.startsWith('/api/mangaread'))    return handleMangaRead(request, env, ctx);
+        if (path.startsWith('/api/mangaread'))    return handleMangaRead(request, env, ctx);
+        if (path === '/' || path === '/health') return jsonResponse({ status: 'ok', service: 'mangareader-proxy' }, 200);
       return new Response('Not Found', { status: 404 });
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
