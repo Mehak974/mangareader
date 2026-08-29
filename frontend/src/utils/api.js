@@ -16,6 +16,9 @@ export const WORKER_URL =
 
 const ANILIST_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
 
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp', '.svg'];
+const SKIP_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];
+
 export function proxyImage(url, width = null, quality = null) {
   if (!url) return "";
   if (url.startsWith('/') || url.startsWith('data:')) return url;
@@ -24,6 +27,13 @@ export function proxyImage(url, width = null, quality = null) {
 
   const isAniList = ANILIST_IMAGE_DOMAINS.some(d => url.includes(d));
   if (isAniList) return url;
+
+  const isSkipped = SKIP_DOMAINS.some(d => url.includes(d));
+  if (isSkipped) return url;
+
+  const isImageExt = IMAGE_EXTENSIONS.some(ext => url.toLowerCase().includes(ext));
+  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangadex', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co'].some(d => url.includes(d));
+  if (!isImageExt && !isKnownImageDomain) return url;
 
   if (WORKER_URL) {
     return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(url)}`;
