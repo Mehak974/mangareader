@@ -65,6 +65,25 @@ export async function fetchChapterImagesThroughWorker(url, source) {
     return res.json();
   }
 
+  // MangaDex: use official API with chapter ID extracted from URL
+  if (source === 'mangadex' || url.includes('mangadex.org/chapter/')) {
+    const chapterId = url.match(/mangadex\.org\/chapter\/([0-9a-f-]+)/)?.[1];
+    if (chapterId) {
+      const workerUrl = `${WORKER_URL}/api/mangadex/at-home/server/${chapterId}`;
+      const res = await fetch(workerUrl);
+      if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
+      const data = await res.json();
+      const baseUrl = data.baseUrl;
+      const hash = data.chapter?.hash;
+      const pages = data.chapter?.data || [];
+      const images = pages.map(p => `${baseUrl}/data/${hash}/${p}`);
+      return {
+        data: { images: images.map(img => proxyImage(img)), source: 'mangadex' },
+        cached: false,
+      };
+    }
+  }
+
   const workerRoute = getWorkerSourceRoute(source, url);
   const workerUrl = `${WORKER_URL}${workerRoute}?url=${encodeURIComponent(url)}`;
   const res = await fetch(workerUrl);

@@ -78,7 +78,7 @@ export default {
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS, 'Cache-Control': 'no-store' },
       });
     }
   },
