@@ -7,6 +7,10 @@ main               = "worker.js"
 compatibility_date = "2024-01-15"
 workers_dev        = true
 
+[observability.logs]
+enabled = true
+invocation_logs = true
+
 # ── KV is REMOVED — caches.default handles everything for free ────────────────
 # Old line was:
 #   [[kv_namespaces]]
