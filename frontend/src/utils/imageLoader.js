@@ -6,6 +6,12 @@ export default function myImageLoader({ src, width, quality }) {
 
   if (src.includes('/img-proxy?') || src.includes('/api/proxy-image?')) return src;
 
+  const ANILIST_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
+  if (ANILIST_DOMAINS.some(d => src.includes(d))) return src;
+
+  const TRACKING_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];
+  if (TRACKING_DOMAINS.some(d => src.includes(d))) return src;
+
   let actualUrl = src;
   let maxWidth = width;
   let extraParams = '';
