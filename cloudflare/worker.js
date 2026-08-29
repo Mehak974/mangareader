@@ -23,6 +23,9 @@ const ALLOWED_IMAGE_DOMAINS = [
   'xfs.mangakatana.com',
   's4.anilist.co',
   'anilist.co',
+  '2xstorage.com',
+  'img-r1.2xstorage.com',
+  'img-r2.2xstorage.com',
   'media.mangaka.com',
 ];
 
@@ -37,6 +40,9 @@ const SOURCE_REFERERS = {
   'cmdxd98sb0x3yprd.mangadex.network': 'https://mangadex.org/',
   's4.anilist.co':       'https://anilist.co/',
   'anilist.co':          'https://anilist.co/',
+  '2xstorage.com':       'https://manganato.com/',
+  'img-r1.2xstorage.com':'https://manganato.com/',
+  'img-r2.2xstorage.com':'https://manganato.com/',
 };
 
 const USER_AGENTS = [

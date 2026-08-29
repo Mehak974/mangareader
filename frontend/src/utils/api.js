@@ -20,6 +20,8 @@ export function proxyImage(url, width = null, quality = null) {
   if (!url) return "";
   if (url.startsWith('/') || url.startsWith('data:')) return url;
 
+  if (WORKER_URL && url.startsWith(WORKER_URL)) return url;
+
   const isAniList = ANILIST_IMAGE_DOMAINS.some(d => url.includes(d));
   if (isAniList) return url;
 
