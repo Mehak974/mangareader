@@ -23,25 +23,27 @@ export function proxyImage(url, width = null, quality = null) {
   if (!url) return "";
   if (url.startsWith('/') || url.startsWith('data:')) return url;
 
-  if (WORKER_URL && url.startsWith(WORKER_URL)) return url;
-  if (url.includes('/img-proxy?')) return url;
-  if (url.includes('/api/proxy-image?')) return url;
+  const cleanUrl = url.split('#')[0];
 
-  const isAniList = ANILIST_IMAGE_DOMAINS.some(d => url.includes(d));
+  if (WORKER_URL && cleanUrl.startsWith(WORKER_URL)) return url;
+  if (cleanUrl.includes('/img-proxy?')) return url;
+  if (cleanUrl.includes('/api/proxy-image?')) return url;
+
+  const isAniList = ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
   if (isAniList) return url;
 
-  const isSkipped = SKIP_DOMAINS.some(d => url.includes(d));
+  const isSkipped = SKIP_DOMAINS.some(d => cleanUrl.includes(d));
   if (isSkipped) return url;
 
-  const isImageExt = IMAGE_EXTENSIONS.some(ext => url.toLowerCase().includes(ext));
-  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangadex', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co'].some(d => url.includes(d));
+  const isImageExt = IMAGE_EXTENSIONS.some(ext => cleanUrl.toLowerCase().includes(ext));
+  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangadex', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co'].some(d => cleanUrl.includes(d));
   if (!isImageExt && !isKnownImageDomain) return url;
 
   if (WORKER_URL) {
-    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(url)}`;
+    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(cleanUrl)}`;
   }
 
-  let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+  let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
   if (width) target += `&w=${width}`;
   if (quality) target += `&q=${quality}`;
   return target;

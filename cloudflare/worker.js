@@ -155,11 +155,27 @@ async function handleImageProxy(request, env, ctx) {
   };
   if (referer) fetchHeaders['Referer'] = referer;
 
-  const origin = await fetch(targetUrl, { headers: fetchHeaders });
-  if (!origin.ok) return new Response(`Source error ${origin.status}`, {
-    status: origin.status,
-    headers: { 'Cache-Control': 'no-store', ...CORS_HEADERS },
-  });
+  const cleanUrl = targetUrl.split('#')[0];
+  let origin = await fetch(cleanUrl, { headers: fetchHeaders });
+
+  if (origin.status === 429) {
+    const retryAfter = origin.headers.get('Retry-After') ? parseInt(origin.headers.get('Retry-After')) * 1000 : 1000;
+    await new Promise(r => setTimeout(r, retryAfter));
+    origin = await fetch(cleanUrl, { headers: fetchHeaders });
+    if (origin.status === 429) {
+      await new Promise(r => setTimeout(r, retryAfter * 2));
+      origin = await fetch(cleanUrl, { headers: fetchHeaders });
+    }
+  }
+
+  if (!origin.ok) {
+    const errBody = origin.status >= 500 ? JSON.stringify({ error: `Source error ${origin.status}`, status: origin.status }) : `Source error ${origin.status}`;
+    const errHeaders = origin.status >= 500 ? { 'Content-Type': 'application/json' } : { 'Content-Type': 'text/plain' };
+    return new Response(errBody, {
+      status: origin.status,
+      headers: { 'Cache-Control': 'no-store', ...CORS_HEADERS, ...errHeaders },
+    });
+  }
 
   const contentType = origin.headers.get('content-type') || 'image/jpeg';
   const responseToCache = new Response(origin.body, {
