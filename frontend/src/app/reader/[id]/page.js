@@ -6,7 +6,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Loader from "@/components/Loader";
 import { useApp } from "@/context/AppContext";
 import Image from "next/image";
-import { API_BASE, proxyImage } from "@/utils/api";
+import { API_BASE, proxyImage, fetchChapterImagesThroughWorker } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
 
 function ReaderContent({ params }) {
@@ -87,25 +87,19 @@ function ReaderContent({ params }) {
     setLoading(true);
     setError(null);
 
-    fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch chapter images from server");
-        return res.json();
-      })
-      .then((res) => {
-        if (res.data && res.data.images && res.data.images.length > 0) {
+    const fetchImages = async () => {
+      try {
+        const res = await fetchChapterImagesThroughWorker(url, source);
+        if (res?.data?.images && res.data.images.length > 0) {
           setImages(res.data.images);
           setLoading(false);
-          // Log to reading history
           addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId, cover);
         } else {
           throw new Error("No images found in server response");
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.warn("Reader fetch error, falling back to mock panels:", err.message);
 
-        // Generate mock comic panels as SVG data URLs
         const mockPages = Array.from({ length: 6 }).map((_, idx) => {
           const pageNum = idx + 1;
           const svg = `
@@ -125,7 +119,10 @@ function ReaderContent({ params }) {
 
         setImages(mockPages);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchImages();
   }, [url, source, id, title]);
 
   // Page tracking via IntersectionObserver — accurate per image detection

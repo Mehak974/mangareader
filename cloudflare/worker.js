@@ -14,22 +14,29 @@ const ALLOWED_IMAGE_DOMAINS = [
   'manganato.com',
   'readmanganato.com',
   'chapmanganato.to',
+  'manganato.gg',
   'mangakatana.com',
   'mangaread.org',
   'uploads.mangadex.org',
   'cmdxd98sb0x3yprd.mangadex.network',
   's1.mkklcdnv6tempv2.com',
   'xfs.mangakatana.com',
+  's4.anilist.co',
+  'anilist.co',
+  'media.mangaka.com',
 ];
 
 const SOURCE_REFERERS = {
   'manganato.com':       'https://manganato.com/',
+  'manganato.gg':        'https://manganato.gg/',
   'readmanganato.com':   'https://readmanganato.com/',
   'chapmanganato.to':    'https://chapmanganato.to/',
   'mangakatana.com':     'https://mangakatana.com/',
   'mangaread.org':       'https://mangaread.org/',
   'uploads.mangadex.org':'https://mangadex.org/',
   'cmdxd98sb0x3yprd.mangadex.network': 'https://mangadex.org/',
+  's4.anilist.co':       'https://anilist.co/',
+  'anilist.co':          'https://anilist.co/',
 };
 
 const USER_AGENTS = [
@@ -130,16 +137,15 @@ async function handleImageProxy(request, env, ctx) {
     'User-Agent':       randomUA(),
     'Accept':           'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
     'Accept-Language':  'en-US,en;q=0.9',
-    'Accept-Encoding':  'gzip, deflate, br',
     'Cache-Control':    'no-cache',
-    'Sec-Fetch-Dest':   'image',
-    'Sec-Fetch-Mode':   'no-cors',
-    'Sec-Fetch-Site':   'cross-site',
   };
   if (referer) fetchHeaders['Referer'] = referer;
 
-  const origin = await fetch(targetUrl, { headers: fetchHeaders, cf: { cacheTtl: 86400 } });
-  if (!origin.ok) return new Response(`Source error ${origin.status}`, { status: origin.status });
+  const origin = await fetch(targetUrl, { headers: fetchHeaders });
+  if (!origin.ok) return new Response(`Source error ${origin.status}`, {
+    status: origin.status,
+    headers: { 'Cache-Control': 'no-store', ...CORS_HEADERS },
+  });
 
   const contentType = origin.headers.get('content-type') || 'image/jpeg';
   const responseToCache = new Response(origin.body, {
