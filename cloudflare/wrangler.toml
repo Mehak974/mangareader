@@ -1,0 +1,8 @@
+name = "mangareader-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-15"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "e74884d65d834dc0b6bd75536e9d9d7c"

@@ -9,9 +9,19 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001";
 
+export const WORKER_URL =
+  process.env.NEXT_PUBLIC_WORKER_URL ||
+  process.env.NEXT_PUBLIC_SCRAPER_URL ||
+  "";
+
 export function proxyImage(url, width = null, quality = null) {
-  if (!url || url.startsWith('/') || url.includes('/api/proxy-image')) return url;
-  
+  if (!url) return "";
+  if (url.startsWith('/') || url.startsWith('data:')) return url;
+
+  if (WORKER_URL) {
+    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(url)}`;
+  }
+
   let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
   if (width) target += `&w=${width}`;
   if (quality) target += `&q=${quality}`;
