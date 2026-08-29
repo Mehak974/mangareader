@@ -103,19 +103,35 @@ export async function fetchChapterImagesThroughWorker(url, source) {
   const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
   let match;
   while ((match = imgRegex.exec(html)) !== null) {
-    const src = match[1];
+    const src = match[1].trim();
     if (src && !src.includes('sprite') && !src.includes('logo') && !src.includes('banner')) {
       images.push(src);
     }
   }
 
   if (images.length === 0) {
-    const scriptMatch = html.match(/var\s+ytaw\s*=\s*(\[[^\]]+\])/);
-    if (scriptMatch) {
-      try {
-        const rawUrls = JSON.parse(scriptMatch[1]);
-        images.push(...rawUrls);
-      } catch {}
+    const varNames = ['ytaw', 'thzq', 'reader_data', 'chapter_images', 'image_list'];
+    for (const varName of varNames) {
+      const scriptMatch = html.match(new RegExp(`var\\s+${varName}\\s*=\\s*(\\[[^\\]]+\\])`));
+      if (scriptMatch) {
+        try {
+          const rawStr = scriptMatch[1].replace(/'/g, '"').replace(/,\s*]/, ']');
+          const rawUrls = JSON.parse(rawStr);
+          images.push(...rawUrls.filter(u => u && typeof u === 'string'));
+        } catch {}
+      }
+      if (images.length > 0) break;
+    }
+  }
+
+  if (images.length === 0) {
+    const urlRegex = /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif|bmp|avif)/gi;
+    let urlMatch;
+    while ((urlMatch = urlRegex.exec(html)) !== null) {
+      const src = urlMatch[0].trim();
+      if (!src.includes('sprite') && !src.includes('logo') && !src.includes('banner') && !src.includes('analytics') && !src.includes('adskeeper') && !src.includes('doubleclick')) {
+        images.push(src);
+      }
     }
   }
 
