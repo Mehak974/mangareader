@@ -84,6 +84,13 @@ const REFERERS = {
   'mangaread.org':       'https://mangaread.org/',
   'uploads.mangadex.org':'https://mangadex.org/',
   'cmdxd98sb0x3yprd.mangadex.network': 'https://mangadex.org/',
+  '2xstorage.com':       'https://manganato.com/',
+  'img-r1.2xstorage.com':'https://manganato.com/',
+  'img-r2.2xstorage.com':'https://manganato.com/',
+  'imgs-2.2xstorage.com':'https://manganato.com/',
+  'anilist.co':          'https://anilist.co/',
+  's4.anilist.co':       'https://anilist.co/',
+  's5.anilist.co':       'https://anilist.co/',
 };
 function referer(url) {
   const h = new URL(url).hostname;
@@ -95,6 +102,9 @@ const ALLOWED = [
   'mangakatana.com','mangaread.org',
   'uploads.mangadex.org','cmdxd98sb0x3yprd.mangadex.network',
   'mkklcdnv6tempv2.com','mkklcdnv6temp.com','xfs.mangakatana.com',
+  '2xstorage.com','img-r1.2xstorage.com','img-r2.2xstorage.com','imgs-2.2xstorage.com',
+  'media.mangaka.com',
+  'anilist.co','s4.anilist.co','s5.anilist.co',
 ];
 function allowed(url) {
   try {
