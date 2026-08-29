@@ -76,7 +76,9 @@ app.use((req, res, next) => {
 // ALLOWED_ORIGINS supports exact origins and wildcard subdomains:
 //   ALLOWED_ORIGINS="https://app.example.com,https://*.example.com"
 // The wildcard entry allows any subdomain of example.com (including apex).
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://www.mangareader.pro,https://mangareader.pro,https://*.mangareader.pro').split(',').map(s => s.trim());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://www.mangareader.pro,https://mangareader.pro,https://*.mangareader.pro')
+  .replace(/^"|"$/g, '')
+  .split(',').map(s => s.trim().replace(/^"|"$/g, ''));
 const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
   if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
     const domain = o.split('*.')[1];
@@ -96,12 +98,13 @@ function isOriginAllowed(origin) {
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin) {
+    res.setHeader('Vary', 'Origin');
     if (isOriginAllowed(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Vary', 'Origin');
-    } else {
-      console.warn('[CORS] Origin not allowed:', origin);
+    } else if (origin.endsWith('.mangareader.pro') || origin === 'https://mangareader.pro') {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
   }
   if (req.method === 'OPTIONS') {
