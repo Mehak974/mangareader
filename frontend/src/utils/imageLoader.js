@@ -1,6 +1,11 @@
 export default function myImageLoader({ src, width, quality }) {
   if (src.startsWith('/')) return src;
 
+  const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || "";
+  if (WORKER_URL && src.startsWith(WORKER_URL)) return src;
+
+  if (src.includes('/img-proxy?') || src.includes('/api/proxy-image?')) return src;
+
   let actualUrl = src;
   let maxWidth = width;
   let extraParams = '';
