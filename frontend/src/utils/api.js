@@ -24,6 +24,8 @@ export function proxyImage(url, width = null, quality = null) {
   if (url.startsWith('/') || url.startsWith('data:')) return url;
 
   if (WORKER_URL && url.startsWith(WORKER_URL)) return url;
+  if (url.includes('/img-proxy?')) return url;
+  if (url.includes('/api/proxy-image?')) return url;
 
   const isAniList = ANILIST_IMAGE_DOMAINS.some(d => url.includes(d));
   if (isAniList) return url;
