@@ -1,8 +1,21 @@
-name = "mangareader-proxy"
-main = "worker.js"
-compatibility_date = "2024-01-15"
-workers_dev = true
+# wrangler.toml — KV-Free Edition
+# KV namespace is no longer required for caching.
+# Only add it back if you need persistent storage (user data, etc.)
 
-[[kv_namespaces]]
-binding = "CACHE"
-id = "e74884d65d834dc0b6bd75536e9d9d7c"
+name               = "mangareader-proxy"
+main               = "worker.js"
+compatibility_date = "2024-01-15"
+workers_dev        = true
+
+# ── KV is REMOVED — caches.default handles everything for free ────────────────
+# Old line was:
+#   [[kv_namespaces]]
+#   binding = "CACHE"
+#   id      = "..."
+# Delete it. Zero KV reads. Zero KV costs.
+
+# ── Optional: add your custom domain ─────────────────────────────────────────
+# routes = [{ pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }]
+
+[env.production]
+name = "mangareader-proxy-prod"
