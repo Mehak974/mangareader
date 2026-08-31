@@ -597,12 +597,13 @@ const SOURCE_SCRAPERS = {
       const images = [];
       $('.reading-content img, #chapter-content img').each((_, el) => {
         const src = $(el).attr('data-src') || $(el).attr('src') || '';
-        if (src && isValidImageUrl(src)) images.push(src.trim());
+        if (src && isValidImageUrl(src) && isChapterImage(src) && !isThumbnailOrIcon(src)) {
+          images.push(src.trim());
+        }
       });
       const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
       return { images: fallback, source: 'coffeemanga' };
-    }
-  },
+    },
 
   // ── MANGAREAD ───────────────────────────────────────────────────────────────
   mangaread: {
@@ -765,12 +766,13 @@ const SOURCE_SCRAPERS = {
       const images = [];
       $('.reading-content img, #chapter-content img').each((_, el) => {
         const src = $(el).attr('data-src') || $(el).attr('src') || '';
-        if (src && isValidImageUrl(src)) images.push(src.trim());
+        if (src && isValidImageUrl(src) && isChapterImage(src) && !isThumbnailOrIcon(src)) {
+          images.push(src.trim());
+        }
       });
       const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
       return { images: fallback, source: 'mangaread' };
-    }
-  },
+    },
 
   // ── MANGADEX ────────────────────────────────────────────────────────────────
   mangadex: {
