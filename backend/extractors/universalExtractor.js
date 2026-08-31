@@ -764,6 +764,12 @@ const SOURCE_SCRAPERS = {
     async getChapterImages(url) {
       const html = await fetchHTML(url);
       const $ = cheerio.load(html);
+
+      const jsonImages = strategy1_embeddedJSON($);
+      if (jsonImages.length >= 3) {
+        return { images: jsonImages, source: 'mangaread' };
+      }
+
       const images = [];
       $('.reading-content img, #chapter-content img').each((_, el) => {
         const src = $(el).attr('data-src') || $(el).attr('src') || '';
@@ -771,8 +777,7 @@ const SOURCE_SCRAPERS = {
           images.push(src.trim());
         }
       });
-      const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
-      return { images: fallback, source: 'mangaread' };
+      return { images: images.length >= 3 ? images : jsonImages, source: 'mangaread' };
     }
   },
 
