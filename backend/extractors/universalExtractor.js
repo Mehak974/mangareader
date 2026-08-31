@@ -603,7 +603,8 @@ const SOURCE_SCRAPERS = {
       });
       const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
       return { images: fallback, source: 'coffeemanga' };
-    },
+    }
+  },
 
   // ── MANGAREAD ───────────────────────────────────────────────────────────────
   mangaread: {
@@ -772,7 +773,8 @@ const SOURCE_SCRAPERS = {
       });
       const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
       return { images: fallback, source: 'mangaread' };
-    },
+    }
+  },
 
   // ── MANGADEX ────────────────────────────────────────────────────────────────
   mangadex: {
