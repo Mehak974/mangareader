@@ -533,8 +533,10 @@ function isChapterImage(src) {
 
 /** Returns true if the URL looks like a small UI image to skip */
 function isThumbnailOrIcon(src) {
-  return /(?:logo|icon|banner|avatar|thumb|ads?|sprite|button|\.svg)/i.test(src) ||
-    /[_-](?:16|24|32|48|64|96|100|120)x/i.test(src); // tiny size hints in filename
+  return /\b(?:logo|icon|banner|avatar|thumb|ads?|sprite|button)\b/i.test(src) ||
+    /\.svg(\?|$)/i.test(src) ||
+    /[_-](?:16|24|32|48|64|96|100|120)x/i.test(src) || // tiny size hints in filename
+    /(?:emoji|smilies|wp-emoji)/i.test(src); // WordPress emoji/smiley images
 }
 
 const SOURCE_SCRAPERS = {
