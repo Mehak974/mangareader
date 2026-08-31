@@ -102,11 +102,22 @@ export async function fetchChapterImagesThroughWorker(url, source) {
   const html = result.html || '';
   const images = [];
 
+  const SKIP_DOMAINS = ['gravatar.com', 's.w.org', 'wp-includes/images/smilies', 'emoji', 'avatar'];
+  const SKIP_PATTERNS = ['sprite', 'logo', 'banner', 'analytics', 'adskeeper', 'doubleclick', 'gravatar', 'emoji', 'smilies', 'wp-emoji', 'avatar'];
+
+  function shouldSkip(src) {
+    if (!src) return true;
+    const lower = src.toLowerCase();
+    if (SKIP_DOMAINS.some(d => lower.includes(d))) return true;
+    if (SKIP_PATTERNS.some(p => lower.includes(p))) return true;
+    return false;
+  }
+
   const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
   let match;
   while ((match = imgRegex.exec(html)) !== null) {
     const src = match[1].trim();
-    if (src && !src.includes('sprite') && !src.includes('logo') && !src.includes('banner')) {
+    if (src && !shouldSkip(src)) {
       images.push(src);
     }
   }
@@ -119,7 +130,7 @@ export async function fetchChapterImagesThroughWorker(url, source) {
         try {
           const rawStr = scriptMatch[1].replace(/'/g, '"').replace(/,\s*]/, ']');
           const rawUrls = JSON.parse(rawStr);
-          images.push(...rawUrls.filter(u => u && typeof u === 'string'));
+          images.push(...rawUrls.filter(u => u && typeof u === 'string' && !shouldSkip(u)));
         } catch {}
       }
       if (images.length > 0) break;
@@ -131,7 +142,7 @@ export async function fetchChapterImagesThroughWorker(url, source) {
     let urlMatch;
     while ((urlMatch = urlRegex.exec(html)) !== null) {
       const src = urlMatch[0].trim();
-      if (!src.includes('sprite') && !src.includes('logo') && !src.includes('banner') && !src.includes('analytics') && !src.includes('adskeeper') && !src.includes('doubleclick')) {
+      if (!shouldSkip(src)) {
         images.push(src);
       }
     }
