@@ -207,11 +207,37 @@ async function initDB() {
         LOOP
           seq := pg_get_serial_sequence('"' || tbl || '"', 'id');
           IF seq IS NOT NULL THEN
-            EXECUTE format('SELECT COALESCE(MAX(id), 0) FROM %I', tbl) INTO max_id;
+            EXECUTE format('SELECT GREATEST(MAX(id), 1) FROM %I', tbl) INTO max_id;
             EXECUTE format('SELECT setval(%L, %s, false)', seq, max_id);
             RAISE NOTICE 'Repaired sequence for %.%s -> %s', tbl, 'id', max_id + 1;
           END IF;
         END LOOP;
+      END $$;
+
+      -- Fix discovered_manga table: ensure it has the correct schema (no id column, slug is PK)
+      DO $$
+      BEGIN
+        -- Check if discovered_manga has an id column that shouldn't be there
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'discovered_manga' AND column_name = 'id'
+        ) THEN
+          -- Backup data, drop and recreate table with correct schema
+          CREATE TABLE IF NOT EXISTS discovered_manga_backup AS SELECT * FROM discovered_manga;
+          ALTER TABLE discovered_manga DROP COLUMN id;
+          RAISE NOTICE 'Removed incorrect id column from discovered_manga table';
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        -- If dropping column fails, recreate the table
+        DROP TABLE IF EXISTS discovered_manga;
+        CREATE TABLE discovered_manga (
+          slug VARCHAR(255) PRIMARY KEY,
+          title VARCHAR(500) NOT NULL,
+          chapter_count INTEGER,
+          view_count INTEGER DEFAULT 1,
+          last_viewed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        RAISE NOTICE 'Recreated discovered_manga table with correct schema';
       END $$;
     `);
     console.log('PostgreSQL database schemas initialized successfully.');

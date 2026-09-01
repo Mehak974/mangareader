@@ -676,14 +676,20 @@ const SOURCE_SCRAPERS = {
       let usedHeadless = false;
       let fallbackUsed = 'none';
 
+      // Normalize URL to avoid double www
+      url = url.replace('www.www.', 'www.');
+
       // Try multiple URL patterns for better success rate
       const urlsToTry = [
         url,
-        url.replace('www.mangaread.org', 'mangaread.org'),
-        url.replace('mangaread.org', 'www.mangaread.org'),
-        url.replace(/\/$/, '') + '-manga/',
-        url.replace(/-manga\/$/, '/'),
-      ];
+        url.replace(/\/\/www\./, '//'), // www.mangaread.org -> mangaread.org
+        url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
+      ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
+
+      // Add -manga suffix variant if not already present
+      if (!url.includes('-manga/')) {
+        urlsToTry.push(url.replace(/\/$/, '') + '-manga/');
+      }
 
       // Step 1: Direct HTTP fetch with stealth headers (try multiple URLs)
       for (const tryUrl of urlsToTry) {
@@ -843,11 +849,14 @@ const SOURCE_SCRAPERS = {
     },
 
     async getChapterImages(url) {
+      // Normalize URL to avoid double www
+      url = url.replace('www.www.', 'www.');
+
       const urlsToTry = [
         url,
-        url.replace('www.mangaread.org', 'mangaread.org'),
-        url.replace('mangaread.org', 'www.mangaread.org'),
-      ];
+        url.replace(/\/\/www\./, '//'), // www.mangaread.org -> mangaread.org
+        url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
+      ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
       for (const tryUrl of urlsToTry) {
         try {
@@ -1063,9 +1072,21 @@ const SOURCE_SCRAPERS = {
     },
 
     async getChapterImages(url) {
+      // Validate URL - reject empty, fragment-only, or invalid URLs
+      if (!url || url === '#' || !url.startsWith('http')) {
+        console.warn(`[mangakatana] Invalid chapter URL: ${url}`);
+        return { images: [], source: 'mangakatana' };
+      }
+
       // Extract chapter ID from URL for Consumet API
       const urlParts = url.split('/').filter(Boolean);
       const chapterId = urlParts.slice(-2).join('/'); // mangaId/chapterId format
+
+      // Validate chapterId
+      if (!chapterId || chapterId === '#' || !chapterId.includes('/')) {
+        console.warn(`[mangakatana] Could not extract chapter ID from URL: ${url}`);
+        return { images: [], source: 'mangakatana' };
+      }
 
       // Try Consumet API first
       try {
@@ -1084,10 +1105,17 @@ const SOURCE_SCRAPERS = {
       // Fallback to DOM scraping with image decoder
       try {
         const html = await fetchHTML(url);
+        if (!html || html.length < 100) {
+          console.warn('[mangakatana] Empty or too short HTML response');
+          return { images: [], source: 'mangakatana' };
+        }
         const $ = cheerio.load(html);
 
-        const rv46 = (s) =>
-          Buffer.from(s.split('').reverse().join(''), 'base64').toString('utf-8');
+        const rv46 = (s) => {
+          try {
+            return Buffer.from(s.split('').reverse().join(''), 'base64').toString('utf-8');
+          } catch (_) { return ''; }
+        };
 
         let thzq = [];
         let kc1Raw = null;
