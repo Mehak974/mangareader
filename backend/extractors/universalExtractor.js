@@ -975,12 +975,12 @@ const SOURCE_SCRAPERS = {
       try {
         const res = await http.get(`https://api.consumet.org/manga/mangakatana/${encodeURIComponent(mangaId)}`, { timeout: 10000 });
         const data = res.data;
-        if (data?.id) {
-          const chapters = (data.chapters || []).map(ch => ({
+        if (data?.chapters?.length > 0) {
+          const chapters = data.chapters.map(ch => ({
             title: ch.title || `Chapter ${ch.chapterNumber}`,
             href: ch.id ? `https://mangakatana.com/${ch.id}` : '',
             date: ch.releaseDate || null
-          })).filter(c => c.href);
+          })).filter(c => c.href && c.href !== '#' && c.href.startsWith('http') && !ch.id?.includes('#'));
           return {
             title: data.title || '',
             cover: data.image || data.cover || '',
@@ -990,6 +990,9 @@ const SOURCE_SCRAPERS = {
             chapters
           };
         }
+      } catch (err) {
+        console.warn('[mangakatana] Consumet getMangaDetail failed, falling back to DOM:', err.message);
+      }
       } catch (err) {
         console.warn('[mangakatana] Consumet getMangaDetail failed, falling back to DOM:', err.message);
       }

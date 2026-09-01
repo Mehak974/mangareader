@@ -63,7 +63,10 @@ function getWorkerSourceRoute(source, url) {
 }
 
 export async function fetchChapterImagesThroughWorker(url, source) {
-  if (!WORKER_URL) {
+  // Bypass worker for sources that have issues with it
+  const bypassWorker = ['mangakatana', 'mangaread'].includes(source) || url.includes('mangakatana') || url.includes('mangaread');
+  
+  if (!WORKER_URL || bypassWorker) {
     const res = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
     if (!res.ok) throw new Error(`Failed to fetch chapter images: ${res.status}`);
     return res.json();

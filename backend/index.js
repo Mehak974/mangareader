@@ -803,7 +803,9 @@ app.get('/api/manga', async (req, res) => {
 
 app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   const { url, source: sid } = req.query;
-  if (!url || !helpers.isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
+  if (!url || !helpers.isValidUrl(url) || url === '#' || url.startsWith('#')) {
+    return res.status(400).json({ error: 'valid url required', received: url });
+  }
   const ck = `ch:${url}`;
   const c = await getCached(ck);
   if (c) {
