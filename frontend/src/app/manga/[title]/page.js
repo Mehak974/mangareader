@@ -583,7 +583,16 @@ const [chPage, setChPage] = useState(1);
               </>
             ) : (
               <div style={{ fontSize: "13px", color: "var(--text3)", padding: "4px 0" }}>
-                {loadingChapters ? "Searching selected source..." : "No active source mappings found on this provider."}
+                {loadingChapters ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="spinner" style={{ width: "14px", height: "14px", border: "2px solid var(--text3)", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }}></span>
+                    Searching selected source...
+                  </span>
+                ) : (
+                  <span>
+                    No chapters found on this server. Try switching to another server above.
+                  </span>
+                )}
               </div>
             )}
             <button className="btn btn-s" onClick={() => toggleBookmark(bookmarkPayload)}>

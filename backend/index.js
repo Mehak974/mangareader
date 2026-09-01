@@ -548,11 +548,13 @@ app.post('/api/admin/home/sections/:key', requireAdmin, async (req, res) => {
 async function performSearch(sourceId, query, origTitle) {
   if (['coffeemanga', 'mangaread'].includes(sourceId)) {
     const base = SOURCE_SCRAPERS[sourceId].baseUrl;
-    const $ = cheerio.load(await fetchHTML(`${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`));
+    const searchUrl = `${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`;
+    console.log(`[performSearch] Searching ${sourceId}: ${searchUrl}`);
+    const $ = cheerio.load(await fetchHTML(searchUrl));
     const redir = helpers.checkDirectRedirect($, base);
     if (redir) { const v = await helpers.verifyRedirectLink(redir, origTitle); if (v) return v; }
     let best = null, score = 0, cands = [];
-    $('.post-title a,.c-tabs-item__content a,.tab-summary a,.manga-name a,a[href*="/manga/"]').each((_, el) => {
+    $('.post-title a,.c-tabs-item__content a,.tab-summary a,.manga-name a,.item-summary a,.manga-detail a,a[href*="/manga/"]').each((_, el) => {
       const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
       if (!href || href.includes('?m_orderby') || href.endsWith('/manga') || href.endsWith('/manga/') || href.includes('-novel') || href.includes('/novel/')) return;
       const full = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
@@ -561,16 +563,17 @@ async function performSearch(sourceId, query, origTitle) {
       let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
       if (s > score) { score = s; best = full; }
     });
+    console.log(`[performSearch] ${sourceId} found ${cands.length} candidates, best score: ${score}`);
     const mc = origTitle.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/).filter(w => w.length > 2).length;
     if (score >= 2 || (mc <= 1 && score >= 1)) return best;
-    for (let i = 0; i < Math.min(cands.length, 3); i++) {
+    for (let i = 0; i < Math.min(cands.length, 5); i++) {
       try {
         const $d = cheerio.load(await fetchHTML(cands[i].url));
         let alts = [];
-        $d('.post-content_item').each((_, it) => {
-          const h = $d(it).find('.summary-heading').text().toLowerCase();
+        $d('.post-content_item,.manga-info-item,.manga-info-row').each((_, it) => {
+          const h = $d(it).find('.summary-heading,.info-heading,.manga-info-label').text().toLowerCase();
           if (h.includes('alternative') || h.includes('alt title')) {
-            $d(it).find('.summary-content').text().split(/[,;\n]+/).forEach(v => { const c = v.trim(); if (c) alts.push(c); });
+            $d(it).find('.summary-content,.info-content,.manga-info-value').text().split(/[,;\n]+/).forEach(v => { const c = v.trim(); if (c) alts.push(c); });
           }
         });
         if (alts.some(a => helpers.isGoodMatch(origTitle, a))) return cands[i].url;
@@ -645,13 +648,24 @@ async function searchSource(sourceId, title, mangaId = null) {
         if (!slug || slug.length < 2) continue;
 
         const urlsToTry = sourceId === 'mangaread'
-          ? [`https://www.mangaread.org/manga/${slug}/`, `https://www.mangaread.org/manga/${slug}-manga/`]
+          ? [
+              `https://www.mangaread.org/manga/${slug}/`,
+              `https://www.mangaread.org/manga/${slug}-manga/`,
+              `https://www.mangaread.org/manga/${slug}-manhua/`,
+              `https://www.mangaread.org/manga/${slug}-manhwa/`,
+              `https://mangaread.org/manga/${slug}/`,
+              `https://mangaread.org/manga/${slug}-manga/`,
+            ]
           : [`https://coffeemanga.net/manga/${slug}/`];
 
         for (const directUrl of urlsToTry) {
           try {
-            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-            if (res.status === 200 && res.data.includes('post-title')) { result = directUrl; break; }
+            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+            if (res.status === 200 && (res.data.includes('post-title') || res.data.includes('manga-title') || res.data.includes('wp-manga'))) {
+              result = directUrl;
+              console.log(`[searchSource] Direct URL match for mangaread: ${directUrl}`);
+              break;
+            }
           } catch (e) { }
         }
         if (result) break;

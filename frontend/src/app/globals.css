@@ -5234,3 +5234,7 @@ body:not(.logged-in) .guest-flex {
   margin: 0 auto;
   max-width: 1200px;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

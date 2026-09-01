@@ -750,16 +750,28 @@ const SOURCE_SCRAPERS = {
       const genres = [];
       $('.genres-content a').each((_, el) => genres.push($(el).text().trim()));
 
-      // Try static HTML chapters first
+      // Try static HTML chapters first - with multiple selector strategies
       let chapters = [];
-      $('li.wp-manga-chapter a').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const chTitle = $(el).text().trim();
-        const date = $(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
-        if (href && !chapters.some(c => c.href === href)) {
-          chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date });
-        }
-      });
+      const chapterSelectors = [
+        'li.wp-manga-chapter a',
+        '.chapter-list a',
+        '.listing-chapters_wrap a',
+        '.manga-chapter a',
+        'a[href*="/manga/"][href*="/chapter"]',
+        '.single-chapter a',
+      ];
+
+      for (const selector of chapterSelectors) {
+        $(selector).each((_, el) => {
+          const href = $(el).attr('href') || '';
+          const chTitle = $(el).text().trim();
+          const date = $(el).closest('li.wp-manga-chapter, .chapter-list-item, .single-chapter').find('.chapter-release-date, .chapter-date').text().trim();
+          if (href && !chapters.some(c => c.href === href)) {
+            chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date });
+          }
+        });
+        if (chapters.length > 0) break;
+      }
 
       // Try AJAX chapter endpoint if no chapters found
       if (chapters.length === 0) {
@@ -767,9 +779,11 @@ const SOURCE_SCRAPERS = {
           $('input#manga-chapters-holder').attr('data-id') ||
           $('div#manga-chapters-holder').attr('data-id') ||
           $('script:contains("manga_id")').html()?.match(/"manga_id"\s*:\s*"?(\d+)"?/)?.[1] ||
+          $('script').html()?.match(/manga_id["']?\s*:\s*["']?(\d+)/)?.[1] ||
           $('body').attr('class')?.match(/postid-(\d+)/)?.[1];
 
         if (mangaId) {
+          console.log(`[mangaread] Found manga_id: ${mangaId}, trying AJAX endpoint`);
           const ajaxUrls = [
             `${url.replace(/\/$/, '')}/ajax/load_chapters/`,
             `https://www.mangaread.org${url.replace('https://www.mangaread.org', '').replace('https://mangaread.org', '')}ajax/load_chapters/`,
@@ -779,7 +793,7 @@ const SOURCE_SCRAPERS = {
             try {
               const chapterListRes = await http.post(
                 ajaxUrl,
-                new URLSearchParams({ action: 'manga_get_chapters' }).toString(),
+                new URLSearchParams({ action: 'manga_get_chapters', manga: mangaId }).toString(),
                 {
                   headers: {
                     ...getBrowserHeaders(),
@@ -791,16 +805,21 @@ const SOURCE_SCRAPERS = {
                 }
               );
               const $ajax = cheerio.load(chapterListRes.data);
-              $ajax('li.wp-manga-chapter a').each((_, el) => {
+              $ajax('li.wp-manga-chapter a, .chapter-list a, .single-chapter a').each((_, el) => {
                 const href = $ajax(el).attr('href') || '';
                 const chTitle = $ajax(el).text().trim();
-                const date = $ajax(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
+                const date = $ajax(el).closest('li.wp-manga-chapter, .chapter-list-item').find('.chapter-release-date, .chapter-date').text().trim();
                 if (href && !chapters.some(c => c.href === href)) {
                   chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
                 }
               });
-              if (chapters.length > 0) break;
-            } catch (_) { }
+              if (chapters.length > 0) {
+                console.log(`[mangaread] AJAX endpoint returned ${chapters.length} chapters`);
+                break;
+              }
+            } catch (err) {
+              console.warn(`[mangaread] AJAX endpoint failed: ${err.message}`);
+            }
           }
         }
       }
@@ -819,6 +838,7 @@ const SOURCE_SCRAPERS = {
         }
       }
 
+      console.log(`[mangaread] getMangaDetail: found ${chapters.length} chapters for ${title}`);
       return { title, cover, description, status, genres, chapters };
     },
 
