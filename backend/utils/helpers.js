@@ -89,7 +89,6 @@ async function verifyRedirectLink(link, orig) {
 
 function detectSource(url) {
   const h = new URL(url).hostname;
-  if (h === 'coffeemanga.net') return 'coffeemanga';
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';

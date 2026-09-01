@@ -337,6 +337,18 @@ async function fetchHTML(url, extraHeaders = {}) {
     } catch (err) {
       if (err.response) {
         if (!isCloudflareChallenge(err.response.data, err.response.status, err.response.headers)) {
+          // For 403 errors, try Jina AI as fallback before FlareSolverr
+          if (err.response.status === 403) {
+            console.warn(`[fetchHTML] HTTP 403 for ${url}, trying Jina AI fallback`);
+            try {
+              const jinaResult = await fetchWithJinaAI(url);
+              if (jinaResult && jinaResult.length > 100) {
+                return markdownToHtml(jinaResult);
+              }
+            } catch (jinaErr) {
+              console.warn(`[fetchHTML] Jina AI fallback failed: ${jinaErr.message}`);
+            }
+          }
           throw err;
         }
         console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);
@@ -540,74 +552,6 @@ function isThumbnailOrIcon(src) {
 }
 
 const SOURCE_SCRAPERS = {
-  // ── COFFEEMANGA ─────────────────────────────────────────────────────────────
-  coffeemanga: {
-    id: 'coffeemanga',
-    name: 'CoffeeManga',
-    baseUrl: 'https://coffeemanga.net',
-    color: '#795548',
-
-    async getHome() {
-        const html = await fetchHTML('https://coffeemanga.net/');
-      const $ = cheerio.load(html);
-      const results = [];
-
-      // WordPress manga theme
-      $('.manga-item, .page-item-detail, .item-summary').each((_, el) => {
-        const $el = $(el);
-        let $a = $el.find('.post-title a, h3 a, h4 a, .item-title a').first();
-        if (!$a.length) {
-          $a = $el.find('a[title]').first();
-        }
-        if (!$a.length) {
-          $a = $el.find('a').first();
-        }
-        const title = $a.attr('title') || $a.text().trim() || '';
-        const href = $a.attr('href') || '';
-        const cover = $el.find('img').attr('data-src') || $el.find('img').attr('src') || '';
-        const chapter = $el.find('.chapter a').first().text().trim() || '';
-        if (title && href) results.push({ title, href: toAbsolute(href, 'https://coffeemanga.net'), cover, chapter });
-      });
-
-      return { section: 'Romance & Drama', items: dedupByHref(results).slice(0, 12) };
-    },
-
-    async getMangaDetail(url) {
-      const html = await fetchHTML(url);
-      const $ = cheerio.load(html);
-      const title = $('h1.post-title, .manga-title').first().text().trim();
-      const cover = $('.summary_image img').attr('data-src') || $('.summary_image img').attr('src') || '';
-      const description = $('.summary__content p').first().text().trim();
-      const status = $('.post-content_item:contains("Status") .summary-content').text().trim();
-      const genres = [];
-      $('.genres-content a').each((_, el) => genres.push($(el).text().trim()));
-      const chapters = [];
-      $('li.wp-manga-chapter a').each((_, el) => {
-        const href = toAbsolute($(el).attr('href') || '', 'https://coffeemanga.net');
-        const date = $(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
-        if (href && !chapters.some(c => c.href === href)) {
-          chapters.push({ title: $(el).text().trim(), href, date });
-        }
-      });
-      return { title, cover, description, status, genres, chapters };
-    },
-
-    async getChapterImages(url) {
-      const html = await fetchHTML(url);
-      const $ = cheerio.load(html);
-      // WordPress manga uses .reading-content img with data-src lazy loading
-      const images = [];
-      $('.reading-content img, #chapter-content img').each((_, el) => {
-        const src = $(el).attr('data-src') || $(el).attr('src') || '';
-        if (src && isValidImageUrl(src) && isChapterImage(src) && !isThumbnailOrIcon(src)) {
-          images.push(src.trim());
-        }
-      });
-      const fallback = images.length === 0 ? strategy1_embeddedJSON($) : images;
-      return { images: fallback, source: 'coffeemanga' };
-    }
-  },
-
   // ── MANGAREAD ───────────────────────────────────────────────────────────────
   mangaread: {
     id: 'mangaread',

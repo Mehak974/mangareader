@@ -47,10 +47,9 @@ const SINGLE_MANGA_QUERY = `
 // Reading servers are exposed generically — provider brands are never shown to users.
 const AVAILABLE_SOURCES = [
   { id: "mangaread", name: "Server 1" },
-  { id: "coffeemanga", name: "Server 2" },
-  { id: "mangakatana", name: "Server 3" },
-  { id: "mangadex", name: "Server 4" },
-  { id: "manganato", name: "Server 5" }
+  { id: "mangakatana", name: "Server 2" },
+  { id: "mangadex", name: "Server 3" },
+  { id: "manganato", name: "Server 4" }
 ];
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
@@ -543,20 +542,7 @@ const [chPage, setChPage] = useState(1);
             </select>
           </div>
 
-          {sourceId === "coffeemanga" && (
-            <div style={{
-              margin: "12px 0",
-              padding: "12px 16px",
-              background: "rgba(234, 179, 8, 0.1)",
-              border: "1px solid rgba(234, 179, 8, 0.3)",
-              borderRadius: "8px",
-              color: "#eab308",
-              fontSize: "13px",
-              lineHeight: 1.5
-            }}>
-              Server 2 is temporarily down. We are really sorry for the inconvenience it caused. We will make it work as soon as possible.
-            </div>
-          )}
+
 
           <div className="detail-actions">
             {chapters.length > 0 ? (

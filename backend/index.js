@@ -306,7 +306,7 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     }
 
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
-    const sourceIds = isManga ? ['mangaread', 'manganato', 'mangakatana', 'mangadex'] : ['mangaread', 'manganato', 'coffeemanga', 'mangakatana', 'mangadex'];
+    const sourceIds = ['mangaread', 'manganato', 'mangakatana', 'mangadex'];
 
     let mappings = (await db.query('SELECT source_id,source_slug FROM source_mappings WHERE manga_id=$1', [mangaId])).rows;
     if (!mappings.length) {
@@ -546,7 +546,7 @@ app.post('/api/admin/home/sections/:key', requireAdmin, async (req, res) => {
 });
 
 async function performSearch(sourceId, query, origTitle) {
-  if (['coffeemanga', 'mangaread'].includes(sourceId)) {
+  if (sourceId === 'mangaread') {
     const base = SOURCE_SCRAPERS[sourceId].baseUrl;
     const searchUrl = `${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`;
     console.log(`[performSearch] Searching ${sourceId}: ${searchUrl}`);
@@ -641,22 +641,20 @@ async function searchSource(sourceId, title, mangaId = null) {
       }
     }
 
-    if (sourceId === 'mangaread' || sourceId === 'coffeemanga') {
+    if (sourceId === 'mangaread') {
       const topTitlesForDirect = allTitles.slice(0, 8);
       for (const t of topTitlesForDirect) {
         const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         if (!slug || slug.length < 2) continue;
 
-        const urlsToTry = sourceId === 'mangaread'
-          ? [
-              `https://www.mangaread.org/manga/${slug}/`,
-              `https://www.mangaread.org/manga/${slug}-manga/`,
-              `https://www.mangaread.org/manga/${slug}-manhua/`,
-              `https://www.mangaread.org/manga/${slug}-manhwa/`,
-              `https://mangaread.org/manga/${slug}/`,
-              `https://mangaread.org/manga/${slug}-manga/`,
-            ]
-          : [`https://coffeemanga.net/manga/${slug}/`];
+        const urlsToTry = [
+          `https://www.mangaread.org/manga/${slug}/`,
+          `https://www.mangaread.org/manga/${slug}-manga/`,
+          `https://www.mangaread.org/manga/${slug}-manhua/`,
+          `https://www.mangaread.org/manga/${slug}-manhwa/`,
+          `https://mangaread.org/manga/${slug}/`,
+          `https://mangaread.org/manga/${slug}-manga/`,
+        ];
 
         for (const directUrl of urlsToTry) {
           try {
@@ -707,7 +705,6 @@ async function searchSource(sourceId, title, mangaId = null) {
 
 function detectSource(url) {
   const h = new URL(url).hostname;
-  if (h === 'coffeemanga.net') return 'coffeemanga';
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
@@ -900,7 +897,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|coffeemanga\.net|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
