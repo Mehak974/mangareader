@@ -247,10 +247,28 @@ async function initDB() {
   }
 }
 
-// Automatically initialize database
-initDB();
+// Automatically initialize database (non-blocking)
+initDB().catch(err => {
+  console.error('Database initialization failed:', err.message);
+  console.error('Server will retry database connection on first request');
+});
+
+// Retry connection helper for serverless environments
+async function ensureConnection(retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await pool.query('SELECT 1');
+      return true;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  return false;
+}
 
 module.exports = {
   pool,
   query: (text, params) => pool.query(text, params),
+  ensureConnection,
 };
