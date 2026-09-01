@@ -993,9 +993,6 @@ const SOURCE_SCRAPERS = {
       } catch (err) {
         console.warn('[mangakatana] Consumet getMangaDetail failed, falling back to DOM:', err.message);
       }
-      } catch (err) {
-        console.warn('[mangakatana] Consumet getMangaDetail failed, falling back to DOM:', err.message);
-      }
 
       // Fallback to DOM scraping
       try {
