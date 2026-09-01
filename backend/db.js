@@ -20,6 +20,14 @@ async function initDB() {
     if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech') && !process.env.DATABASE_URL.includes('pgbouncer=true')) {
       console.warn('⚠️ WARNING: You are connecting to Neon DB without connection pooling (?pgbouncer=true). This will lead to connection exhaustion under load.');
     }
+    
+    // Test connection with timeout
+    await Promise.race([
+      pool.query('SELECT 1'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Database connection timeout')), 10000))
+    ]);
+    console.log('Database connection established');
+    
     // Create tables if they do not exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS manga (
@@ -247,10 +255,14 @@ async function initDB() {
   }
 }
 
-// Automatically initialize database (non-blocking)
-initDB().catch(err => {
+// Automatically initialize database (non-blocking, with timeout)
+const initDBPromise = Promise.race([
+  initDB(),
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Database initialization timeout after 15s')), 15000))
+]).catch(err => {
   console.error('Database initialization failed:', err.message);
   console.error('Server will retry database connection on first request');
+  return err;
 });
 
 // Retry connection helper for serverless environments
