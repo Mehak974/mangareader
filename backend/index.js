@@ -393,7 +393,10 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     }
     const mr = (await db.query('SELECT source_slug FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, helpers.san(sid, 50)])).rows;
     let url = mr.length ? mr[0].source_slug : null;
-    if (cached && (Date.now() - cachedTs) < cache.TTL.chapter_list * 1000 && cached.chapters?.length) return res.json({ data: { sourceId: sid, url, chapters: cached.chapters }, cached: true });
+    if (cached && (Date.now() - cachedTs) < cache.TTL.chapter_list * 1000 && cached.chapters?.length) {
+      res.setHeader('Cache-Control', 'public, max-age=43200'); // 12 hours
+      return res.json({ data: { sourceId: sid, url, chapters: cached.chapters }, cached: true });
+    }
     if (!url) {
       console.log(`[source-chapters] Searching for ${sid}: ${title}`);
       url = await searchSource(sid, title, mangaId);
@@ -410,6 +413,7 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
       await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
       await cache.set('chapter_list', redisKey, { source_id: sid, source_slug: url, chapters: d.chapters, fetched_at: ts, detail: null }, cache.TTL.chapter_list);
     }
+    res.setHeader('Cache-Control', 'public, max-age=43200'); // 12 hours
     res.json({ data: { sourceId: sid, url, chapters: d.chapters || [] } });
   } catch (err) { console.error('[source-chapters] error:', err); res.status(500).json({ error: err.message }); }
 });
@@ -496,11 +500,28 @@ app.get('/api/home/sections/:key', rateLimit(60000, 30), async (req, res) => {
   const { key } = req.params;
   try {
     const redisKey = `home_section:${key}`;
-    const cached = await cache.get('anilist_trending', redisKey);
-    if (cached) return res.json({ data: cached, cached: true });
+    
+    // Use different TTL based on section type
+    const isPermanentSection = key === 'readers_also_love' || key === 'popular_now';
+    const namespace = isPermanentSection ? 'readers_also_love' : 'anilist_trending';
+    
+    const cached = await cache.get(namespace, redisKey);
+    if (cached) {
+      res.setHeader('Cache-Control', isPermanentSection 
+        ? 'public, max-age=31536000, immutable' 
+        : 'public, max-age=3600');
+      return res.json({ data: cached, cached: true });
+    }
+    
     const result = await db.query('SELECT media, updated_at FROM home_sections WHERE section_key = $1', [key]);
     if (!result.rows.length) return res.status(404).json({ error: 'Section not found' });
-    await cache.set('anilist_trending', redisKey, result.rows[0].media, cache.TTL.anilist_trending);
+    
+    const ttl = isPermanentSection ? cache.TTL.readers_also_love : cache.TTL.anilist_trending;
+    await cache.set(namespace, redisKey, result.rows[0].media, ttl);
+    
+    res.setHeader('Cache-Control', isPermanentSection 
+      ? 'public, max-age=31536000, immutable' 
+      : 'public, max-age=3600');
     res.json({ data: result.rows[0].media, updated_at: result.rows[0].updated_at });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -715,6 +736,12 @@ function mapAnilistMedia(media) {
 app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res) => {
   const { key } = req.params;
   let query, variables;
+  
+  // Permanent sections (readers_also_love, popular_now) - cache forever
+  const isPermanentSection = key === 'readers_also_love' || key === 'popular_now';
+  const namespace = isPermanentSection ? 'readers_also_love' : 'anilist_trending';
+  const sectionTTL = isPermanentSection ? cache.TTL.readers_also_love : cache.TTL.anilist_trending;
+  
   switch (key) {
     case 'popular_now':
       query = ANILIST_MANGA_QUERY;
@@ -730,9 +757,9 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
   try {
     const cacheKey = `anilist_home:${key}:${JSON.stringify(variables)}`;
     const result = await cache.getOrFetch(
-      'anilist_trending',
+      namespace,
       cacheKey,
-      cache.TTL.anilist_trending,
+      sectionTTL,
       async () => {
         return anilistClient.callAniList(ANILIST_MANGA_QUERY, variables);
       }
@@ -743,11 +770,11 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
        ON CONFLICT (section_key) DO UPDATE SET media = EXCLUDED.media, updated_at = EXCLUDED.updated_at`,
       [key, JSON.stringify(media)]
     );
-    await cache.set('anilist_trending', `home_section:${key}`, media, cache.TTL.anilist_trending);
-    await setCached(`home_section:${key}`, media, cache.TTL.anilist_trending * 1000);
+    await cache.set(namespace, `home_section:${key}`, media, sectionTTL);
+    await setCached(`home_section:${key}`, media, sectionTTL * 1000);
     await cache.del('home');
     await cache.del('scraper_search', `home`);
-    res.json({ success: true, section_key: key, count: media.length, source: 'anilist' });
+    res.json({ success: true, section_key: key, count: media.length, source: 'anilist', cached_for: isPermanentSection ? '10 years' : '1 hour' });
   } catch (err) {
     if (err._anilistStatus) res.status(err._anilistStatus).json(err._anilistData || { error: err.message });
     else res.status(500).json({ error: err.message });
@@ -768,11 +795,15 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   if (!url || !helpers.isValidUrl(url)) return res.status(400).json({ error: 'valid url required' });
   const ck = `ch:${url}`;
   const c = await getCached(ck);
-  if (c) return res.json({ data: c, cached: true });
+  if (c) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.json({ data: c, cached: true });
+  }
 
   // Stale-while-revalidate: return stale cache while refreshing in background
   const stale = await cache.get('chapter_images', ck);
   if (stale) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     setImmediate(async () => {
       try { await fetchAndCacheChapterImages(url, sid, ck); } catch (_) {}
     });
@@ -781,6 +812,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
 
   try {
     const resp = await withTimeout(fetchAndCacheChapterImages(url, sid, ck), 25000, 'chapter-images');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.json({ data: resp, cached: false });
   } catch (err) {
     console.warn('[chapter/images] Timeout or error:', err.message);
@@ -854,7 +886,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|coffeemanga\.net|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|coffeemanga\.ink|coffeemanga\.net|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }

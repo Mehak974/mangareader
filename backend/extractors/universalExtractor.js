@@ -616,30 +616,55 @@ const SOURCE_SCRAPERS = {
     color: '#2980b9',
 
     async getHome() {
-      const html = await fetchHTML('https://www.mangaread.org/');
-      const $ = cheerio.load(html);
-      const results = [];
+      const urls = [
+        'https://www.mangaread.org/',
+        'https://mangaread.org/',
+        'https://www.mangaread.org/manga/',
+      ];
+      
+      for (const homeUrl of urls) {
+        try {
+          const html = await fetchHTML(homeUrl);
+          const $ = cheerio.load(html);
+          const results = [];
 
-      $('.page-item-detail, .manga-item').each((_, el) => {
-        const $el = $(el);
-        let $a = $el.find('.post-title a, h3 a, h4 a').first();
-        if (!$a.length) {
-          $a = $el.find('a[title]').first();
-        }
-        if (!$a.length) {
-          $a = $el.find('a').first();
-        }
-        const title = $a.attr('title') || $a.text().trim() || '';
-        const href = $a.attr('href') || '';
-        const cover = $el.find('img').attr('data-src') || $el.find('img').attr('src') || '';
-        const chapter = $el.find('.chapter a').first().text().trim() || '';
+          $('.page-item-detail, .manga-item, .latest_steamer, .swiper-slide, .col-md-3, .col-md-4, .col-lg-3').each((_, el) => {
+            const $el = $(el);
+            let $a = $el.find('.post-title a, h3 a, h4 a').first();
+            if (!$a.length) {
+              $a = $el.find('a[title]').first();
+            }
+            if (!$a.length) {
+              $a = $el.find('a').first();
+            }
+            const title = $a.attr('title') || $a.text().trim() || '';
+            const href = $a.attr('href') || '';
+            const cover = $el.find('img').attr('data-src') || $el.find('img').attr('src') || '';
+            const chapter = $el.find('.chapter a, .chapter-title').first().text().trim() || '';
 
-        if (title && href && href.includes('/manga/')) {
-          results.push({ title, href: toAbsolute(href, 'https://www.mangaread.org'), cover, chapter });
-        }
-      });
+            if (title && href && href.includes('/manga/')) {
+              results.push({ title, href: toAbsolute(href, 'https://www.mangaread.org'), cover, chapter });
+            }
+          });
 
-      return { section: 'Featured Updates', items: dedupByHref(results).slice(0, 12) };
+          if (results.length === 0) {
+            $('a[href*="/manga/"]').each((_, el) => {
+              const href = $(el).attr('href') || '';
+              const title = $(el).attr('title') || $(el).text().trim() || '';
+              if (title && href && href.includes('/manga/') && !results.some(r => r.href === toAbsolute(href, 'https://www.mangaread.org'))) {
+                results.push({ title, href: toAbsolute(href, 'https://www.mangaread.org'), cover: '', chapter: '' });
+              }
+            });
+          }
+
+          if (results.length > 0) {
+            return { section: 'Featured Updates', items: dedupByHref(results).slice(0, 12) };
+          }
+        } catch (err) {
+          console.warn(`[mangaread] getHome failed for ${homeUrl}:`, err.message);
+        }
+      }
+      return { section: 'Featured Updates', items: [] };
     },
 
     async getMangaDetail(url) {
@@ -651,42 +676,71 @@ const SOURCE_SCRAPERS = {
       let usedHeadless = false;
       let fallbackUsed = 'none';
 
-      // Step 1: Direct HTTP fetch with stealth headers
-      try {
-        console.log(`[mangaread] Attempting direct HTTP fetch: ${url}`);
-        html = await fetchHTML(url);
-        fallbackUsed = 'http';
-        console.log(`[mangaread] Direct HTTP fetch succeeded`);
-      } catch (httpErr) {
-        console.warn(`[mangaread] Direct HTTP fetch failed: ${httpErr.message}`);
+      // Try multiple URL patterns for better success rate
+      const urlsToTry = [
+        url,
+        url.replace('www.mangaread.org', 'mangaread.org'),
+        url.replace('mangaread.org', 'www.mangaread.org'),
+        url.replace(/\/$/, '') + '-manga/',
+        url.replace(/-manga\/$/, '/'),
+      ];
 
-        // Step 2: Try Jina AI reader (often works when direct fetch is blocked)
+      // Step 1: Direct HTTP fetch with stealth headers (try multiple URLs)
+      for (const tryUrl of urlsToTry) {
         try {
-          console.log(`[mangaread] Attempting Jina AI fallback: ${url}`);
-          const markdown = await fetchWithJinaAI(url);
-          html = markdownToHtml(markdown);
-          usedHeadless = true;
-          fallbackUsed = 'jina';
-          console.log(`[mangaread] Jina AI fallback succeeded`);
-        } catch (jinaErr) {
-          console.warn(`[mangaread] Jina AI fallback failed: ${jinaErr.message}`);
+          console.log(`[mangaread] Attempting direct HTTP fetch: ${tryUrl}`);
+          html = await fetchHTML(tryUrl);
+          if (html && html.length > 500) {
+            url = tryUrl;
+            fallbackUsed = 'http';
+            console.log(`[mangaread] Direct HTTP fetch succeeded`);
+            break;
+          }
+        } catch (httpErr) {
+          console.warn(`[mangaread] Direct HTTP fetch failed for ${tryUrl}: ${httpErr.message}`);
+        }
+      }
 
-          // Step 3: Last resort - headless browser (may fail on servers without Chrome)
+      // Step 2: Try Jina AI reader if HTTP failed
+      if (!html || html.length <= 500) {
+        for (const tryUrl of urlsToTry.slice(0, 3)) {
           try {
-            console.log(`[mangaread] Attempting headless browser fallback: ${url}`);
-            html = await fetchWithPuppeteer(url);
+            console.log(`[mangaread] Attempting Jina AI fallback: ${tryUrl}`);
+            const markdown = await fetchWithJinaAI(tryUrl);
+            html = markdownToHtml(markdown);
             usedHeadless = true;
-            fallbackUsed = 'puppeteer';
-            console.log(`[mangaread] Headless browser fallback succeeded`);
-          } catch (ppErr) {
-            console.error(`[mangaread] All fetch methods failed for ${url}`);
-            console.error(`[mangaread] HTTP: ${httpErr.message}`);
-            console.error(`[mangaread] JinaAI: ${jinaErr.message}`);
-            console.error(`[mangaread] Puppeteer: ${ppErr.message}`);
-            return { title: '', cover: '', description: '', status: '', genres: [], chapters: [] };
+            fallbackUsed = 'jina';
+            url = tryUrl;
+            console.log(`[mangaread] Jina AI fallback succeeded`);
+            break;
+          } catch (jinaErr) {
+            console.warn(`[mangaread] Jina AI fallback failed for ${tryUrl}: ${jinaErr.message}`);
           }
         }
       }
+
+      // Step 3: Last resort - headless browser
+      if (!html || html.length <= 500) {
+        for (const tryUrl of urlsToTry.slice(0, 2)) {
+          try {
+            console.log(`[mangaread] Attempting headless browser fallback: ${tryUrl}`);
+            html = await fetchWithPuppeteer(tryUrl);
+            usedHeadless = true;
+            fallbackUsed = 'puppeteer';
+            url = tryUrl;
+            console.log(`[mangaread] Headless browser fallback succeeded`);
+            break;
+          } catch (ppErr) {
+            console.warn(`[mangaread] Headless browser fallback failed for ${tryUrl}: ${ppErr.message}`);
+          }
+        }
+      }
+
+      if (!html || html.length <= 500) {
+        console.error(`[mangaread] All fetch methods failed for ${url}`);
+        return { title: '', cover: '', description: '', status: '', genres: [], chapters: [] };
+      }
+
       const $ = cheerio.load(html);
 
       const title = $('h1.post-title, .manga-title, h1').first().text().trim();
@@ -696,7 +750,7 @@ const SOURCE_SCRAPERS = {
       const genres = [];
       $('.genres-content a').each((_, el) => genres.push($(el).text().trim()));
 
-      // Try static HTML chapters first (sometimes available on cached pages)
+      // Try static HTML chapters first
       let chapters = [];
       $('li.wp-manga-chapter a').each((_, el) => {
         const href = $(el).attr('href') || '';
@@ -707,42 +761,47 @@ const SOURCE_SCRAPERS = {
         }
       });
 
-      // MangaRead serves the full chapter list directly in the page HTML.
-      // Parse chapters from static markup. If none are found, fall back to
-      // the dedicated chapter-list endpoint used by newer Madara versions.
-      {
-        // Extract the numeric post ID from the page (data-id attribute on .rating-post-id or similar)
+      // Try AJAX chapter endpoint if no chapters found
+      if (chapters.length === 0) {
         const mangaId = $('[id^="manga-chapters-holder"]').attr('data-id') ||
           $('input#manga-chapters-holder').attr('data-id') ||
           $('div#manga-chapters-holder').attr('data-id') ||
           $('script:contains("manga_id")').html()?.match(/"manga_id"\s*:\s*"?(\d+)"?/)?.[1] ||
           $('body').attr('class')?.match(/postid-(\d+)/)?.[1];
 
-        if (chapters.length === 0 && mangaId) {
-          try {
-            const chapterListRes = await http.post(
-              `${url.replace(/\/$/, '')}/ajax/load_chapters/`,
-              new URLSearchParams({ action: 'manga_get_chapters' }).toString(),
-              {
-                headers: {
-                  ...getBrowserHeaders(),
-                  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                  'X-Requested-With': 'XMLHttpRequest',
-                  'Referer': url,
-                },
-                timeout: 20000,
-              }
-            );
-            const $ajax = cheerio.load(chapterListRes.data);
-            $ajax('li.wp-manga-chapter a').each((_, el) => {
-              const href = $ajax(el).attr('href') || '';
-              const chTitle = $ajax(el).text().trim();
-              const date = $ajax(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
-              if (href && !chapters.some(c => c.href === href)) {
-                chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
-              }
-            });
-          } catch (_) { }
+        if (mangaId) {
+          const ajaxUrls = [
+            `${url.replace(/\/$/, '')}/ajax/load_chapters/`,
+            `https://www.mangaread.org${url.replace('https://www.mangaread.org', '').replace('https://mangaread.org', '')}ajax/load_chapters/`,
+          ];
+
+          for (const ajaxUrl of ajaxUrls) {
+            try {
+              const chapterListRes = await http.post(
+                ajaxUrl,
+                new URLSearchParams({ action: 'manga_get_chapters' }).toString(),
+                {
+                  headers: {
+                    ...getBrowserHeaders(),
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': url,
+                  },
+                  timeout: 20000,
+                }
+              );
+              const $ajax = cheerio.load(chapterListRes.data);
+              $ajax('li.wp-manga-chapter a').each((_, el) => {
+                const href = $ajax(el).attr('href') || '';
+                const chTitle = $ajax(el).text().trim();
+                const date = $ajax(el).closest('li.wp-manga-chapter').find('.chapter-release-date').text().trim();
+                if (href && !chapters.some(c => c.href === href)) {
+                  chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.mangaread.org'), date: date || null });
+                }
+              });
+              if (chapters.length > 0) break;
+            } catch (_) { }
+          }
         }
       }
 
@@ -764,22 +823,37 @@ const SOURCE_SCRAPERS = {
     },
 
     async getChapterImages(url) {
-      const html = await fetchHTML(url);
-      const $ = cheerio.load(html);
+      const urlsToTry = [
+        url,
+        url.replace('www.mangaread.org', 'mangaread.org'),
+        url.replace('mangaread.org', 'www.mangaread.org'),
+      ];
 
-      const jsonImages = strategy1_embeddedJSON($);
-      if (jsonImages.length >= 3) {
-        return { images: jsonImages, source: 'mangaread' };
-      }
+      for (const tryUrl of urlsToTry) {
+        try {
+          const html = await fetchHTML(tryUrl);
+          const $ = cheerio.load(html);
 
-      const images = [];
-      $('.reading-content img, #chapter-content img').each((_, el) => {
-        const src = $(el).attr('data-src') || $(el).attr('src') || '';
-        if (src && isValidImageUrl(src) && isChapterImage(src) && !isThumbnailOrIcon(src)) {
-          images.push(src.trim());
+          const jsonImages = strategy1_embeddedJSON($);
+          if (jsonImages.length >= 3) {
+            return { images: jsonImages, source: 'mangaread' };
+          }
+
+          const images = [];
+          $('.reading-content img, #chapter-content img, .chapter-type-manga .reading-content img').each((_, el) => {
+            const src = $(el).attr('data-src') || $(el).attr('src') || '';
+            if (src && isValidImageUrl(src) && isChapterImage(src) && !isThumbnailOrIcon(src)) {
+              images.push(src.trim());
+            }
+          });
+          
+          if (images.length >= 3) return { images, source: 'mangaread' };
+          if (images.length > 0) return { images: images.length >= 1 ? images : jsonImages, source: 'mangaread' };
+        } catch (err) {
+          console.warn(`[mangaread] getChapterImages failed for ${tryUrl}:`, err.message);
         }
-      });
-      return { images: images.length >= 3 ? images : jsonImages, source: 'mangaread' };
+      }
+      return { images: [], source: 'mangaread' };
     }
   },
 
@@ -881,22 +955,73 @@ const SOURCE_SCRAPERS = {
     name: 'MangaKatana',
     baseUrl: 'https://mangakatana.com',
     color: '#c0392b',
+    consumetProvider: 'mangakatana',
 
     async getHome() {
-      const html = await fetchHTML('https://mangakatana.com/');
-      const $ = cheerio.load(html);
-      const items = [];
-      $('.item').each((_, el) => {
-        const title = $(el).find('.title a').text().trim();
-        const href = $(el).find('.title a').attr('href') || '';
-        const cover = $(el).find('.img img').attr('src') || '';
-        const chapter = $(el).find('.chapter a').text().trim();
-        if (title && href) items.push({ title, href: toAbsolute(href, 'https://mangakatana.com'), cover, chapter });
-      });
-      return { section: 'Latest Updates', items };
+      // Use Consumet API for home page
+      try {
+        const res = await http.get('https://api.consumet.org/manga/mangakatana/popular', { timeout: 10000 });
+        const data = res.data;
+        if (data?.results) {
+          const items = data.results.map(item => ({
+            title: item.title || '',
+            href: item.id ? `https://mangakatana.com/manga/${item.id}` : '',
+            cover: item.image || '',
+            chapter: ''
+          })).filter(i => i.title && i.href);
+          return { section: 'Latest Updates', items: items.slice(0, 12) };
+        }
+      } catch (err) {
+        console.warn('[mangakatana] Consumet getHome failed, falling back to DOM:', err.message);
+      }
+      // Fallback to DOM scraping
+      try {
+        const html = await fetchHTML('https://mangakatana.com/');
+        const $ = cheerio.load(html);
+        const items = [];
+        $('.item').each((_, el) => {
+          const title = $(el).find('.title a').text().trim();
+          const href = $(el).find('.title a').attr('href') || '';
+          const cover = $(el).find('.img img').attr('src') || '';
+          const chapter = $(el).find('.chapter a').text().trim();
+          if (title && href) items.push({ title, href: toAbsolute(href, 'https://mangakatana.com'), cover, chapter });
+        });
+        return { section: 'Latest Updates', items };
+      } catch (err) {
+        console.warn('[mangakatana] DOM getHome failed:', err.message);
+        return { section: 'Latest Updates', items: [] };
+      }
     },
 
     async getMangaDetail(url) {
+      // Extract manga ID from URL
+      const urlParts = url.split('/').filter(Boolean);
+      const mangaId = urlParts[urlParts.length - 1];
+
+      // Try Consumet API first
+      try {
+        const res = await http.get(`https://api.consumet.org/manga/mangakatana/${encodeURIComponent(mangaId)}`, { timeout: 10000 });
+        const data = res.data;
+        if (data?.id) {
+          const chapters = (data.chapters || []).map(ch => ({
+            title: ch.title || `Chapter ${ch.chapterNumber}`,
+            href: ch.id ? `https://mangakatana.com/${ch.id}` : '',
+            date: ch.releaseDate || null
+          })).filter(c => c.href);
+          return {
+            title: data.title || '',
+            cover: data.image || data.cover || '',
+            description: data.description?.trim() || '',
+            status: data.status || '',
+            genres: data.genres || [],
+            chapters
+          };
+        }
+      } catch (err) {
+        console.warn('[mangakatana] Consumet getMangaDetail failed, falling back to DOM:', err.message);
+      }
+
+      // Fallback to DOM scraping
       try {
         const html = await fetchHTML(url);
         const $ = cheerio.load(html);
@@ -912,25 +1037,35 @@ const SOURCE_SCRAPERS = {
         });
         return { title, cover, description, status, genres: [], chapters };
       } catch (err) {
-        console.warn('[mangakatana] getMangaDetail failed:', err.message);
+        console.warn('[mangakatana] DOM getMangaDetail failed:', err.message);
         return { title: 'MangaKatana Title', cover: '', description: '', status: '', genres: [], chapters: [] };
       }
     },
 
     async getChapterImages(url) {
+      // Extract chapter ID from URL for Consumet API
+      const urlParts = url.split('/').filter(Boolean);
+      const chapterId = urlParts.slice(-2).join('/'); // mangaId/chapterId format
+
+      // Try Consumet API first
+      try {
+        const res = await http.get(`https://api.consumet.org/manga/mangakatana/read/${encodeURIComponent(chapterId)}`, { timeout: 10000 });
+        const data = res.data;
+        if (data?.images?.length > 0) {
+          const images = data.images
+            .map(img => typeof img === 'string' ? img : img.img || img.url || '')
+            .filter(src => isValidImageUrl(src));
+          if (images.length > 0) return { images, source: 'mangakatana' };
+        }
+      } catch (err) {
+        console.warn('[mangakatana] Consumet getChapterImages failed, falling back to DOM:', err.message);
+      }
+
+      // Fallback to DOM scraping with image decoder
       try {
         const html = await fetchHTML(url);
         const $ = cheerio.load(html);
 
-        // ── MangaKatana-specific image decoder ────────────────────────────────
-        // Images are stored in named JS arrays (thzq = full chapter, ytaw = 1 cover).
-        // We scan ALL arrays and keep the LARGEST (= full chapter).
-        // Then apply the same hostname-remapping pipeline as chapter.min.js:
-        //   rv46(s) = atob( s.split('').reverse().join('') )
-        //   kc1 JSON → global host alias map  {"i7":"i.supernova22.click"}
-        //   i1 → i6 (idx%3===0) / i1 → i5 (others)
-        //   kc2.m JSON → per-page-range CDN {"azlegends.shop":["i6",2,5]}
-        // ──────────────────────────────────────────────────────────────────────
         const rv46 = (s) =>
           Buffer.from(s.split('').reverse().join(''), 'base64').toString('utf-8');
 
@@ -947,7 +1082,6 @@ const SOURCE_SCRAPERS = {
           const kc2M = text.match(/var\s+kc2\s*=\s*['"]([^'"]+)['"]/);
           if (kc2M) kc2Raw = kc2M[1];
 
-          // Find every JS array; keep the largest image-URL array
           const arrRe = /var\s+\w+\s*=\s*\[([^\]]+)\]/g;
           let m;
           while ((m = arrRe.exec(text)) !== null) {
@@ -965,13 +1099,10 @@ const SOURCE_SCRAPERS = {
 
           const decoded = thzq.map((raw, i) => {
             let u = raw;
-            // Step 1: rotate i1 host
             u = i % 3 === 0 ? u.replace('://i1.', '://i6.') : u.replace('://i1.', '://i5.');
-            // Step 2: kc1 global host aliases
             for (const [alias, actual] of Object.entries(hostMap)) {
               u = u.replace('//' + alias + '.mangakatana.com', '//' + actual);
             }
-            // Step 3: kc2 per-page CDN remaps (1-indexed)
             const pageNum = i + 1;
             for (const [cdnHost, entry] of Object.entries(rangeMap)) {
               if (!Array.isArray(entry) || entry.length < 3) continue;
@@ -1004,14 +1135,29 @@ const SOURCE_SCRAPERS = {
     name: 'MangaKakalot',
     baseUrl: 'https://www.manganato.gg',
     color: '#27ae60',
+    // Multiple domain aliases for failover
+    domainAliases: ['https://www.manganato.gg', 'https://manganato.gg', 'https://mangakakalot.gg', 'https://www.mangakakalot.gg'],
+
+    async fetchWithFallback(urls, options = {}) {
+      for (const url of urls) {
+        try {
+          const html = await fetchHTML(url, options);
+          if (html && html.length > 100) return html;
+        } catch (err) {
+          console.warn(`[manganato] Fetch failed for ${url}:`, err.message);
+        }
+      }
+      throw new Error('All fetch attempts failed');
+    },
 
     async getHome() {
+      const homeUrls = this.domainAliases.map(base => `${base}/`);
       try {
-        const html = await fetchHTML('https://www.manganato.gg/');
+        const html = await this.fetchWithFallback(homeUrls);
         const $ = cheerio.load(html);
         const items = [];
 
-        $('.update_item, .xem-nhieu-item, .owl-item').each((_, el) => {
+        $('.update_item, .xem-nhieu-item, .owl-item, .list-truyen-item, .content-genres-item, .book-face-img').each((_, el) => {
           const $el = $(el);
           const $a = $el.find('a[href*="/manga/"]').first();
           if (!$a.length) return;
@@ -1024,6 +1170,16 @@ const SOURCE_SCRAPERS = {
           }
         });
 
+        if (items.length === 0) {
+          $('a[href*="/manga/"]').each((_, el) => {
+            const href = $(el).attr('href') || '';
+            const title = $(el).attr('title') || $(el).text().trim() || '';
+            if (title && href && href.includes('/manga/') && !items.some(i => i.href === toAbsolute(href, 'https://www.manganato.gg'))) {
+              items.push({ title, href: toAbsolute(href, 'https://www.manganato.gg'), cover: '', chapter: '' });
+            }
+          });
+        }
+
         return { section: 'Latest Updates', items: dedupByHref(items).slice(0, 12) };
       } catch (err) {
         console.warn('[manganato] getHome failed:', err.message);
@@ -1032,52 +1188,96 @@ const SOURCE_SCRAPERS = {
     },
 
     async getMangaDetail(url) {
+      // Normalize URL to extract slug
+      const slugMatch = url.match(/\/manga\/([^\/\?]+)/);
+      const slug = slugMatch ? slugMatch[1] : url.split('/').filter(Boolean).pop();
+      if (!slug) return { title: '', cover: '', description: '', status: '', genres: [], chapters: [] };
+
+      // Try multiple domain aliases
+      const pageUrls = this.domainAliases.map(base => `${base}/manga/${slug}`);
+      const apiUrls = this.domainAliases.map(base => `${base}/api/manga/${slug}/chapters?limit=50&offset=0`);
+      const altApiUrls = this.domainAliases.map(base => `${base}/api/manga/${slug}/chapters`);
+
       try {
-        const html = await fetchHTML(url);
+        const html = await this.fetchWithFallback(pageUrls);
         const $ = cheerio.load(html);
-        const title = $('h1').first().text().trim();
-        const cover = $('.summary_image img, .manga-info-pic img, .cover img').first().attr('data-src') || 
-                      $('.summary_image img, .manga-info-pic img, .cover img').first().attr('src') || '';
-        const description = $('.summary__content p, .description p, .entry-content p').first().text().trim() || 
-                           $('.summary__content, .description').first().text().trim();
-        const status = $('.post-status .summary-content, .status, .manga-status').last().text().trim() || '';
+        const title = $('h1').first().text().trim() || $('h2, .manga-info-top .entry-title, .story-info-right h1').first().text().trim();
+        const cover = $('.summary_image img, .manga-info-pic img, .cover img, .info-image img, .manga-info-top img').first().attr('data-src') || 
+                      $('.summary_image img, .manga-info-pic img, .cover img, .info-image img, .manga-info-top img').first().attr('src') || '';
+        const description = $('.summary__content p, .description p, .entry-content p, .manga-info-top .variations-tableInfo td').first().text().trim() || 
+                           $('.summary__content, .description, #noidungm').first().text().trim();
+        const status = $('.post-status .summary-content, .status, .manga-status, .manga-info-text li').last().text().trim() || '';
         const genres = [];
-        $('.genres-content a, .genre a, .mgen a').each((_, el) => genres.push($(el).text().trim()));
+        $('.genres-content a, .genre a, .mgen a, .manga-info-text a[href*="/genre/"]').each((_, el) => genres.push($(el).text().trim()));
         
         const chapters = [];
-        try {
-          const slug = url.replace('https://www.manganato.gg/manga/', '').replace(/\/$/, '');
-          let offset = 0;
-          const limit = 50;
-          let hasMore = true;
-          
-          while (hasMore) {
-            const apiUrl = `https://www.manganato.gg/api/manga/${slug}/chapters?limit=${limit}&offset=${offset}`;
+        let apiSucceeded = false;
+
+        // Try multiple API endpoints
+        const allApiUrls = [...apiUrls, ...altApiUrls, 
+          `https://chap.manganato.com/api/manga/${slug}/chapters?limit=50&offset=0`,
+          `https://www.manganato.gg/api/manga/${slug}/chapters?limit=100&offset=0`
+        ];
+
+        for (const apiUrl of allApiUrls) {
+          try {
             const apiRes = await fetchHTML(apiUrl, {
               'Accept': 'application/json, text/javascript, */*; q=0.01',
-              'X-Requested-With': 'XMLHttpRequest'
+              'X-Requested-With': 'XMLHttpRequest',
+              'Referer': `https://www.manganato.gg/manga/${slug}`
             });
             const apiData = typeof apiRes === 'string' ? JSON.parse(apiRes) : apiRes;
-            if (apiData.success && apiData.data?.chapters) {
-              for (const ch of apiData.data.chapters) {
-                chapters.push({
-                  title: ch.chapter_name,
-                  href: `https://www.manganato.gg/manga/${slug}/${ch.chapter_slug}`,
-                  date: ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).replace(',', '') : null
-                });
+            
+            if (apiData?.success && apiData.data?.chapters) {
+              let allChapters = [...apiData.data.chapters];
+              let offset = 50;
+              let hasMore = apiData.data.pagination?.has_more === true;
+              
+              while (hasMore && offset < 1000) {
+                const nextUrl = apiUrl.replace(/offset=\d+/, `offset=${offset}`);
+                try {
+                  const nextRes = await fetchHTML(nextUrl, {
+                    'Accept': 'application/json, text/javascript, */*; q=0.01',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': `https://www.manganato.gg/manga/${slug}`
+                  });
+                  const nextData = typeof nextRes === 'string' ? JSON.parse(nextRes) : nextRes;
+                  if (nextData?.success && nextData.data?.chapters?.length) {
+                    allChapters.push(...nextData.data.chapters);
+                    hasMore = nextData.data.pagination?.has_more === true;
+                    offset += 50;
+                  } else {
+                    hasMore = false;
+                  }
+                } catch {
+                  hasMore = false;
+                }
               }
-              hasMore = apiData.data.pagination?.has_more === true;
-              offset += limit;
-            } else {
-              hasMore = false;
+
+              for (const ch of allChapters) {
+                if (ch.chapter_slug || ch.slug) {
+                  const chapterSlug = ch.chapter_slug || ch.slug;
+                  chapters.push({
+                    title: ch.chapter_name || ch.name || `Chapter ${ch.chapter || ch.chapterNumber}`,
+                    href: `https://www.manganato.gg/manga/${slug}/${chapterSlug}`,
+                    date: ch.updated_at || ch.created_at ? new Date(ch.updated_at || ch.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).replace(',', '') : null
+                  });
+                }
+              }
+              apiSucceeded = true;
+              break;
             }
+          } catch (apiErr) {
+            console.warn(`[manganato] API ${apiUrl} failed:`, apiErr.message);
           }
-        } catch (apiErr) {
-          console.warn('[manganato] API chapter fetch failed, falling back to DOM:', apiErr.message);
-          $('a[href*="chapter-"]').each((_, el) => {
+        }
+
+        if (!apiSucceeded) {
+          console.warn('[manganato] All API attempts failed, falling back to DOM scraping');
+          $('a[href*="chapter-"], .chapter-name, .chapter-list a, .row-chapter a').each((_, el) => {
             const href = $(el).attr('href') || '';
             const chTitle = $(el).text().replace(/\s+/g, ' ').trim();
-            if (href && href.includes('/manga/') && chTitle && !chapters.some(c => c.href === href)) {
+            if (href && (href.includes('/manga/') || href.includes('/chapter/')) && chTitle && !chapters.some(c => c.href === href)) {
               chapters.push({ title: chTitle, href: toAbsolute(href, 'https://www.manganato.gg') });
             }
           });
@@ -1091,8 +1291,14 @@ const SOURCE_SCRAPERS = {
     },
 
     async getChapterImages(url) {
+      // Normalize chapter URL to extract path
+      const pathMatch = url.match(/\/(manga|chapter)\/([^\/\?]+(?:\/[^\/\?]+)?)/);
+      const chapterPath = pathMatch ? pathMatch[2] : url.split('/').filter(Boolean).slice(-2).join('/');
+
+      const pageUrls = this.domainAliases.map(base => `${base}/${url.includes('/chapter/') ? 'chapter' : 'manga'}/${chapterPath}`);
+
       try {
-        const html = await fetchHTML(url);
+        const html = await this.fetchWithFallback(pageUrls);
         const $ = cheerio.load(html);
         
         // Method 1: Parse window.chapterImages from inline script
@@ -1111,19 +1317,49 @@ const SOURCE_SCRAPERS = {
             console.log('[manganato] Failed to parse chapterImages JSON');
           }
         }
+
+        // Method 1b: Parse chapterData or similar global vars
+        const chapterDataMatch = html.match(/var\s+chapterData\s*=\s*(\{.*?\});/s) || html.match(/chapterData\s*=\s*(\{.*?\});/s);
+        if (chapterDataMatch) {
+          try {
+            const data = JSON.parse(chapterDataMatch[1]);
+            const images = (data.images || data.imgs || []).map(img => {
+              const cdn = data.cdn || data.cdns?.[0] || 'https://img-r1.2xstorage.com/';
+              return cdn + String(img).replace(/^\/+/, '');
+            }).filter(isValidImageUrl);
+            if (images.length > 0) return { images, source: 'manganato' };
+          } catch (e) {
+            console.log('[manganato] Failed to parse chapterData');
+          }
+        }
+
+        // Method 2: Parse all image URLs from script tags (common pattern)
+        const imgUrls = [];
+        $('script').each((_, el) => {
+          const text = $(el).html() || '';
+          const urls = text.match(/https?:\/\/[^'"]+\.(?:jpg|jpeg|png|webp)[^'"\s,)]*/gi);
+          if (urls) {
+            urls.forEach(u => {
+              if (u.includes('chapter') || u.includes('manga') || u.includes('storage') || u.includes('cdn')) {
+                imgUrls.push(u);
+              }
+            });
+          }
+        });
+        if (imgUrls.length > 0) return { images: [...new Set(imgUrls)], source: 'manganato' };
         
-        // Method 2: Fallback to container-chapter-reader
+        // Method 3: Fallback to container-chapter-reader
         const images = [];
-        $('.container-chapter-reader img').each((_, el) => {
+        $('.container-chapter-reader img, .reading-content img, .vung-doc img, .vung-doc img').each((_, el) => {
           const src = $(el).attr('data-src') || $(el).attr('src') || '';
           if (src && isValidImageUrl(src)) images.push(src.trim());
         });
         
-        // Method 3: Any img with chapter paths
+        // Method 4: Any img with chapter paths
         if (images.length === 0) {
           $('img').each((_, el) => {
             const src = $(el).attr('data-src') || $(el).attr('src') || '';
-            if (src && /\/manga\/|\/chapter\/|\/uploads\//.test(src) && isValidImageUrl(src)) {
+            if (src && /\/manga\/|\/chapter\/|\/uploads\/|storage|cdn/i.test(src) && isValidImageUrl(src)) {
               images.push(src.trim());
             }
           });
