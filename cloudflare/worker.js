@@ -42,6 +42,7 @@ async function cacheGet(key) {
   try { return await r.json(); } catch { return null; }
 }
 async function cachePut(ctx, key, data, ttlSec) {
+  const ttl = Math.min(ttlSec, 300);
   ctx.waitUntil(
     caches.default.put(
       new Request(`https://cache.internal/${key}`),
@@ -50,6 +51,7 @@ async function cachePut(ctx, key, data, ttlSec) {
           'Content-Type': 'application/json',
           'Cache-Control': `public, max-age=${ttlSec}`,
         },
+        cf: { cacheEverything: true, cacheTtl: ttl },
       })
     )
   );
@@ -63,10 +65,13 @@ const CORS = {
 };
 
 function json(data, status = 200, extra = {}) {
-  return new Response(JSON.stringify(data), {
+  const { cf, ...headerExtras } = extra;
+  const init = {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS, ...extra },
-  });
+    headers: { 'Content-Type': 'application/json', ...CORS, ...headerExtras },
+  };
+  if (cf) init.cf = cf;
+  return new Response(JSON.stringify(data), init);
 }
 
 const UAS = [
@@ -146,6 +151,7 @@ async function imgProxy(req, ctx) {
   if (hit) {
     return new Response(hit.body, {
       headers: { ...Object.fromEntries(hit.headers), 'X-Cache': 'HIT', ...CORS },
+      cf: { cacheEverything: true, cacheTtl: 31536000 },
     });
   }
 
@@ -172,6 +178,7 @@ async function imgProxy(req, ctx) {
       'X-Cache':       'MISS',
       ...CORS,
     },
+    cf: { cacheEverything: true, cacheTtl: 31536000 },
   });
 
   ctx.waitUntil(caches.default.put(cacheKey, toCache.clone()));
@@ -187,13 +194,13 @@ async function anilist(req, ctx) {
 
   // L1 memory check (instant, zero cost)
   const mem = memGet(ck);
-  if (mem) return json(mem, 200, { 'X-Cache': 'MEM' });
+  if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 3600 } });
 
   // L2 Cache API check (free CDN)
   const cacheHit = await cacheGet(ck);
   if (cacheHit) {
-    memSet(ck, cacheHit, 3600); // backfill memory for next requests
-    return json(cacheHit, 200, { 'X-Cache': 'CDN' });
+    memSet(ck, cacheHit, 300); // backfill memory for next requests
+    return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 86400 } });
   }
 
   // Origin fetch
@@ -208,7 +215,7 @@ async function anilist(req, ctx) {
   const ttl = 86400; // 24h — AniList data barely changes
   memSet(ck, data, 3600);
   cachePut(ctx, ck, data, ttl); // async, non-blocking
-  return json(data, 200, { 'X-Cache': 'MISS' });
+  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } });
 }
 
 // ─── MangaDex (official API) ──────────────────────────────────────────────────
@@ -219,12 +226,12 @@ async function mangadex(req, ctx) {
   const ck = 'md:' + btoa(target).slice(0, 150);
 
   const mem = memGet(ck);
-  if (mem) return json(mem, 200, { 'X-Cache': 'MEM' });
+  if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } });
 
   const cacheHit = await cacheGet(ck);
   if (cacheHit) {
     memSet(ck, cacheHit, 300);
-    return json(cacheHit, 200, { 'X-Cache': 'CDN' });
+    return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 3600 } });
   }
 
   const r = await fetch(target, {
@@ -236,7 +243,7 @@ async function mangadex(req, ctx) {
   const ttl = path.includes('/feed') ? 600 : 3600; // feed: 10min, rest: 1h
   memSet(ck, data, Math.min(ttl, 300));
   cachePut(ctx, ck, data, ttl);
-  return json(data, 200, { 'X-Cache': 'MISS' });
+  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } });
 }
 
 // ─── Generic scraper (Manganato, MangaKatana, MangaRead) ─────────────────────
@@ -247,12 +254,12 @@ async function scraped(req, ctx, source, siteReferer) {
   const ck = `${source}:${btoa(target).slice(0, 150)}`;
 
   const mem = memGet(ck);
-  if (mem) return json(mem, 200, { 'X-Cache': 'MEM' });
+  if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } });
 
   const cacheHit = await cacheGet(ck);
   if (cacheHit) {
     memSet(ck, cacheHit, 300);
-    return json(cacheHit, 200, { 'X-Cache': 'CDN' });
+    return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } });
   }
 
   const r = await fetch(target, {
@@ -276,5 +283,5 @@ async function scraped(req, ctx, source, siteReferer) {
 
   memSet(ck, data, 300); // 5min in memory
   cachePut(ctx, ck, data, ttl); // 30min in CDN cache
-  return json(data, 200, { 'X-Cache': 'MISS' });
+  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } });
 }
