@@ -1109,9 +1109,11 @@ const SOURCE_SCRAPERS = {
           if (decoded.length > 0) return { images: decoded, source: 'mangakatana' };
         }
 
-        // Generic fallback
+        // Generic fallback — require at least 3 real images to avoid returning
+        // fake/placeholder/error images that slip through DOM scraping.
         let images = strategy1_embeddedJSON($);
         if (images.length === 0) images = strategy3_domSelectors($);
+        if (images.length < 3) return { images: [], source: 'mangakatana', error: 'No valid chapter images found in fallback' };
         return { images, source: 'mangakatana' };
 
       } catch (err) {
@@ -1376,8 +1378,7 @@ function isValidImageUrl(url) {
   // Must be http/https and a known image extension, OR a CDN-style URL
   // Reject SVGs (mostly icons) and data URIs
   if (clean.startsWith('data:') || /\.svg(\?|$)/i.test(clean)) return false;
-  return /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(clean) ||
-    (clean.startsWith('https://') && clean.length > 30 && !clean.includes(' ') && !clean.includes('.svg'));
+  return /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(clean);
 }
 
 function toAbsolute(href, base) {

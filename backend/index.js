@@ -642,45 +642,61 @@ async function searchSource(sourceId, title, mangaId = null) {
     }
 
     if (sourceId === 'mangaread') {
-      const topTitlesForDirect = allTitles.slice(0, 8);
-      for (const t of topTitlesForDirect) {
-        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        if (!slug || slug.length < 2) continue;
+      const topTitlesForDirect = allTitles.slice(0, 3);
+      const directAttempt = await Promise.race([
+        (async () => {
+          for (const t of topTitlesForDirect) {
+            const slug = t.toLowerCase().replace(/['']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            if (!slug || slug.length < 2) continue;
 
-        const urlsToTry = [
-          `https://www.mangaread.org/manga/${slug}/`,
-          `https://www.mangaread.org/manga/${slug}-manga/`,
-          `https://www.mangaread.org/manga/${slug}-manhua/`,
-          `https://www.mangaread.org/manga/${slug}-manhwa/`,
-          `https://mangaread.org/manga/${slug}/`,
-          `https://mangaread.org/manga/${slug}-manga/`,
-        ];
+            const urlsToTry = [
+              `https://www.mangaread.org/manga/${slug}/`,
+              `https://www.mangaread.org/manga/${slug}-manga/`,
+              `https://www.mangaread.org/manga/${slug}-manhua/`,
+              `https://www.mangaread.org/manga/${slug}-manhwa/`,
+              `https://mangaread.org/manga/${slug}/`,
+              `https://mangaread.org/manga/${slug}-manga/`,
+            ];
 
-        for (const directUrl of urlsToTry) {
-          try {
-            const res = await http.get(directUrl, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
-            if (res.status === 200 && (res.data.includes('post-title') || res.data.includes('manga-title') || res.data.includes('wp-manga'))) {
-              result = directUrl;
-              console.log(`[searchSource] Direct URL match for mangaread: ${directUrl}`);
-              break;
-            }
-          } catch (e) { }
-        }
-        if (result) break;
-      }
+            const checks = urlsToTry.map(async directUrl => {
+              try {
+                const res = await Promise.race([
+                  http.get(directUrl, { timeout: 3000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }),
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+                ]);
+                if (res.status === 200 && (res.data.includes('post-title') || res.data.includes('manga-title') || res.data.includes('wp-manga'))) {
+                  result = directUrl;
+                  console.log(`[searchSource] Direct URL match for mangaread: ${directUrl}`);
+                }
+              } catch (e) { }
+            });
+            await Promise.all(checks);
+            if (result) return;
+          }
+        })(),
+        new Promise(resolve => setTimeout(resolve, 12000)),
+      ]);
     }
 
     if (!result && sourceId === 'manganato') {
-      const topTitlesForDirect = allTitles.slice(0, 8);
-      for (const t of topTitlesForDirect) {
-        const slug = t.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        if (!slug || slug.length < 2) continue;
-        const directUrl = `https://www.manganato.gg/manga/${slug}`;
-        try {
-          const html = await fetchHTML(directUrl);
-          if (html.includes('chapter-list-container')) { result = directUrl; break; }
-        } catch (e) { }
-      }
+      const topTitlesForDirect = allTitles.slice(0, 3);
+      await Promise.race([
+        (async () => {
+          for (const t of topTitlesForDirect) {
+            const slug = t.toLowerCase().replace(/['']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            if (!slug || slug.length < 2) continue;
+            const directUrl = `https://www.manganato.gg/manga/${slug}`;
+            try {
+              const html = await Promise.race([
+                fetchHTML(directUrl),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+              ]);
+              if (html.includes('chapter-list-container')) { result = directUrl; return; }
+            } catch (e) { }
+          }
+        })(),
+        new Promise(resolve => setTimeout(resolve, 12000)),
+      ]);
     }
 
     if (!result) {
