@@ -13,7 +13,16 @@ const Bottleneck = require('bottleneck');
 const cache = require('./cache');
 
 const ANILIST_URL = 'https://graphql.anilist.co';
-const USER_AGENT = 'MangaReader/1.0 (+https://www.mangareader.pro)';
+const ANILIST_CLIENT_ID = process.env.ANILIST_CLIENT_ID || '50507';
+const USER_AGENT = `Mangareader.pro/${ANILIST_CLIENT_ID} (+https://www.mangareader.pro)`;
+
+const ANILIST_HEADERS = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'User-Agent': USER_AGENT,
+  'Origin': 'https://anilist.co',
+  'Referer': 'https://anilist.co/',
+};
 
 const anilistLimiter = new Bottleneck({
   maxConcurrent: 5,
@@ -26,43 +35,51 @@ const anilistLimiter = new Bottleneck({
 
 let lastRetryAfter = 0;
 
+async function post(query, variables, headers = {}) {
+  return axios.post(ANILIST_URL, { query, variables }, {
+    headers: { ...ANILIST_HEADERS, ...headers },
+    timeout: 15000,
+  });
+}
+
 async function callAniList(query, variables) {
-  const resp = await anilistLimiter.schedule(async () => {
+  return anilistLimiter.schedule(async () => {
     try {
-      const r = await axios.post(ANILIST_URL, { query, variables }, {
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'User-Agent': USER_AGENT,
-        },
-        timeout: 15000,
-      });
+      const r = await post(query, variables);
       return r.data;
     } catch (err) {
-      if (err.response) {
-        if (err.response.status === 429) {
-          const retryAfter = parseInt(err.response.headers['retry-after'] || '0', 10);
-          const waitMs = retryAfter
-            ? retryAfter * 1000
-            : Math.max(Date.now() - lastRetryAfter, 1000) * 2;
-          lastRetryAfter = Date.now();
-          console.warn(`[anilist] 429 rate limit hit, retrying after ${waitMs}ms`);
-          await new Promise(resolve => setTimeout(resolve, waitMs));
-          const r2 = await axios.post(ANILIST_URL, { query, variables }, {
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': USER_AGENT },
-            timeout: 15000,
-          });
-          return r2.data;
-        }
-        if (err.response.data) {
-          err._anilistStatus = err.response.status;
-          err._anilistData = err.response.data;
-        }
+      if (!err.response) throw err;
+
+      if (err.response.status === 429) {
+        const retryAfter = parseInt(err.response.headers['retry-after'] || '0', 10);
+        const waitMs = retryAfter
+          ? retryAfter * 1000
+          : Math.max(Date.now() - lastRetryAfter, 1000) * 2;
+        lastRetryAfter = Date.now();
+        console.warn(`[anilist] 429 rate limit hit, retrying after ${waitMs}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        return (await post(query, variables)).data;
       }
+
+      err._anilistStatus = err.response.status;
+      err._anilistData = err.response.data;
       throw err;
     }
   });
-  return resp;
+}
+
+async function callAniListUser(query, variables, accessToken) {
+  return anilistLimiter.schedule(async () => {
+    try {
+      const r = await post(query, variables, { Authorization: `Bearer ${accessToken}` });
+      return r.data;
+    } catch (err) {
+      if (!err.response) throw err;
+      err._anilistStatus = err.response.status;
+      err._anilistData = err.response.data;
+      throw err;
+    }
+  });
 }
 
 async function getMangaById(id) {
@@ -134,6 +151,7 @@ const MEDIA_SEARCH_QUERY = `
 
 module.exports = {
   callAniList,
+  callAniListUser,
   getMangaById,
   searchManga,
   anilistLimiter,

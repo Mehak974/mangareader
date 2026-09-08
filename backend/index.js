@@ -197,12 +197,30 @@ app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
       cacheKey,
       cache.TTL.anilist_meta_search,
       async () => {
-        const r = await anilistClient.callAniList(req.body.query, req.body.variables);
-        if (r.errors && r.errors.some(e => e.status === 429)) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          return anilistClient.callAniList(req.body.query, req.body.variables);
+        const query = req.body.query;
+        const variables = req.body.variables || {};
+
+        // If the user is logged in with AniList, attach their access token so
+        // user-scoped queries (Viewer, MediaListCollection, etc.) work.
+        const anilistToken = req.cookies?.anilist_session;
+        let anilistUserId = null;
+        let accessToken = null;
+        if (anilistToken) {
+          try {
+            const decoded = jwt.verify(anilistToken, JWT_SECRET);
+            if (decoded.provider === 'anilist') {
+              anilistUserId = decoded.sub;
+              const row = (await db.query('SELECT access_token FROM anilist_users WHERE id = $1', [anilistUserId])).rows[0];
+              if (row) accessToken = row.access_token;
+            }
+          } catch { /* ignore invalid cookie */ }
         }
-        return r;
+
+        if (accessToken) {
+          return anilistClient.callAniListUser(query, variables, accessToken);
+        }
+
+        return anilistClient.callAniList(query, variables);
       }
     );
     res.json(result.data);
@@ -252,6 +270,7 @@ initAuth();
 // Rate-limited: this route gates access to everything behind requireAdmin,
 // so it must not accept unlimited password guesses.
 app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
+app.use('/api/auth', require('./routes/anilistAuth'));
 
 // ── MANGA API (preserved + secured) ──────────────────────────────────────────
 app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {

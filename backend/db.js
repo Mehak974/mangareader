@@ -188,6 +188,17 @@ async function initDB() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS anilist_users (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        avatar_url TEXT,
+        access_token TEXT NOT NULL,
+        token_type VARCHAR(50) DEFAULT 'Bearer',
+        expires_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       -- Seed default maintenance_mode setting if not exists
       INSERT INTO site_settings (key, value)
       VALUES ('maintenance_mode', 'false')
