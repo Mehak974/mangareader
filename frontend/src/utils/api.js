@@ -63,42 +63,12 @@ function getWorkerSourceRoute(source, url) {
 }
 
 export async function fetchChapterImagesThroughWorker(url, source) {
-  // Bypass worker for mangakatana due to image extraction issues
-  const bypassWorker = source === 'mangakatana' || url.includes('mangakatana');
-  
-  if (!WORKER_URL || bypassWorker) {
-    const res = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
-    if (!res.ok) throw new Error(`Failed to fetch chapter images: ${res.status}`);
-    return res.json();
-  }
-
-  // MangaDex: use official API with chapter ID extracted from URL
-  if (source === 'mangadex' || url.includes('mangadex.org/chapter/')) {
-    const chapterId = url.match(/mangadex\.org\/chapter\/([0-9a-f-]+)/)?.[1];
-    if (chapterId) {
-      const workerUrl = `${WORKER_URL}/api/mangadex/at-home/server/${chapterId}`;
-      const res = await fetch(workerUrl);
-      if (!res.ok) throw new Error(`MangaDex API error: ${res.status}`);
-      const data = await res.json();
-      const baseUrl = data.baseUrl;
-      const hash = data.chapter?.hash;
-      const pages = data.chapter?.data || [];
-      const images = pages.map(p => `${baseUrl}/data/${hash}/${p}`);
-      return {
-        data: { images: images.map(img => proxyImage(img)), source: 'mangadex' },
-        cached: false,
-      };
-    }
-  }
-
   const workerRoute = getWorkerSourceRoute(source, url);
   const workerUrl = `${WORKER_URL}${workerRoute}?url=${encodeURIComponent(url)}`;
   const res = await fetch(workerUrl);
 
   if (!res.ok) {
-    const fallbackRes = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
-    if (!fallbackRes.ok) throw new Error(`Failed to fetch chapter images: ${fallbackRes.status}`);
-    return fallbackRes.json();
+    throw new Error(`Failed to fetch chapter images: ${res.status}`);
   }
 
   const result = await res.json();
@@ -145,6 +115,17 @@ export async function fetchChapterImagesThroughWorker(url, source) {
     let urlMatch;
     while ((urlMatch = urlRegex.exec(html)) !== null) {
       const src = urlMatch[0].trim();
+      if (!shouldSkip(src)) {
+        images.push(src);
+      }
+    }
+  }
+
+  if (images.length === 0) {
+    const directImgRegex = /https?:\/\/[^\s"'<>]+manga_[a-f0-9]+\/[a-f0-9]+\/\d+\.(webp|jpg|jpeg|png)/gi;
+    let directMatch;
+    while ((directMatch = directImgRegex.exec(html)) !== null) {
+      const src = directMatch[0].trim();
       if (!shouldSkip(src)) {
         images.push(src);
       }
