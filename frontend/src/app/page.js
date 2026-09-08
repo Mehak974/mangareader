@@ -91,7 +91,7 @@ export default async function Home() {
               <div className="mob-eyebrow">🔥 Trending #1</div>
               <div className="mob-resume-title">{featuredHero.t}</div>
               <div className="mob-resume-sub">
-                ★ {featuredHero.rating.toFixed(1)} · {featuredHero.ch} · {featuredHero.ongoing ? "Ongoing" : "Completed"}
+                ★ {Number(featuredHero.rating ?? 0).toFixed(1)} · {featuredHero.ch || "N/A"} · {featuredHero.ongoing ? "Ongoing" : "Completed"}
               </div>
             </div>
             <div className="mob-play" style={{ background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", width: "24px", height: "24px" }}>
@@ -168,7 +168,7 @@ export default async function Home() {
                   ) : (
                    "表紙"
                  )}
-                <div className="hc-rating" style={{ position: "relative", zIndex: 1 }}>★ {desktopHero.rating.toFixed(1)}</div>
+                 <div className="hc-rating" style={{ position: "relative", zIndex: 1 }}>★ {Number(desktopHero.rating ?? 0).toFixed(1)}</div>
               </div>
               <div className="hc-info">
                 <div className="hc-title">{desktopHero.t}</div>
