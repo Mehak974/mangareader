@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function AAdsBanner() {
   const ref = useRef(null);
+  const pathname = usePathname();
+  const [key, setKey] = useState(0);
+
+  // Reload the ad iframe on every client-side navigation so a new
+  // impression fires for each page view.
+  useEffect(() => {
+    setKey((k) => k + 1);
+  }, [pathname]);
 
   useEffect(() => {
     const handler = (event) => {
@@ -33,6 +42,7 @@ export default function AAdsBanner() {
       }}
     >
       <iframe
+        key={key}
         data-aa="2454751"
         src="https://acceptable.a-ads.com/2454751/?size=Adaptive&background_color=0A0612&title_color=A855F7&title_hover_color=A855F7"
         style={{
