@@ -40,7 +40,7 @@ export function proxyImage(url, width = null, quality = null) {
   if (!isImageExt && !isKnownImageDomain) return url;
 
   if (WORKER_URL) {
-    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(cleanUrl)}`;
+    return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
   }
 
   let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
@@ -62,9 +62,15 @@ function getWorkerSourceRoute(source, url) {
   return WORKER_SOURCE_MAP[source] || '/api/manganato';
 }
 
+function buildWorkerUrl(route) {
+  const base = (WORKER_URL || '').replace(/\/$/, '');
+  const path = route.startsWith('/') ? route : `/${route}`;
+  return `${base}${path}`;
+}
+
 export async function fetchChapterImagesThroughWorker(url, source) {
   const workerRoute = getWorkerSourceRoute(source, url);
-  const workerUrl = `${WORKER_URL}${workerRoute}?url=${encodeURIComponent(url)}`;
+  const workerUrl = `${buildWorkerUrl(workerRoute)}?url=${encodeURIComponent(url)}`;
   const res = await fetch(workerUrl);
 
   if (!res.ok) {
