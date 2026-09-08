@@ -122,6 +122,7 @@ export default async function RootLayout({ children }) {
         <meta name="e0f19b24e15dad77283ca491bc40b2333383dd0e" content="e0f19b24e15dad77283ca491bc40b2333383dd0e" />
         <meta name="popads-verification-3664867" value="557f27c1e5809a5da647c2f8f236ef13" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
+        <meta name="admaven-placement" content="BpdY8rjsF" />
         {adsScript && <script dangerouslySetInnerHTML={{ __html: adsScript }} />}
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
