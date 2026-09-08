@@ -23,6 +23,7 @@ const InkDots = dynamic(() => import("@/components/InkDots"));
 const AchievementToast = dynamic(() => import("@/components/AchievementToast"));
 const PWAInstall = dynamic(() => import("@/components/PWAInstall"));
 const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
+const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"));
 
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";
@@ -148,9 +149,10 @@ export default async function RootLayout({ children }) {
         />
         <AppProvider>
           <MaintenanceGuard>
-            <div id="app">
+<div id="app">
               <InkDots />
               <Header />
+              <AAdsBanner />
               <Sidebar />
               <main>{children}</main>
               <MobileNav />
