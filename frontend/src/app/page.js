@@ -14,7 +14,7 @@ const Footer = dynamic(() => import("@/components/Footer"));
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export const revalidate = 60; // Revalidate every 60s — homepage depends on live AniList + backend data
+export const revalidate = 0;
 
 // Server components can be async
 export default async function Home() {
