@@ -69,6 +69,14 @@ function buildWorkerUrl(route) {
 }
 
 export async function fetchChapterImagesThroughWorker(url, source) {
+  const bypassWorker = source === 'mangakatana' || url.includes('mangakatana');
+
+  if (bypassWorker) {
+    const res = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
+    if (!res.ok) throw new Error(`Failed to fetch chapter images: ${res.status}`);
+    return res.json();
+  }
+
   const workerRoute = getWorkerSourceRoute(source, url);
   const workerUrl = `${buildWorkerUrl(workerRoute)}?url=${encodeURIComponent(url)}`;
   const res = await fetch(workerUrl);
