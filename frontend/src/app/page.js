@@ -5,77 +5,44 @@ import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaList, getRecentMangaList, isExplicitNSFW } from "@/utils/anilist";
-import { proxyImage, fetchHomeSection } from "@/utils/api";
+import { proxyImage } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
 export const revalidate = 0;
 
-// Server components can be async
-export default async function Home() {
-  // ── Critical path: fetch AniList data first (determines the hero image / LCP) ──
-  // These are fetched in parallel. The backend /api/home fetch is deliberately
-  // NOT in this Promise.all so a slow backend can't delay the hero image.
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const timeout = (ms) =>
+const withTimeout = (promise, ms) =>
+  Promise.race([
+    promise,
     new Promise((_, reject) =>
       setTimeout(() => reject(new Error("timeout")), ms)
-    );
+    ),
+  ]);
 
-  const withTimeout = (promise, ms) => Promise.race([promise, timeout(ms)]);
-
+export default async function Home() {
   let popularNow = [];
   let trending = [];
   let popularOverall = [];
   let recentlyAdded = [];
 
   try {
-    const [popularNowData, popularOverallData, trendingRes, recentRes] =
+    const [popularNowRes, trendingRes, popularOverallRes, recentRes] =
       await Promise.all([
-        fetchHomeSection('popular_now').catch(() => ({ data: [] })),
-        fetchHomeSection('readers_also_love').catch(() => ({ data: [] })),
-        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000).catch(() => ({ media: [] })),
-        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000).catch(() => ({ media: [] })),
+        withTimeout(getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC"] }), 8000),
+        withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000),
+        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000),
       ]);
 
-    popularNow = popularNowData?.data?.length > 0 ? popularNowData.data : [];
-    popularOverall = popularOverallData?.data?.length > 0 ? popularOverallData.data : [];
+    popularNow = popularNowRes?.media?.length > 0 ? popularNowRes.media : [];
     trending = trendingRes?.media?.length > 0 ? trendingRes.media : [];
+    popularOverall = popularOverallRes?.media?.length > 0 ? popularOverallRes.media : [];
     recentlyAdded = recentRes?.media?.length > 0 ? recentRes.media.slice(0, 5) : [];
   } catch {
-    popularNow = [];
-    trending = [];
-    popularOverall = [];
-    recentlyAdded = [];
-  }
-
-  // Fallback to AniList if backend cache is empty
-  if (popularNow.length === 0 || popularOverall.length === 0) {
-    try {
-      const [fallbackPopularNow, fallbackPopularOverall] = await Promise.all([
-        withTimeout(getMangaList({ perPage: 12, genre: "Fantasy", countryOfOrigin: "KR", sort: ["POPULARITY_DESC"] }), 8000),
-        withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000),
-      ]);
-      if (popularNow.length === 0) popularNow = fallbackPopularNow?.media?.length > 0 ? fallbackPopularNow.media : [];
-      if (popularOverall.length === 0) popularOverall = fallbackPopularOverall?.media?.length > 0 ? fallbackPopularOverall.media : [];
-    } catch {
-      // leave empty
-    }
-  }
-
-  // Fallback for trending if the primary sort returned nothing
-  if (trending.length === 0) {
-    try {
-      const fallbackTrending = await withTimeout(getMangaList({ perPage: 16, sort: ["POPULARITY_DESC"] }), 8000);
-      if (fallbackTrending?.media?.length > 0) trending = fallbackTrending.media;
-    } catch {
-      // leave empty
-    }
+    // leave empty — same behavior as /browse when AniList is unreachable
   }
 
   let finalPopularNow = popularNow.slice(0, 9);
