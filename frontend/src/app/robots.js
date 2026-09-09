@@ -28,8 +28,6 @@ export default function robots() {
     },
     sitemap: [
       `${SITE_URL}/sitemap.xml`,
-      `${SITE_URL}/sitemap-manga.xml`,
-      `${SITE_URL}/sitemap-blog.xml`,
     ],
     host: SITE_URL,
   };

@@ -18,13 +18,17 @@ export const dynamic = "force-dynamic";
 // per-user data behind client-side auth state and have no unique indexable
 // content for an anonymous crawler. They're also disallowed in robots.js.
 const STATIC_ROUTES = [
-  { path: "/", changeFrequency: "daily", priority: 1.0, lastModified: "2026-07-01" },
-  { path: "/browse", changeFrequency: "daily", priority: 0.9, lastModified: "2026-07-01" },
-  { path: "/blog", changeFrequency: "daily", priority: 0.8, lastModified: "2026-07-01" },
-  { path: "/about", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-01-01" },
-  { path: "/privacy", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-01-01" },
-  { path: "/terms", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-01-01" },
-  { path: "/dmca", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-01-01" },
+  { path: "/", changeFrequency: "daily", priority: 1.0, lastModified: "2026-09-01" },
+  { path: "/browse", changeFrequency: "daily", priority: 0.9, lastModified: "2026-09-01" },
+  { path: "/blog", changeFrequency: "daily", priority: 0.8, lastModified: "2026-09-01" },
+  { path: "/about", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-09-01" },
+  { path: "/support", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-09-01" },
+  { path: "/contact", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-09-01" },
+  { path: "/faq", changeFrequency: "monthly", priority: 0.5, lastModified: "2026-09-01" },
+  { path: "/cookies", changeFrequency: "monthly", priority: 0.4, lastModified: "2026-09-01" },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-09-01" },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-09-01" },
+  { path: "/dmca", changeFrequency: "yearly", priority: 0.3, lastModified: "2026-09-01" },
 ];
 
 export default async function sitemap() {

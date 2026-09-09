@@ -248,6 +248,14 @@ app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: generateCsrfToken(req, res) });
 });
 
+app.get('/robots.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(`User-agent: *
+Allow: /api/proxy-image
+Disallow: /
+`);
+});
+
 
 // ── ADMIN AUTH ────────────────────────────────────────────────────────────────
 const authRoutes = require('./routes/auth.routes');

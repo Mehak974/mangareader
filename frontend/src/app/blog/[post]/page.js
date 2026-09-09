@@ -49,7 +49,11 @@ export async function generateMetadata({ params }) {
       article.seoDescription || article.excerpt || `${article.title} — MangaReader editorial.`,
     path: `/blog/${article.slug}`,
     type: "article",
-    image: article.ogImage || article.coverImage || undefined,
+    image: article.ogImage
+      ? proxyImage(article.ogImage, 800)
+      : article.coverImage
+        ? proxyImage(article.coverImage, 800)
+        : undefined,
   });
 }
 
@@ -96,8 +100,10 @@ export default async function BlogPost({ params }) {
           excerpt: article.excerpt,
           seoTitle: article.seoTitle,
           seoDescription: article.seoDescription,
-          coverImage: article.coverImage,
-          ogImage: article.ogImage,
+          coverImage: article.coverImage
+            ? proxyImage(article.coverImage, 800)
+            : null,
+          ogImage: article.ogImage ? proxyImage(article.ogImage, 800) : null,
           canonicalUrl: article.canonicalUrl,
           publishedAt: article.publishedAt,
           updatedAt: article.updatedAt,

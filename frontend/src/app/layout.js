@@ -60,7 +60,6 @@ export const metadata = {
   },
   description: DEFAULT_DESCRIPTION,
   applicationName: SITE_NAME,
-  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -75,11 +74,6 @@ export const metadata = {
     description: DEFAULT_DESCRIPTION,
     images: ["/og-default.svg"],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true },
-  },
   alternates: {
     canonical: "/",
     languages: {
@@ -88,6 +82,11 @@ export const metadata = {
       "ko": "/",
       "zh": "/",
     },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
 };
 
