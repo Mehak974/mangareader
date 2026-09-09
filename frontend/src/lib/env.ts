@@ -12,7 +12,6 @@ type EnvShape = {
   AUTH_SECRET: string;
   NEXT_PUBLIC_SITE_URL: string;
   NEXT_PUBLIC_SCRAPER_URL: string;
-  NEXT_PUBLIC_ADMAVEN_PLACEMENT?: string;
   NODE_ENV: "development" | "production" | "test";
 };
 
