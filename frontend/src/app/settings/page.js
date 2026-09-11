@@ -15,13 +15,6 @@ export default function Settings() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState("");
 
-  useEffect(() => {
-    if (user) {
-      setDisplayName(user.displayName || "");
-      setEmail(user.email || "");
-    }
-  }, [user]);
-
   const {
     isDark,
     toggleDark,
@@ -53,6 +46,13 @@ export default function Settings() {
     setSavePosition,
     user,
   } = useApp();
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   const accentSwatches = [
     { c1: "#a855f7", c2: "#c084fc", label: "Purple" },
