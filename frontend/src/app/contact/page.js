@@ -1,11 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import LegalNav from "@/components/LegalNav";
+import { useApp } from "@/context/AppContext";
 
 export default function ContactPage() {
+  const router = useRouter();
+  const { user } = useApp();
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+  const [receiveReplies, setReceiveReplies] = useState(true);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (user?.email) {
+      setForm((f) => ({ ...f, email: f.email || user.email }));
+    }
+  }, [user?.email]);
 
   const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -16,7 +27,7 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, receiveReplies }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || "Something went wrong."); setStatus("error"); return; }
@@ -31,7 +42,12 @@ export default function ContactPage() {
         <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
         <h1>Message Sent!</h1>
         <p>We'll get back to you within 48 hours.</p>
-        <button className="btn btn-p" onClick={() => { setStatus(null); setForm({ name:"",email:"",subject:"",message:"" }); }} style={{ marginTop: 24 }}>
+        <p style={{ marginTop: 16 }}>
+          <button className="btn btn-p" onClick={() => router.push("/messages")} style={{ marginTop: 8 }}>
+            View My Messages &amp; Replies
+          </button>
+        </p>
+        <button className="btn btn-s" onClick={() => { setStatus(null); setForm({ name:"",email:"",subject:"",message:"" }); setReceiveReplies(true); }} style={{ marginTop: 16 }}>
           Send Another
         </button>
       </div>
@@ -74,6 +90,18 @@ export default function ContactPage() {
             <label htmlFor="c-message">Message</label>
             <textarea id="c-message" name="message" value={form.message} onChange={change}
               placeholder="Describe your issue in detail — include the page URL if relevant." required className="form-input" rows={6} />
+          </div>
+          <div className="form-group" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              id="c-replies"
+              type="checkbox"
+              checked={receiveReplies}
+              onChange={(e) => setReceiveReplies(e.target.checked)}
+              style={{ width: "auto", cursor: "pointer" }}
+            />
+            <label htmlFor="c-replies" style={{ cursor: "pointer", margin: 0 }}>
+              Allow replies to this message
+            </label>
           </div>
           {error && <p className="form-error">⚠️ {error}</p>}
           <button type="submit" className="btn btn-p" disabled={status === "sending"}>

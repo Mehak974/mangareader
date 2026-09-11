@@ -27,7 +27,8 @@ export const contactSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
   subject: z.string().trim().min(3, "Subject is too short.").max(150),
   message: z.string().trim().min(10, "Message must be at least 10 characters.").max(5000),
-  // Honeypot: real users leave this empty; bots fill every field.
+  receiveReplies: z.boolean().default(true),
+  // Honeypot: true users leave this empty; bots fill every field.
   website: z.string().max(0).optional().or(z.literal("")),
 });
 

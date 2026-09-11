@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return jsonError(firstZodMessage(parsed.error), 422);
   }
 
-  const { name, email, subject, message, website } = parsed.data;
+  const { name, email, subject, message, receiveReplies, website } = parsed.data;
 
   // Honeypot: real users leave `website` empty. Bots fill it. Silently drop
   // by returning a fake success so the bot cannot distinguish rejection.
@@ -57,5 +57,5 @@ export async function POST(req: NextRequest) {
   // rows flagged success:false, so record it that way to make the cap enforce.
   await recordAttempt({ email, ip, userAgent: userAgent(req), success: false });
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, receiveReplies: receiveReplies ?? true });
 }

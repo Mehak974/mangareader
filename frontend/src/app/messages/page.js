@@ -1,24 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LegalNav from "@/components/LegalNav";
 import Footer from "@/components/Footer";
+import { useApp } from "@/context/AppContext";
 
 export default function MessagesPage() {
   const router = useRouter();
+  const { user } = useApp();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [threads, setThreads] = useState([]);
   const [searched, setSearched] = useState(false);
 
-  const search = async (e) => {
-    e.preventDefault();
+  const search = async (emailToSearch) => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/messages/thread?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      const res = await fetch(`/api/messages/thread?email=${encodeURIComponent(emailToSearch.trim().toLowerCase())}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error || "No messages found for this email.");
@@ -34,6 +35,17 @@ export default function MessagesPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+  }, [user?.email]);
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    search(email);
+  };
+
   return (
     <div className="legal-page">
       <div className="legal-container" style={{ maxWidth: 800 }}>
@@ -43,7 +55,7 @@ export default function MessagesPage() {
           Enter the email you used to contact us to view your conversation history.
         </p>
 
-        <form onSubmit={search} style={{ marginBottom: 32, display: "flex", gap: 8 }}>
+        <form onSubmit={onSubmit} style={{ marginBottom: 32, display: "flex", gap: 8 }}>
           <input
             type="email"
             value={email}

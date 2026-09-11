@@ -519,6 +519,25 @@ export const AppProvider = ({ children }) => {
     loadLocalState(null);
   };
 
+  const updateUser = async (data) => {
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, error: result.error || "Could not update profile." };
+      if (result.user) {
+        setUser((prev) => (prev ? { ...prev, ...result.user } : prev));
+      }
+      return { ok: true };
+    } catch {
+      return { ok: false, error: "Network error. Please try again." };
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -576,6 +595,7 @@ export const AppProvider = ({ children }) => {
         doLogin,
         doSignup,
         doSignout,
+        updateUser,
         compactCards,
         setCompactCards,
         reduceMotion,

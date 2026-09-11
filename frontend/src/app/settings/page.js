@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ALL_GENRES } from "@/data/mockData";
@@ -9,6 +9,18 @@ import Footer from "@/components/Footer";
 export default function Settings() {
   const router = useRouter();
   const [activePanel, setActivePanel] = useState("appearance");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   const {
     isDark,
@@ -39,6 +51,7 @@ export default function Settings() {
     setPreloadPages,
     savePosition,
     setSavePosition,
+    user,
   } = useApp();
 
   const accentSwatches = [
@@ -449,14 +462,25 @@ export default function Settings() {
                 <div className="s-label">
                   <h4>Display name</h4>
                 </div>
-                <input className="s-input" defaultValue="Tsukasa" />
+                <input
+                  className="s-input"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display name"
+                />
               </div>
 
               <div className="setting-row">
                 <div className="s-label">
                   <h4>Email</h4>
                 </div>
-                <input className="s-input" defaultValue="tsukasa@example.com" type="email" />
+                <input
+                  className="s-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  type="email"
+                />
               </div>
 
               <div className="setting-row">
@@ -469,6 +493,48 @@ export default function Settings() {
                   <option>Español</option>
                   <option>Français</option>
                 </select>
+              </div>
+
+              {profileError && (
+                <div style={{ color: "var(--red)", fontSize: 13, marginBottom: 8 }}>
+                  ⚠️ {profileError}
+                </div>
+              )}
+              {profileSaved && (
+                <div style={{ color: "#10b981", fontSize: 13, marginBottom: 8 }}>
+                  ✅ Profile saved successfully.
+                </div>
+              )}
+              <div className="setting-row">
+                <button
+                  className="btn btn-p"
+                  disabled={profileLoading}
+                  onClick={async () => {
+                    setProfileLoading(true);
+                    setProfileSaved(false);
+                    setProfileError("");
+                    try {
+                      const res = await fetch("/api/user", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ displayName, email }),
+                        credentials: "include",
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        setProfileError(data.error || "Could not update profile.");
+                        return;
+                      }
+                      setProfileSaved(true);
+                    } catch {
+                      setProfileError("Network error. Please try again.");
+                    } finally {
+                      setProfileLoading(false);
+                    }
+                  }}
+                >
+                  {profileLoading ? "Saving…" : "Save Changes"}
+                </button>
               </div>
 
               <div className="setting-row">

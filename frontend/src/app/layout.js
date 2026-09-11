@@ -23,7 +23,7 @@ const InkDots = dynamic(() => import("@/components/InkDots"));
 const AchievementToast = dynamic(() => import("@/components/AchievementToast"));
 const PWAInstall = dynamic(() => import("@/components/PWAInstall"));
 const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
-const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"));
+const AAdsBanner = dynamic(() => import("@/components/AAdsBannerWrapper"));
 
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";
