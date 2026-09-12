@@ -942,7 +942,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv6tempv2\.com|mkklcdnv6temp\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
@@ -952,9 +952,14 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       'storage.waitst.com': 'https://www.manganato.gg/',
       'imgs-2.2xstorage.com': 'https://www.manganato.gg/',
       'img-r1.2xstorage.com': 'https://www.manganato.gg/',
+      'img-r2.2xstorage.com': 'https://www.manganato.gg/',
+      'img-r3.2xstorage.com': 'https://www.manganato.gg/',
+      'img-r4.2xstorage.com': 'https://www.manganato.gg/',
       '2xstorage.com': 'https://www.manganato.gg/',
+      'mkklcdnv6tempv2.com': 'https://mangakatana.com/',
+      'mkklcdnv6temp.com': 'https://mangakatana.com/',
     };
-    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : `${origin}/`);
+    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') || parsed.hostname.includes('mangakatana') ? 'https://mangakatana.com/' : `${origin}/`);
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
         Referer: referer,

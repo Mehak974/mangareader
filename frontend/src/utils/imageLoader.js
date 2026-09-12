@@ -23,6 +23,12 @@ export default function myImageLoader({ src, width, quality }) {
     // If it's not a valid URL (e.g. relative path), keep it
   }
 
+  const isMangakatanaImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => actualUrl.includes(d));
+  if (isMangakatanaImage) {
+    const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(actualUrl)}&w=${width}${quality ? `&q=${quality}` : ''}`;
+  }
+
   if (WORKER_URL) {
     return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
   }

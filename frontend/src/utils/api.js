@@ -39,6 +39,14 @@ export function proxyImage(url, width = null, quality = null) {
   const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangadex', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co'].some(d => cleanUrl.includes(d));
   if (!isImageExt && !isKnownImageDomain) return url;
 
+  const isMangakatanaImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
+  if (isMangakatanaImage) {
+    let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
+    if (width) target += `&w=${width}`;
+    if (quality) target += `&q=${quality}`;
+    return target;
+  }
+
   if (WORKER_URL) {
     return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
   }

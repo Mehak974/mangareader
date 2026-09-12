@@ -971,11 +971,11 @@ const SOURCE_SCRAPERS = {
       const urlParts = url.split('/').filter(Boolean);
       const mangaId = urlParts[urlParts.length - 1];
 
-      // Try Consumet API first
+      // Try Consumet API first (may return 451 for some sources — handle gracefully)
       try {
-        const res = await http.get(`https://api.consumet.org/manga/mangakatana/${encodeURIComponent(mangaId)}`, { timeout: 10000 });
+        const res = await http.get(`https://api.consumet.org/manga/mangakatana/${encodeURIComponent(mangaId)}`, { timeout: 10000, validateStatus: (status) => status < 500 });
         const data = res.data;
-        if (data?.chapters?.length > 0) {
+        if (typeof data === 'object' && data?.chapters?.length > 0) {
           const chapters = data.chapters.map(ch => ({
             title: ch.title || `Chapter ${ch.chapterNumber}`,
             href: ch.id ? `https://mangakatana.com/${ch.id}` : '',
@@ -1032,11 +1032,11 @@ const SOURCE_SCRAPERS = {
         return { images: [], source: 'mangakatana' };
       }
 
-      // Try Consumet API first
+      // Try Consumet API first (may return 451 for some sources — handle gracefully)
       try {
-        const res = await http.get(`https://api.consumet.org/manga/mangakatana/read/${encodeURIComponent(chapterId)}`, { timeout: 10000 });
+        const res = await http.get(`https://api.consumet.org/manga/mangakatana/read/${encodeURIComponent(chapterId)}`, { timeout: 10000, validateStatus: (status) => status < 500 });
         const data = res.data;
-        if (data?.images?.length > 0) {
+        if (typeof data === 'object' && data?.images?.length > 0) {
           const images = data.images
             .map(img => typeof img === 'string' ? img : img.img || img.url || '')
             .filter(src => isValidImageUrl(src));
