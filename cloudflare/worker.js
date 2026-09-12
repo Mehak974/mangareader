@@ -172,8 +172,37 @@ async function imgProxy(req, ctx) {
   };
   if (ref) headers['Referer'] = ref;
 
-  const origin = await fetch(target, { headers });
-  if (!origin.ok) return new Response(`Source error ${origin.status}`, { status: origin.status });
+  // Retry loop — transient 5xx from the origin CDN are common; retry 2x with backoff
+  let origin = null;
+  let lastError = 'Failed to fetch image';
+  let errorStatus = 502;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      origin = await fetch(target, { headers, cf: { cacheTtl: 0 } });
+      if (origin.ok) break;
+
+      // 4xx — don't retry, pass through immediately
+      if (origin.status < 500) {
+        return new Response(`Source error ${origin.status}`, { status: origin.status });
+      }
+
+      // 5xx — record and retry
+      lastError = `Source error ${origin.status}`;
+      errorStatus = origin.status;
+    } catch (err) {
+      lastError = err.message;
+    }
+
+    // Brief backoff before retry (only for 5xx and network errors)
+    if (attempt < 2) {
+      await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+
+  if (!origin || !origin.ok) {
+    return new Response(lastError, { status: errorStatus, headers: { 'Cache-Control': 'public, max-age=15' } });
+  }
 
   const ct = origin.headers.get('content-type') || 'image/jpeg';
   const toCache = new Response(origin.body, {
