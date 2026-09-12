@@ -24,6 +24,7 @@ const AchievementToast = dynamic(() => import("@/components/AchievementToast"));
 const PWAInstall = dynamic(() => import("@/components/PWAInstall"));
 const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
 const AAdsBanner = dynamic(() => import("@/components/AAdsBannerWrapper"));
+const AdScriptLoader = dynamic(() => import("@/components/AdScriptLoader"));
 
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";
@@ -123,7 +124,6 @@ export default async function RootLayout({ children }) {
         <meta name="popads-verification-3664867" value="557f27c1e5809a5da647c2f8f236ef13" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
         <meta name="admaven-placement" content="BpdY8rjsF" />
-        {adsScript && <script dangerouslySetInnerHTML={{ __html: adsScript }} />}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-39V70HQCY8"></script>
         <script
           dangerouslySetInnerHTML={{
@@ -159,6 +159,7 @@ export default async function RootLayout({ children }) {
               <InkDots />
               <Header />
               <AAdsBanner />
+              <AdScriptLoader />
               <Sidebar />
               <main>{children}</main>
               <MobileNav />
