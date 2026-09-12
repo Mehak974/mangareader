@@ -959,7 +959,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       'mkklcdnv6tempv2.com': 'https://mangakatana.com/',
       'mkklcdnv6temp.com': 'https://mangakatana.com/',
     };
-    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') || parsed.hostname.includes('mangakatana') ? 'https://mangakatana.com/' : `${origin}/`);
+    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('mangakatana') ? 'https://mangakatana.com/' : (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : `${origin}/`));
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
         Referer: referer,
