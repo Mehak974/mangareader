@@ -907,18 +907,31 @@ const SOURCE_SCRAPERS = {
     },
 
     async getChapterImages(url) {
-      try {
-        const chapterId = url.split('/').pop();
-        const res = await http.get(`https://api.mangadex.org/at-home/server/${chapterId}`);
-        const { baseUrl, chapter } = res.data;
-        const images = chapter.data.map(filename => `${baseUrl}/data/${chapter.hash}/${filename}`);
-        return { images, source: 'mangadex' };
-      } catch (err) {
-        if (err.response?.status === 404) {
-          return { images: [], source: 'mangadex' };
+      const chapterId = url.split('/').pop();
+      let lastErr;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await http.get(`https://api.mangadex.org/at-home/server/${chapterId}`);
+          const { baseUrl, chapter } = res.data;
+          const images = chapter.data.map(filename => `${baseUrl}/data/${chapter.hash}/${filename}`);
+          return { images, source: 'mangadex' };
+        } catch (err) {
+          lastErr = err;
+          if (err.response?.status === 404) {
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+          if (err.response?.status === 429) {
+            await new Promise(r => setTimeout(r, 5000));
+            continue;
+          }
+          break;
         }
-        throw err;
       }
+      if (lastErr?.response?.status === 404 || lastErr?.response?.status === 429) {
+        return { images: [], source: 'mangadex' };
+      }
+      throw lastErr;
     }
   },
 
@@ -1340,7 +1353,7 @@ const SOURCE_SCRAPERS = {
             });
           }
         });
-        if (imgUrls.length > 0) return { images: [...new Set(imgUrls)], source: 'manganato' };
+        if (imgUrls.length >= 3) return { images: [...new Set(imgUrls)], source: 'manganato' };
         
         // Method 3: Fallback to container-chapter-reader
         const images = [];
