@@ -856,7 +856,9 @@ const SOURCE_SCRAPERS = {
     },
 
     async getMangaDetail(url) {
-      let uuid = url.split('/').pop();
+      const urlParts = url.split('/').filter(Boolean);
+      const titleIdx = urlParts.indexOf('title');
+      let uuid = titleIdx >= 0 && urlParts[titleIdx + 1] ? urlParts[titleIdx + 1] : urlParts.pop();
       if (uuid.length !== 36 || !uuid.includes('-')) {
         try {
           const searchRes = await http.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(uuid.replace(/-/g, ' '))}&limit=1&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
@@ -876,14 +878,22 @@ const SOURCE_SCRAPERS = {
         let allChapters = [];
         let offset = 0;
         let limit = 500;
+        const feedUrl = `https://api.mangadex.org/manga/${uuid}/feed?translatedLanguage[]=en&limit=${limit}&offset=${offset}&order[chapter]=desc`;
+        let feedRes = await http.get(feedUrl);
+        if (!feedRes.data.data || feedRes.data.data.length === 0) {
+          feedRes = await http.get(`https://api.mangadex.org/manga/${uuid}/feed?limit=${limit}&offset=${offset}&order[chapter]=desc`);
+        }
         while (true) {
-          const feedRes = await http.get(`https://api.mangadex.org/manga/${uuid}/feed?translatedLanguage[]=en&limit=${limit}&offset=${offset}&order[chapter]=desc`);
           const data = feedRes.data.data || [];
           allChapters = allChapters.concat(data);
           if (data.length < limit) break;
           offset += limit;
+          feedRes = await http.get(`https://api.mangadex.org/manga/${uuid}/feed?translatedLanguage[]=en&limit=${limit}&offset=${offset}&order[chapter]=desc`);
+          if (!feedRes.data.data || feedRes.data.data.length === 0) {
+            feedRes = await http.get(`https://api.mangadex.org/manga/${uuid}/feed?limit=${limit}&offset=${offset}&order[chapter]=desc`);
+            if (!feedRes.data.data || feedRes.data.data.length === 0) break;
+          }
         }
-
         const chapters = allChapters.map(ch => {
           const chNum = ch.attributes.chapter;
           const chTitle = ch.attributes.title ? `Chapter ${chNum} — ${ch.attributes.title}` : `Chapter ${chNum}`;
