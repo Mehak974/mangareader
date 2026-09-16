@@ -255,6 +255,8 @@ async function anilist(req, ctx) {
 // ─── MangaDex (official API) ──────────────────────────────────────────────────
 async function mangadex(req, ctx) {
   const url = new URL(req.url);
+  const urlParam = url.searchParams.get('url');
+  if (urlParam) return scraped(req, ctx, 'mangadex', 'https://mangadex.org/');
   const path = url.pathname.replace('/api/mangadex', '');
   const target = `https://api.mangadex.org${path}${url.search}`;
   const ck = 'md:' + btoa(target).slice(0, 150);
