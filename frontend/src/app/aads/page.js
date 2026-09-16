@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 export const metadata = {
   title: "Advertisements",
   robots: {
@@ -7,13 +11,22 @@ export const metadata = {
 };
 
 export default function AadsPage() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   return (
     <div style={{ width: "100%", minHeight: "100vh", margin: 0, padding: 0, background: "#0A0612" }}>
       <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center", gap: "10px", width: "100%", flexWrap: "wrap", padding: "4px 0" }}>
         <div
           id="frame"
           style={{
-            width: "100%",
+            width: isMobile ? "50%" : "20%",
             margin: "auto",
             position: "relative",
             zIndex: 99998,
@@ -66,7 +79,7 @@ export default function AadsPage() {
         <div
           id="frame"
           style={{
-            width: "100%",
+            width: isMobile ? "50%" : "20%",
             margin: "auto",
             position: "relative",
             zIndex: 99998,

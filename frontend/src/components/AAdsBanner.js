@@ -7,6 +7,14 @@ export default function AAdsBanner() {
   const ref = useRef(null);
   const pathname = usePathname();
   const [key, setKey] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     setKey((k) => k + 1);
@@ -33,7 +41,7 @@ export default function AAdsBanner() {
         id="frame"
         ref={ref}
         style={{
-          width: "100%",
+          width: isMobile ? "50%" : "20%",
           margin: "auto",
           position: "relative",
           zIndex: 99998,
@@ -87,7 +95,7 @@ export default function AAdsBanner() {
       <div
         id="frame"
         style={{
-          width: "100%",
+          width: isMobile ? "50%" : "20%",
           margin: "auto",
           position: "relative",
           zIndex: 99998,
