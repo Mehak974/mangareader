@@ -13,18 +13,9 @@ export default function AdScriptLoader() {
     loaded.current = true;
 
     const script = document.createElement("script");
-    script.innerHTML = `
-      (function(twvsf){
-        var d = document,
-            s = d.createElement('script'),
-            l = d.scripts[d.scripts.length - 1];
-        s.settings = twvsf || {};
-        s.src = "//purple-text.com/c.DI9m6_bw2t5/l/S/WzQH9tNNzrMVysMeDqUiyMOUSN0_3/M/z/IuwNNaTSMwzb";
-        s.async = true;
-        s.referrerPolicy = 'no-referrer-when-downgrade';
-        l.parentNode.insertBefore(s, l);
-      })({})
-    `;
+    script.src = "/popunder.js";
+    script.async = true;
+    script.referrerPolicy = "no-referrer-when-downgrade";
     document.body.appendChild(script);
 
     return () => {
