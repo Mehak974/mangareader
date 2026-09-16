@@ -8,8 +8,6 @@ export default function AAdsBanner() {
   const pathname = usePathname();
   const [key, setKey] = useState(0);
 
-  // Reload the ad iframe on every client-side navigation so a new
-  // impression fires for each page view.
   useEffect(() => {
     setKey((k) => k + 1);
   }, [pathname]);
@@ -31,33 +29,59 @@ export default function AAdsBanner() {
 
   return (
     <div
-      id="aads-frame"
+      id="frame"
       ref={ref}
       style={{
         width: "100%",
-        margin: "0 auto",
-        background: "#0A0612",
-        display: "block",
+        margin: "auto",
         position: "relative",
+        zIndex: 99998,
       }}
     >
       <iframe
         key={key}
-        data-aa="2454751"
-        src="https://acceptable.a-ads.com/2454751/?size=Adaptive&background_color=0A0612&title_color=A855F7&title_hover_color=A855F7"
+        data-aa="2455518"
+        src="//acceptable.a-ads.com/2455518/?size=Adaptive&background_color=transparent&title_color=B46CF9&title_hover_color=B46CF9&text_color=ffffff&link_color=B46CF9&link_hover_color=B46CF9"
         style={{
           border: 0,
           padding: 0,
-          width: "100%",
-          maxWidth: "800px",
-          height: "250px",
+          width: "70%",
+          height: "auto",
+          overflow: "hidden",
           display: "block",
-          background: "#0A0612",
+          margin: "auto",
         }}
         title="Advertisement"
         scrolling="no"
         allow="autoplay"
       />
+      <div
+        style={{
+          width: "70%",
+          margin: "auto",
+          position: "absolute",
+          left: 0,
+          right: 0,
+        }}
+      >
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-block",
+            fontSize: "13px",
+            color: "#263238",
+            padding: "4px 10px",
+            background: "#F8F8F9",
+            textDecoration: "none",
+            borderRadius: "0 0 4px 4px",
+          }}
+          id="frame-link"
+          href="https://aads.com/campaigns/new/?source_id=2455518&source_type=ad_unit&partner=2455518"
+        >
+          Advertise here
+        </a>
+      </div>
     </div>
   );
 }
