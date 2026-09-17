@@ -6,7 +6,7 @@ import { Toaster } from "react-hot-toast";
 import Header from "@/components/Header";
 import JsonLd from "@/components/JsonLd";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SITE_NAME, SITE_URL, organizationSchema, websiteSchema } from "@/lib/seo";
 
