@@ -1084,16 +1084,29 @@ const SOURCE_SCRAPERS = {
         // MangaKatana embeds images in a JS array with single quotes (e.g., var thzq=[...]).
         // Single-quoted JS arrays are NOT valid JSON — must replace quotes first.
         // Also handle trailing commas in arrays.
-        const jsArrayRx = /var\s+\w+\s*=\s*(\[(?:['"]https?:\/\/[^[\]]*['"]\s*,?\s*)+\])/gs;
+        // Broadened to match var, const, let, and window. prefixed assignments.
+        const jsArrayRx = /(?:var|const|let)\s+\w+\s*=\s*(\[(?:['"]https?:\/\/[^[\]]*['"]\s*,?\s*)+\])/gs;
+        const jsArrayRxWindow = /window\.\w+\s*=\s*(\[(?:['"]https?:\/\/[^[\]]*['"]\s*,?\s*)+\])/gs;
         let m;
         let bestImgs = [];
         while ((m = jsArrayRx.exec(html)) !== null) {
           try {
-            let asJson = m[1].replace(/'/g, '"'); // JS single → JSON double quotes
-            asJson = asJson.replace(/,(\s*[}\]])/g, '$1'); // remove trailing commas
+            let asJson = m[1].replace(/'/g, '"');
+            asJson = asJson.replace(/,(\s*[}\]])/g, '$1');
             const urls = JSON.parse(asJson);
             const imgs = urls
-              .map(u => u.startsWith('//') ? 'https:' + u : u)  // fix protocol-relative
+              .map(u => u.startsWith('//') ? 'https:' + u : u)
+              .filter(u => /^https?:\/\//i.test(u) && /\.(jpg|jpeg|png|webp|gif)/i.test(u));
+            if (imgs.length > bestImgs.length) bestImgs = imgs;
+          } catch {}
+        }
+        while ((m = jsArrayRxWindow.exec(html)) !== null) {
+          try {
+            let asJson = m[1].replace(/'/g, '"');
+            asJson = asJson.replace(/,(\s*[}\]])/g, '$1');
+            const urls = JSON.parse(asJson);
+            const imgs = urls
+              .map(u => u.startsWith('//') ? 'https:' + u : u)
               .filter(u => /^https?:\/\//i.test(u) && /\.(jpg|jpeg|png|webp|gif)/i.test(u));
             if (imgs.length > bestImgs.length) bestImgs = imgs;
           } catch {}
@@ -1122,10 +1135,18 @@ const SOURCE_SCRAPERS = {
           return { images: dataSrcs, source: 'mangakatana', method: 'data-src' };
         }
 
-        // Method 3: Full HTML scan for image URLs from known MangaKatana domains
+        // Method 3: Full HTML scan for image URLs from known MangaKatana/CDN domains
         const allImgs = html.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)[^\s"'<>]*/gi) || [];
         const filtered = [...new Set(allImgs)]
-          .filter(u => u.includes('xfs.') || u.includes('mangakatana'))
+          .filter(u =>
+            u.includes('xfs.') ||
+            u.includes('mangakatana') ||
+            u.includes('2xstorage.com') ||
+            u.includes('img-r') ||
+            u.includes('pixel.') ||
+            u.includes('.wds.') ||
+            u.includes('cdn.')
+          )
           .filter(u => /^https?:\/\//i.test(u) && /\.(jpg|jpeg|png|webp|gif)/i.test(u));
         if (filtered.length > 0) {
           console.info(`[mangakatana] Found ${filtered.length} images via HTML scan`);
