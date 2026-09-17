@@ -1074,7 +1074,17 @@ const SOURCE_SCRAPERS = {
 
       // Fallback to DOM scraping with improved extraction methods
       try {
-        const html = await fetchHTML(url);
+        let html;
+        try {
+          html = await fetchHTML(url);
+        } catch (fetchErr) {
+          console.warn(`[mangakatana] fetchHTML failed, trying FlareSolverr: ${fetchErr.message}`);
+          try {
+            html = await fetchWithFlareSolverr(url);
+          } catch (fsErr) {
+            console.warn(`[mangakatana] FlareSolverr also failed: ${fsErr.message}`);
+          }
+        }
         if (!html || html.length < 100) {
           console.warn('[mangakatana] Empty or too short HTML response');
           return { images: [], source: 'mangakatana' };
