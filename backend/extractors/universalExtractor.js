@@ -340,16 +340,25 @@ async function fetchHTML(url, extraHeaders = {}) {
           // For 403 errors, try Jina AI as fallback before FlareSolverr
           if (err.response.status === 403) {
             console.warn(`[fetchHTML] HTTP 403 for ${url}, trying Jina AI fallback`);
+            let jinaExhausted = false;
             try {
               const jinaResult = await fetchWithJinaAI(url);
               if (jinaResult && jinaResult.length > 100) {
                 return markdownToHtml(jinaResult);
               }
+              jinaExhausted = true;
             } catch (jinaErr) {
               console.warn(`[fetchHTML] Jina AI fallback failed: ${jinaErr.message}`);
+              jinaExhausted = true;
             }
+            if (jinaExhausted) {
+              console.warn(`[fetchHTML] Jina AI exhausted for ${url}, trying FlareSolverr`);
+            } else {
+              throw err;
+            }
+          } else {
+            throw err;
           }
-          throw err;
         }
         console.warn(`[fetchHTML] Cloudflare error ${err.response.status} for ${url}, falling back to FlareSolverr`);
       } else {
