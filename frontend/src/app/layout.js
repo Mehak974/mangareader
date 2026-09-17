@@ -136,6 +136,13 @@ export default async function RootLayout({ children }) {
             `,
           }}
         />
+        {adsScript && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: adsScript,
+            }}
+          />
+        )}
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />

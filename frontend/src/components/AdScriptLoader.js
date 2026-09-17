@@ -12,14 +12,10 @@ export default function AdScriptLoader() {
     if (loaded.current) return;
     loaded.current = true;
 
-    const script = document.createElement("script");
-    script.src = "/popunder.js";
-    script.async = true;
-    script.referrerPolicy = "no-referrer-when-downgrade";
-    document.body.appendChild(script);
+    // PopAds script is now injected inline in layout.js head
+    // This component kept for any future dynamic ad loading
 
     return () => {
-      script.remove();
       loaded.current = false;
     };
   }, [pathname]);
