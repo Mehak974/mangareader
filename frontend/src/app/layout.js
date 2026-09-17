@@ -24,7 +24,6 @@ const AchievementToast = dynamic(() => import("@/components/AchievementToast"));
 const PWAInstall = dynamic(() => import("@/components/PWAInstall"));
 const LibraryPicker = dynamic(() => import("@/components/LibraryPicker"));
 const AAdsBanner = dynamic(() => import("@/components/AAdsBannerWrapper"));
-const BottomBanner = dynamic(() => import("@/components/BottomBanner"));
 const AdScriptLoader = dynamic(() => import("@/components/AdScriptLoader"));
 
 const DEFAULT_DESCRIPTION =
@@ -169,8 +168,6 @@ export default async function RootLayout({ children }) {
             @media (max-width: 768px) { #top-banner-placeholder { min-height: 70px; } }
             .aads-banner-wrapper { min-height: 90px; }
             @media (max-width: 768px) { .aads-banner-wrapper { min-height: 70px; } }
-            .bottom-banner-wrapper { min-height: 90px; }
-            @media (max-width: 768px) { .bottom-banner-wrapper { min-height: 70px; } }
           `
         }} />
       </head>
@@ -202,9 +199,6 @@ export default async function RootLayout({ children }) {
                 <AdScriptLoader />
                 <Sidebar />
                 <main>{children}</main>
-                <div className="bottom-banner-wrapper">
-                  <BottomBanner />
-                </div>
                 <MobileNav />
                 <AchievementToast />
                  <PWAInstall />
