@@ -214,24 +214,7 @@ export default async function RootLayout({ children }) {
           </AppProvider>
           <Analytics />
           <SpeedInsights />
-          <div
-            dangerouslySetInnerHTML={{
-              __html: `
-                <script>
-                (function(fhb){
-                var d = document,
-                    s = d.createElement('script'),
-                    l = d.currentScript || d.scripts[d.scripts.length - 1];
-                s.settings = fhb || {};
-                s.src = "//purple-text.com/cMD.9c6yb/2b5-lsSRW/Qf9vN/zfM_yFMaDUUSyLOkSO0g3RMOz/IZwUNGTSMOza";
-                s.async = true;
-                s.referrerPolicy = 'no-referrer-when-downgrade';
-                l.parentNode.insertBefore(s, l);
-                })({})
-                </script>
-              `,
-            }}
-          />
+          <script data-cfasync="false" src="//dcbbwymp1bhlf.cloudfront.net/?wbbcd=1719357" />
         </body>
     </html>
   );
