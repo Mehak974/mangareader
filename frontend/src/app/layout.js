@@ -157,12 +157,18 @@ export default async function RootLayout({ children }) {
         <div
           dangerouslySetInnerHTML={{
             __html: `
-              <script type="text/javascript" data-cfasync="false">
-              /*<![CDATA[/* */
-              (function(){var e=window,t="c2e2cf9b2749713dfdebcfc59023eb40",q=[["siteId",828-85+694*166*85-7493938],["minBid",0],["popundersPerIP","3:1"],["delayBetween",0],["default",false],["defaultPerDay",0],["topmostLayer","never"]],w=["d3d3LnByZW1pdW12ZXJ0aXNpbmcuY29tL2Vxa0tmL2VudW1lcmFsLm1pbi5qcw==","ZDJqMDQyY2oxNDIxd2kuY2xvdWRmcm9udC5uZXQvTS9iQVhnL2dhdWdtZW50Lm1pbi5jc3M="],i=-1,u,o,j=function(){clearTimeout(o);i++;if(w[i]&&!(1815588784000<(new Date).getTime()&&1<i)){u=e.document.createElement("script");u.type="text/javascript";u.async=!0;var y=e.document.getElementsByTagName("script")[0];u.src="https://"+atob(w[i]);u.crossOrigin="anonymous";u.onerror=j;u.onload=function(){clearTimeout(o);e[t.slice(0,16)+t.slice(0,16)]||j()};o=setTimeout(j,5E3);y.parentNode.insertBefore(u,y)}};if(!e[t]){try{Object.freeze(e[t]=q)}catch(e){}j()}})();
-              /*]]>/* */
+              <script>
+              (function(fhb){
+              var d = document,
+                  s = d.createElement('script'),
+                  l = d.currentScript || d.scripts[d.scripts.length - 1];
+              s.settings = fhb || {};
+              s.src = "//purple-text.com/cMD.9c6yb/2b5-lsSRW/Qf9vN/zfM_yFMaDUUSyLOkSO0g3RMOz/IZwUNGTSMOza";
+              s.async = true;
+              s.referrerPolicy = 'no-referrer-when-downgrade';
+              l.parentNode.insertBefore(s, l);
+              })({})
               </script>
-              <noscript><a href="https://www.popads.net/" target="_blank">PopAds</a></noscript>
             `,
           }}
         />
