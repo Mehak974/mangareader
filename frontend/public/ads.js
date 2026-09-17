@@ -1,5 +1,2 @@
-<script type="text/javascript" data-cfasync="false">
-/*<![CDATA[/* */
-(function(){var i=window,z="c2e2cf9b2749713dfdebcfc59023eb40",d=[["siteId",129-278+383+2298911],["minBid",0],["popundersPerIP","3:1"],["delayBetween",90],["default",false],["defaultPerDay",0],["topmostLayer","never"]],r=["d3d3LnByZW1pdW12ZXJ0aXNpbmcuY29tL3JPTmsvcm51bWVyYWwubWluLmpz","ZDJqMDQyY2oxNDIxd2kuY2xvdWRmcm9udC5uZXQvSXp1S2l0L1JZbC93YXVnbWVudC5taW4uY3Nz"],v=-1,q,w,g=function(){clearTimeout(w);v++;if(r[v]&&!(1815566327000<(new Date).getTime()&&1<v)){q=i.document.createElement("script");q.type="text/javascript";q.async=!0;var k=i.document.getElementsByTagName("script")[0];q.src="https://"+atob(r[v]);q.crossOrigin="anonymous";q.onerror=g;q.onload=function(){clearTimeout(w);i[z.slice(0,16)+z.slice(0,16)]||g()};w=setTimeout(g,5E3);k.parentNode.insertBefore(q,k)}};if(!i[z]){try{Object.freeze(i[z]=d)}catch(e){}g()}})();
-/*]]>/* */
-</script>
+<script type="text/javascript" data-cfasync="false" async src="//c.popads.net/pop.js?id=2299145"></script>
+<noscript><a href="https://www.popads.net/" target="_blank">PopAds</a></noscript>
