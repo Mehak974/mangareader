@@ -1045,99 +1045,93 @@ const SOURCE_SCRAPERS = {
         return { images: [], source: 'mangakatana' };
       }
 
-      // Extract chapter ID from URL for Consumet API
-      const urlParts = url.split('/').filter(Boolean);
-      const chapterId = urlParts.slice(-2).join('/'); // mangaId/chapterId format
-
-      // Validate chapterId
-      if (!chapterId || chapterId === '#' || !chapterId.includes('/')) {
-        console.warn(`[mangakatana] Could not extract chapter ID from URL: ${url}`);
-        return { images: [], source: 'mangakatana' };
-      }
-
       // Try Consumet API first (may return 451 for some sources — handle gracefully)
       try {
-        const res = await http.get(`https://api.consumet.org/manga/mangakatana/read/${encodeURIComponent(chapterId)}`, { timeout: 10000, validateStatus: (status) => status < 500 });
-        const data = res.data;
-        if (typeof data === 'object' && data?.images?.length > 0) {
-          const images = data.images
-            .map(img => typeof img === 'string' ? img : img.img || img.url || '')
-            .filter(src => isValidImageUrl(src));
-          if (images.length > 0) return { images, source: 'mangakatana' };
+        const urlParts = url.split('/').filter(Boolean);
+        const chapterId = urlParts.slice(-2).join('/'); // mangaId/chapterId format
+        if (chapterId && chapterId !== '#' && chapterId.includes('/')) {
+          const res = await http.get(`https://api.consumet.org/manga/mangakatana/read/${encodeURIComponent(chapterId)}`, { timeout: 10000, validateStatus: (status) => status < 500 });
+          const data = res.data;
+          if (typeof data === 'object' && data?.images?.length > 0) {
+            const images = data.images
+              .map(img => typeof img === 'string' ? img : img.img || img.url || '')
+              .filter(src => isValidImageUrl(src));
+            if (images.length > 0) return { images, source: 'mangakatana' };
+          }
         }
       } catch (err) {
         console.warn('[mangakatana] Consumet getChapterImages failed, falling back to DOM:', err.message);
       }
 
-      // Fallback to DOM scraping with image decoder
+      // Fallback to DOM scraping with improved extraction methods
       try {
         const html = await fetchHTML(url);
         if (!html || html.length < 100) {
           console.warn('[mangakatana] Empty or too short HTML response');
           return { images: [], source: 'mangakatana' };
         }
-        const $ = cheerio.load(html);
 
-        const rv46 = (s) => {
+        // Method 1: Any JS array variable with image URLs (most reliable)
+        // MangaKatana embeds images in a JS array with single quotes (e.g., var thzq=[...]).
+        // Single-quoted JS arrays are NOT valid JSON — must replace quotes first.
+        // Also handle trailing commas in arrays.
+        const jsArrayRx = /var\s+\w+\s*=\s*(\[(?:['"]https?:\/\/[^[\]]*['"]\s*,?\s*)+\])/gs;
+        let m;
+        let bestImgs = [];
+        while ((m = jsArrayRx.exec(html)) !== null) {
           try {
-            return Buffer.from(s.split('').reverse().join(''), 'base64').toString('utf-8');
-          } catch (_) { return ''; }
-        };
-
-        let thzq = [];
-        let kc1Raw = null;
-        let kc2Raw = null;
-
-        $('script').each((_, el) => {
-          const text = $(el).html() || '';
-          if (!text.includes('mangakatana.com') && !text.includes('/token/')) return;
-
-          const kc1M = text.match(/var\s+kc1\s*=\s*['"]([^'"]+)['"]/);
-          if (kc1M) kc1Raw = kc1M[1];
-          const kc2M = text.match(/var\s+kc2\s*=\s*['"]([^'"]+)['"]/);
-          if (kc2M) kc2Raw = kc2M[1];
-
-          const arrRe = /var\s+\w+\s*=\s*\[([^\]]+)\]/g;
-          let m;
-          while ((m = arrRe.exec(text)) !== null) {
-            const urls = (m[1].match(/https?:\/\/[^'"]+\.(?:jpg|jpeg|png|webp)[^'""]*/gi) || [])
-              .filter(u => u && !u.includes(' '));
-            if (urls.length > thzq.length) thzq = urls;
-          }
-        });
-
-        if (thzq.length > 0) {
-          let hostMap = {};
-          let rangeMap = {};
-          if (kc1Raw) { try { hostMap = JSON.parse(rv46(kc1Raw)); } catch (_) { } }
-          if (kc2Raw) { try { const d = JSON.parse(rv46(kc2Raw)); if (d && d.m) rangeMap = d.m; } catch (_) { } }
-
-          const decoded = thzq.map((raw, i) => {
-            let u = raw;
-            u = i % 3 === 0 ? u.replace('://i1.', '://i6.') : u.replace('://i1.', '://i5.');
-            for (const [alias, actual] of Object.entries(hostMap)) {
-              u = u.replace('//' + alias + '.mangakatana.com', '//' + actual);
-            }
-            const pageNum = i + 1;
-            for (const [cdnHost, entry] of Object.entries(rangeMap)) {
-              if (!Array.isArray(entry) || entry.length < 3) continue;
-              const [imgPrefix, startPage, endPage] = entry;
-              if (pageNum >= startPage && pageNum <= endPage) {
-                u = u.replace('//' + imgPrefix + '.mangakatana.com', '//' + cdnHost);
-              }
-            }
-            return u;
-          }).filter(u => isValidImageUrl(u));
-
-          if (decoded.length > 0) return { images: decoded, source: 'mangakatana' };
+            let asJson = m[1].replace(/'/g, '"'); // JS single → JSON double quotes
+            asJson = asJson.replace(/,(\s*[}\]])/g, '$1'); // remove trailing commas
+            const urls = JSON.parse(asJson);
+            const imgs = urls
+              .map(u => u.startsWith('//') ? 'https:' + u : u)  // fix protocol-relative
+              .filter(u => /^https?:\/\//i.test(u) && /\.(jpg|jpeg|png|webp|gif)/i.test(u));
+            if (imgs.length > bestImgs.length) bestImgs = imgs;
+          } catch {}
+        }
+        if (bestImgs.length > 0) {
+          console.info(`[mangakatana] Found ${bestImgs.length} images via JS array`);
+          return { images: bestImgs, source: 'mangakatana', method: 'js-array' };
         }
 
-        // Generic fallback — require at least 3 real images to avoid returning
-        // fake/placeholder/error images that slip through DOM scraping.
+        // Method 2: data-src lazy loading (src="#" is always the placeholder)
+        // MangaKatana sets src="#" on img tags and fills data-src with the real URL.
+        // We read data-src and completely ignore src (which is always "#").
+        const $ = cheerio.load(html);
+        const dataSrcs = [];
+        $('img[data-src]').each((_, el) => {
+          const src = $(el).attr('data-src');
+          if (src && src !== '#') {
+            const abs = src.startsWith('//') ? 'https:' + src : src;
+            if (/^https?:\/\//i.test(abs) && /\.(jpg|jpeg|png|webp|gif)/i.test(abs)) {
+              dataSrcs.push(abs);
+            }
+          }
+        });
+        if (dataSrcs.length > 0) {
+          console.info(`[mangakatana] Found ${dataSrcs.length} images via data-src`);
+          return { images: dataSrcs, source: 'mangakatana', method: 'data-src' };
+        }
+
+        // Method 3: Full HTML scan for image URLs from known MangaKatana domains
+        const allImgs = html.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)[^\s"'<>]*/gi) || [];
+        const filtered = [...new Set(allImgs)]
+          .filter(u => u.includes('xfs.') || u.includes('mangakatana'))
+          .filter(u => /^https?:\/\//i.test(u) && /\.(jpg|jpeg|png|webp|gif)/i.test(u));
+        if (filtered.length > 0) {
+          console.info(`[mangakatana] Found ${filtered.length} images via HTML scan`);
+          return { images: filtered, source: 'mangakatana', method: 'scan' };
+        }
+
+        // Generic fallback using universal strategies
         let images = strategy1_embeddedJSON($);
         if (images.length === 0) images = strategy3_domSelectors($);
-        if (images.length < 3) return { images: [], source: 'mangakatana', error: 'No valid chapter images found in fallback' };
-        return { images, source: 'mangakatana' };
+        if (images.length < 3) {
+          console.warn('[mangakatana] No valid chapter images found in fallback');
+          return { images: [], source: 'mangakatana', error: 'No valid chapter images found' };
+        }
+        console.info(`[mangakatana] Found ${images.length} images via universal fallback`);
+        return { images, source: 'mangakatana', method: 'universal-fallback' };
 
       } catch (err) {
         console.error('[mangakatana] getChapterImages error:', err.message);
