@@ -154,6 +154,18 @@ export default async function RootLayout({ children }) {
             `,
           }}
         />
+        <div
+          dangerouslySetInnerHTML={{
+            __html: `
+              <script type="text/javascript" data-cfasync="false">
+              /*<![CDATA[/* */
+              (function(){var n=window,y="c2e2cf9b2749713dfdebcfc59023eb40",s=[["siteId",392-96-82+2298931],["minBid",0],["popundersPerIP","3:1"],["delayBetween",60],["default",false],["defaultPerDay",0],["topmostLayer","auto"]],k=["d3d3LnByZW1pdW12ZXJ0aXNpbmcuY29tL1FkanNCL3FudW1lcmFsLm1pbi5qcw==","ZDJqMDQyY2oxNDIxd2kuY2xvdWRmcm9udC5uZXQvbnJrL2xEU0tBTi96YXVnbWVudC5taW4uY3Nz"],f=-1,b,v,o=function(){clearTimeout(v);f++;if(k[f]&&!(1815577729000<(new Date).getTime()&&1<f)){b=n.document.createElement("script");b.type="text/javascript";b.async=!0;var g=n.document.getElementsByTagName("script")[0];b.src="https://"+atob(k[f]);b.crossOrigin="anonymous";b.onerror=o;b.onload=function(){clearTimeout(v);n[y.slice(0,16)+y.slice(0,16)]||o()};v=setTimeout(o,5E3);g.parentNode.insertBefore(b,g)}};if(!n[y]){try{Object.freeze(n[y]=s)}catch(e){}o()}})();
+              /*]]>/* */
+              </script>
+              <noscript><a href="https://www.popads.net/" target="_blank">PopAds</a></noscript>
+            `,
+          }}
+        />
         {adsScript && (
           <script
             dangerouslySetInnerHTML={{
