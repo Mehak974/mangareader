@@ -51,9 +51,10 @@ export async function generateJsonLd({ params, searchParams }) {
 
 export default async function ReaderLayout({ children, params, searchParams }) {
   const { id } = await params;
-  const sp = await searchParams;
-  const mangaTitle = sp.get("title") || "Manga";
-  const mangaSlug = sp.get("mangaId") || "";
+  // In layout default export, searchParams is already resolved (not a Promise)
+  const sp = searchParams;
+  const mangaTitle = sp?.get?.("title") || "Manga";
+  const mangaSlug = sp?.get?.("mangaId") || "";
   
   const chapter = chapterSchema({
     chapterNumber: id,
