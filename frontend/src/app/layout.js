@@ -107,12 +107,30 @@ export default async function RootLayout({ children }) {
         <link rel="shortcut icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="manifest" href="/manifest.json" />
+        
+        {/* Font optimization - preload critical font */}
+        <link rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href="https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHTEg.woff2" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* Critical third-party origins */}
+        <link rel="dns-prefetch" href="https://s4.anilist.co" />
+        <link rel="dns-prefetch" href="https://s5.anilist.co" />
         <link rel="preconnect" href="https://s4.anilist.co" />
+        <link rel="preconnect" href="https://s5.anilist.co" />
+        
+        {/* API preconnect */}
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={new URL(process.env.NEXT_PUBLIC_API_URL).origin} />
         )}
+        
+        {/* Image CDN preconnect */}
+        <link rel="preconnect" href="https://i1.mangakatana.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://i6.mangakatana.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://mkklcdnv6tempv2.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://2xstorage.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://img-r1.2xstorage.com" crossOrigin="anonymous" />
+        
         <link rel="alternate" hrefLang="en" href={SITE_URL + "/"} />
         <link rel="alternate" hrefLang="ja" href={SITE_URL + "/"} />
         <link rel="alternate" hrefLang="ko" href={SITE_URL + "/"} />
@@ -143,6 +161,18 @@ export default async function RootLayout({ children }) {
             }}
           />
         )}
+        
+        {/* Core Web Vitals: Reserve space for top banner to prevent CLS */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            #top-banner-placeholder { min-height: 90px; }
+            @media (max-width: 768px) { #top-banner-placeholder { min-height: 70px; } }
+            .aads-banner-wrapper { min-height: 90px; }
+            @media (max-width: 768px) { .aads-banner-wrapper { min-height: 70px; } }
+            .bottom-banner-wrapper { min-height: 90px; }
+            @media (max-width: 768px) { .bottom-banner-wrapper { min-height: 70px; } }
+          `
+        }} />
       </head>
       <body className={`${dmSans.className} dark bg-bg`} suppressHydrationWarning>
         <JsonLd data={organizationSchema()} />
@@ -163,24 +193,28 @@ export default async function RootLayout({ children }) {
         />
         <AppProvider>
           <MaintenanceGuard>
-<div id="app">
-              <InkDots />
-              <Header />
-              <AAdsBanner />
-              <AdScriptLoader />
-              <Sidebar />
-              <main>{children}</main>
-              <BottomBanner />
-              <MobileNav />
-              <AchievementToast />
-               <PWAInstall />
-               <LibraryPicker />
-            </div>
-          </MaintenanceGuard>
-        </AppProvider>
-        <Analytics />
-        <SpeedInsights />
-      </body>
+        <div id="app">
+                <InkDots />
+                <Header />
+                <div id="top-banner-placeholder" className="aads-banner-wrapper">
+                  <AAdsBanner />
+                </div>
+                <AdScriptLoader />
+                <Sidebar />
+                <main>{children}</main>
+                <div className="bottom-banner-wrapper">
+                  <BottomBanner />
+                </div>
+                <MobileNav />
+                <AchievementToast />
+                 <PWAInstall />
+                 <LibraryPicker />
+              </div>
+            </MaintenanceGuard>
+          </AppProvider>
+          <Analytics />
+          <SpeedInsights />
+        </body>
     </html>
   );
 }

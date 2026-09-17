@@ -237,3 +237,112 @@ export function faqSchema(items: FaqItem[]): JsonLdObject {
     })),
   };
 }
+
+/** Manga/Series schema for manga detail pages. */
+export type MangaSchemaInput = {
+  title: string;
+  slug: string;
+  description?: string;
+  coverImage?: string;
+  genres?: string[];
+  author?: string;
+  status?: string;
+  chapters?: number;
+  rating?: number;
+  datePublished?: string;
+  alternativeTitles?: string[];
+};
+
+/**
+ * Manga schema — for manga detail pages to enable rich results.
+ * Uses Book type with Manga-specific properties.
+ */
+export function mangaSchema(manga: MangaSchemaInput): JsonLdObject {
+  const url = absoluteUrl(`/manga/${manga.slug}`);
+  const imageUrl = manga.coverImage ? absoluteUrl(manga.coverImage) : undefined;
+
+  const schema: JsonLdObject = {
+    "@context": "https://schema.org",
+    "@type": ["Book", "CreativeWorkSeries"],
+    name: manga.title,
+    url,
+    description: manga.description ?? `Read ${manga.title} manga online for free.`,
+    genre: manga.genres?.length ? manga.genres : ["Manga"],
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    publisher: {
+      "@type": "Organization",
+      name: "MangaReader",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/icon.png`,
+      },
+    },
+  };
+
+  if (imageUrl) schema.image = imageUrl;
+  if (manga.author) {
+    schema.author = {
+      "@type": "Person",
+      name: manga.author,
+    };
+  }
+  if (manga.status) schema.publicationStatus = manga.status;
+  if (manga.chapters) schema.numberOfPages = manga.chapters;
+  if (manga.rating) {
+    schema.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: manga.rating,
+      ratingCount: 100,
+      bestRating: 10,
+      worstRating: 1,
+    };
+  }
+  if (manga.datePublished) schema.datePublished = manga.datePublished;
+  if (manga.alternativeTitles?.length) {
+    schema.alternativeHeadline = manga.alternativeTitles.join(", ");
+  }
+
+  return schema;
+}
+
+/** Chapter schema for chapter/reader pages. */
+export type ChapterSchemaInput = {
+  chapterNumber: string | number;
+  title?: string;
+  mangaTitle: string;
+  mangaSlug: string;
+  mangaUrl: string;
+  datePublished?: string;
+  imageUrls?: string[];
+};
+
+/**
+ * Chapter schema — for chapter pages to link to parent series.
+ */
+export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
+  const chapterNum = typeof chapter.chapterNumber === "string" ? chapter.chapterNumber : String(chapter.chapterNumber);
+  const name = chapter.title ?? `Chapter ${chapterNum}`;
+  const url = absoluteUrl(`/reader/${chapter.mangaSlug}/${chapterNum}`);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Chapter",
+    name,
+    url,
+    description: `Read ${name} of ${chapter.mangaTitle} online.`,
+    isPartOf: {
+      "@type": "CreativeWorkSeries",
+      name: chapter.mangaTitle,
+      url: absoluteUrl(`/manga/${chapter.mangaSlug}`),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "MangaReader",
+      url: SITE_URL,
+    },
+    datePublished: chapter.datePublished,
+    position: typeof chapter.chapterNumber === "number" ? chapter.chapterNumber : parseInt(chapterNum, 10) || 1,
+  };
+}

@@ -1,4 +1,5 @@
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadata, absoluteUrl, chapterSchema, breadcrumbSchema } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 /**
  * Same pattern as app/manga/[title]/layout.js — page.js here is a client
@@ -25,6 +26,54 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export default function ReaderLayout({ children }) {
-  return children;
+export async function generateJsonLd({ params, searchParams }) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const mangaTitle = sp.get("title") || "Manga";
+  const mangaSlug = sp.get("mangaId") || "";
+  
+  const chapter = chapterSchema({
+    chapterNumber: id,
+    mangaTitle,
+    mangaSlug,
+    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
+  });
+  
+  const breadcrumbs = breadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Browse", url: "/browse" },
+    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
+    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
+  ]);
+
+  return [chapter, breadcrumbs];
+}
+
+export default async function ReaderLayout({ children, params, searchParams }) {
+  const { id } = await params;
+  const sp = await searchParams;
+  const mangaTitle = sp.get("title") || "Manga";
+  const mangaSlug = sp.get("mangaId") || "";
+  
+  const chapter = chapterSchema({
+    chapterNumber: id,
+    mangaTitle,
+    mangaSlug,
+    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
+  });
+  
+  const breadcrumbs = breadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Browse", url: "/browse" },
+    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
+    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
+  ]);
+
+  return (
+    <>
+      <JsonLd data={chapter} />
+      <JsonLd data={breadcrumbs} />
+      {children}
+    </>
+  );
 }

@@ -1,4 +1,4 @@
-import { buildMetadata, absoluteUrl, SITE_URL } from "@/lib/seo";
+import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
 function slugify(input) {
@@ -8,31 +8,6 @@ function slugify(input) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function bookSchema(titleSlug) {
-  const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
-  const url = absoluteUrl(`/manga/${titleSlug}`);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Book",
-    name,
-    url,
-    description: `Read ${name} manga online for free.`,
-    genre: [],
-    inLanguage: "en",
-    author: {
-      "@type": "Organization",
-      name: "Aggregated from multiple publishers",
-    },
-    isAccessibleForFree: "True",
-    publisher: {
-      "@type": "Organization",
-      name: "MangaReader",
-      url: SITE_URL,
-    },
-  };
 }
 
 export async function generateMetadata({ params }) {
@@ -48,16 +23,45 @@ export async function generateMetadata({ params }) {
 
 export async function generateJsonLd({ params }) {
   const { title: titleSlug } = await params;
-  return [bookSchema(titleSlug)];
+  const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
+  
+  // Build manga schema - in production you'd fetch real data
+  const manga = mangaSchema({
+    title: name,
+    slug: titleSlug,
+    genres: ["Manga"],
+  });
+  
+  // Breadcrumb schema
+  const breadcrumbs = breadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Browse", url: "/browse" },
+    { name: name, url: `/manga/${titleSlug}` },
+  ]);
+
+  return [manga, breadcrumbs];
 }
 
 export default async function MangaDetailLayout({ children, params }) {
   const { title: titleSlug } = await params;
-  const schema = bookSchema(titleSlug);
+  const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
+  
+  const manga = mangaSchema({
+    title: name,
+    slug: titleSlug,
+    genres: ["Manga"],
+  });
+  
+  const breadcrumbs = breadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Browse", url: "/browse" },
+    { name: name, url: `/manga/${titleSlug}` },
+  ]);
 
   return (
     <>
-      {schema && <JsonLd data={schema} />}
+      <JsonLd data={manga} />
+      <JsonLd data={breadcrumbs} />
       {children}
     </>
   );
