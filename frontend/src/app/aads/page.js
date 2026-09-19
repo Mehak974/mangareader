@@ -1,5 +1,4 @@
 import AAdsBanner from "@/components/AAdsBanner";
-import BottomBanner from "@/components/BottomBanner";
 
 export const metadata = {
   title: "Advertisements",
@@ -14,7 +13,6 @@ export default function AadsPage() {
     <div style={{ width: "100%", minHeight: "100vh", background: "#0A0612" }}>
       <AAdsBanner />
       <div style={{ height: "40vh" }} />
-      <BottomBanner />
     </div>
   );
 }
