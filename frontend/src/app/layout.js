@@ -29,30 +29,6 @@ const AdScriptLoader = dynamic(() => import("@/components/AdScriptLoader"));
 const DEFAULT_DESCRIPTION =
   "Read manga, manhwa, and manhua free. Sync reading across devices, bookmark chapters, track progress, and discover new series.";
 
-let adsScript = "";
-try {
-  const fs = require("fs");
-  const path = require("path");
-  const adsPath = path.join(process.cwd(), "public", "ads.js");
-  const adsTxtPath = path.join(process.cwd(), "ads.txt");
-  
-  let adsContent = "";
-  try {
-    adsContent = fs.readFileSync(adsPath, "utf8");
-  } catch {
-    try {
-      adsContent = fs.readFileSync(adsTxtPath, "utf8");
-    } catch {}
-  }
-  
-  const matches = [...adsContent.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
-  if (matches.length) {
-    adsScript = matches[matches.length - 1][1].trim();
-  }
-} catch (e) {
-  console.error("Failed to load ads:", e);
-}
-
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -153,13 +129,6 @@ export default async function RootLayout({ children }) {
             `,
           }}
         />
-        {adsScript && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: adsScript,
-            }}
-          />
-        )}
         
         {/* Core Web Vitals: Reserve space for top banner to prevent CLS */}
         <style dangerouslySetInnerHTML={{
@@ -208,7 +177,6 @@ export default async function RootLayout({ children }) {
           </AppProvider>
           <Analytics />
           <SpeedInsights />
-          <script data-cfasync="false" src="//dcbbwymp1bhlf.cloudfront.net/?wbbcd=1719357" />
         </body>
     </html>
   );

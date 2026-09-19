@@ -12,10 +12,14 @@ export default function AdScriptLoader() {
     if (loaded.current) return;
     loaded.current = true;
 
-    // PopAds script is now injected inline in layout.js head
-    // This component kept for any future dynamic ad loading
+    const script = document.createElement("script");
+    script.src = "//dcbbwymp1bhlf.cloudfront.net/?wbbcd=1719357";
+    script.async = true;
+    script.setAttribute("data-cfasync", "false");
+    document.body.appendChild(script);
 
     return () => {
+      script.remove();
       loaded.current = false;
     };
   }, [pathname]);
