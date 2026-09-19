@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function AdManager() {
+  const pathname = usePathname();
+
   useEffect(() => {
+    if (pathname === "/aads") return;
     let mounted = true;
 
     const loadAds = async () => {
@@ -54,7 +58,7 @@ export default function AdManager() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }
