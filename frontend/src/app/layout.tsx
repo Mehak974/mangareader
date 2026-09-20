@@ -133,15 +133,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        {/* CSS custom properties for per-domain theme colours */}
-        <style>{`
-          :root {
-            --accent:        ${siteConfig.theme.accentColor};
-            --accent-hover:  ${siteConfig.theme.accentHover};
-            --bg-dark:       ${siteConfig.theme.bgDark};
-            --bg-card:       ${siteConfig.theme.bgCard};
-          }
-        `}</style>
+        {/* CSS custom properties — resolved at runtime by hostname */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            var h = location.hostname;
+            var t = {
+              'mangaread.pro':      { a:'#38BDF8', ah:'#0EA5E9', bd:'#0C1220', bc:'#111827' },
+              'manireader.online':  { a:'#F97316', ah:'#EA580C', bd:'#0E0F14', bc:'#16171F' },
+            };
+            var c = t[h] || { a:'#A855F7', ah:'#9333EA', bd:'#0A0612', bc:'#13091E' };
+            var s = document.documentElement.style;
+            s.setProperty('--accent',       c.a);
+            s.setProperty('--accent-hover', c.ah);
+            s.setProperty('--bg-dark',      c.bd);
+            s.setProperty('--bg-card',      c.bc);
+          })();
+        `}} />
 
         {/* Google AdSense — only when NEXT_PUBLIC_ADSENSE_ID is set */}
         {ADSENSE_ENABLED && (
