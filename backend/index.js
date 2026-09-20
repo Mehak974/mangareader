@@ -773,7 +773,7 @@ const ANILIST_MANGA_QUERY = `
 function mapAnilistMedia(media) {
   return {
     id: media.id,
-    t: media.title.userPreferred || media.title.english || media.title.romaji,
+    t: media.title.english || media.title.romaji || media.title.userPreferred,
     title: media.title.english || media.title.romaji || media.title.userPreferred,
     cover: media.coverImage.large || media.coverImage.medium,
     ch: media.chapters ? `Ch ${media.chapters}` : '',
@@ -1343,6 +1343,7 @@ process.on('uncaughtException', (e) => console.error('[UncaughtException]', e.me
 module.exports = app;
 
 module.exports = { performSearch };
+
 
 
 
