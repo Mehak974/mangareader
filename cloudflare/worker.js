@@ -22,6 +22,14 @@
 const MEM = new Map();
 const MEM_MAX = 300; // max entries before evicting oldest
 
+function safeBtoa(str) {
+  try {
+    return btoa(str);
+  } catch (e) {
+    return btoa(encodeURIComponent(str));
+  }
+}
+
 function memGet(key) {
   const e = MEM.get(key);
   if (!e) return null;
@@ -151,7 +159,7 @@ async function imgProxy(req, ctx) {
   if (!allowed(target)) return new Response('Domain not allowed', { status: 403 });
 
   // L2: check Cloudflare CDN cache (free, no limits)
-  const cacheKey = new Request(`https://img.internal/${btoa(encodeURIComponent(target)).slice(0, 200)}`);
+  const cacheKey = new Request(`https://img.internal/${safeBtoa(encodeURIComponent(target)).slice(0, 200)}`);
   const hit = await caches.default.match(cacheKey);
   if (hit) {
     return new Response(hit.body, {
@@ -224,7 +232,7 @@ async function imgProxy(req, ctx) {
 // L1 memory → L2 Cache API → origin. KV: never touched.
 async function anilist(req, ctx) {
   const body = await req.json();
-  const ck = 'al:' + btoa(JSON.stringify(body)).slice(0, 150);
+  const ck = 'al:' + safeBtoa(JSON.stringify(body)).slice(0, 150);
 
   // L1 memory check (instant, zero cost)
   const mem = memGet(ck);
@@ -259,7 +267,7 @@ async function mangadex(req, ctx) {
   if (urlParam) return scraped(req, ctx, 'mangadex', 'https://mangadex.org/');
   const path = url.pathname.replace('/api/mangadex', '');
   const target = `https://api.mangadex.org${path}${url.search}`;
-  const ck = 'md:' + btoa(target).slice(0, 150);
+  const ck = 'md:' + safeBtoa(target).slice(0, 150);
 
   const mem = memGet(ck);
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } });
@@ -287,7 +295,7 @@ async function scraped(req, ctx, source, siteReferer) {
   const target = new URL(req.url).searchParams.get('url');
   if (!target) return json({ error: 'Missing ?url=' }, 400);
 
-  const ck = `${source}:${btoa(target).slice(0, 150)}`;
+  const ck = `${source}:${safeBtoa(target).slice(0, 150)}`;
 
   const mem = memGet(ck);
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } });
