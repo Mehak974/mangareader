@@ -7,78 +7,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const BROWSER_HEADERS = [
-  {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-  },
-  {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-  },
-  {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-  },
-];
-let headerIndex = 0;
-function getBrowserHeaders() {
-  const h = BROWSER_HEADERS[headerIndex % BROWSER_HEADERS.length];
-  headerIndex++;
-  return h;
-}
-
-const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
-const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
-const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
-let proxyIndex = 0;
-
-function getProxy() {
-  if (PROXY_ROTATION && PROXY_LIST.length > 0) {
-    const proxy = PROXY_LIST[proxyIndex % PROXY_LIST.length];
-    proxyIndex++;
-    return proxy;
-  }
-  return PROXY_URL;
-}
-
-const http = axios.create({
-  headers: getBrowserHeaders(),
-  timeout: 10000,
-  maxRedirects: 5,
-  proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
-});
-
 const REFERERS = {
   'coffeemanga.net': 'https://coffeemanga.net/',
   'mangaread.org': 'https://www.mangaread.org/',
@@ -1492,3 +1420,5 @@ function findMangaArrays(obj, depth = 0) {
 }
 
 module.exports = { SOURCE_SCRAPERS, fetchHTML, fetchWithFlareSolverr, strategy1_embeddedJSON, strategy2_nextData, strategy3_domSelectors };
+
+

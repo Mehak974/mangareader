@@ -7,15 +7,15 @@
  */
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
+import { SITE_NAME as CONFIG_SITE_NAME, SITE_URL as CONFIG_SITE_URL, SEO } from '@/lib/site-config';
 
 /** Canonical site origin, without a trailing slash. */
-export const SITE_URL = env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
+export const SITE_URL = CONFIG_SITE_URL;
 
 /** The public-facing site name. */
-export const SITE_NAME = "MangaReader";
+export const SITE_NAME = CONFIG_SITE_NAME;
 
-const DEFAULT_DESCRIPTION =
-  "Sync reading across devices. Bookmark chapters, track progress, discover new series — without ads.";
+const DEFAULT_DESCRIPTION = SEO.description;
 
 /** The default social share image, served from the app's public directory. */
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.svg`;
@@ -272,7 +272,7 @@ export function mangaSchema(manga: MangaSchemaInput): JsonLdObject {
     isAccessibleForFree: true,
     publisher: {
       "@type": "Organization",
-      name: "MangaReader",
+      name: SITE_NAME,
       url: SITE_URL,
       logo: {
         "@type": "ImageObject",
@@ -339,7 +339,7 @@ export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
     },
     publisher: {
       "@type": "Organization",
-      name: "MangaReader",
+      name: SITE_NAME,
       url: SITE_URL,
     },
     datePublished: chapter.datePublished,

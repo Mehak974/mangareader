@@ -13,7 +13,8 @@ const cheerio = require('cheerio');
 const bcrypt = require('bcryptjs');
 const NodeCache = require('node-cache');
 const cookieParser = require('cookie-parser');
-require('dotenv').config();
+const { getConfig, getAllowedOrigins } = require('./config/domains');
+const domainCfg = getConfig();
 
 const { initAuth, requireAdmin } = require('./middleware/auth');
 const { initRateLimit, rateLimit, getRedisClient } = require('./middleware/rateLimit');
@@ -76,9 +77,7 @@ app.use((req, res, next) => {
 // ALLOWED_ORIGINS supports exact origins and wildcard subdomains:
 //   ALLOWED_ORIGINS="https://app.example.com,https://*.example.com"
 // The wildcard entry allows any subdomain of example.com (including apex).
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://www.mangareader.pro,https://mangareader.pro,https://*.mangareader.pro')
-  .replace(/^"|"$/g, '')
-  .split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+const ALLOWED_ORIGINS = getAllowedOrigins();
 const ALLOWED_ORIGIN_PATTERNS = ALLOWED_ORIGINS.map(o => {
   if (o.startsWith('https://*.') || o.startsWith('http://*.')) {
     const domain = o.split('*.')[1];
@@ -102,7 +101,7 @@ app.use((req, res, next) => {
     if (isOriginAllowed(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-    } else if (origin.endsWith('.mangareader.pro') || origin === 'https://mangareader.pro') {
+    } else if (domainCfg.allowedOrigins.some(o => origin === o || origin.endsWith('.' + o.replace(/^https?:\/\//, '')))) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
@@ -1344,3 +1343,7 @@ process.on('uncaughtException', (e) => console.error('[UncaughtException]', e.me
 module.exports = app;
 
 module.exports = { performSearch };
+
+
+
+
