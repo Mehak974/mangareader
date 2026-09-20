@@ -44,8 +44,7 @@ export default function AAdsBanner() {
       style={{
         width: '100%',
         margin: 'auto',
-        position: 'relative',
-        zIndex: 99998
+        position: 'relative'
       }}
     >
       <iframe
