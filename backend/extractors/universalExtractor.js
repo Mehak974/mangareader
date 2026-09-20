@@ -7,6 +7,46 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+// ponytail: these were missing — every scraper call crashed with ReferenceError
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+];
+
+function getBrowserHeaders() {
+  return {
+    'User-Agent': USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+  };
+}
+
+const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
+const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
+const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
+let proxyIndex = 0;
+
+function getProxy() {
+  if (PROXY_ROTATION && PROXY_LIST.length > 0) {
+    const proxy = PROXY_LIST[proxyIndex % PROXY_LIST.length];
+    proxyIndex++;
+    return proxy;
+  }
+  return PROXY_URL;
+}
+
+const http = axios.create({
+  timeout: 15000,
+  maxRedirects: 5,
+});
+
 const REFERERS = {
   'coffeemanga.net': 'https://coffeemanga.net/',
   'mangaread.org': 'https://www.mangaread.org/',
