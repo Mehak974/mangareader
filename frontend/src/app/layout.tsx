@@ -81,9 +81,10 @@ export const metadata: Metadata = {
   // Google / Bing site verification — set per domain in Vercel env vars
   verification: {
     google: AD_CONFIG.googleVerification || undefined,
-    other:  AD_CONFIG.bingVerification
-              ? { 'msvalidate.01': AD_CONFIG.bingVerification }
-              : undefined,
+    other: {
+      ...(AD_CONFIG.bingVerification ? { 'msvalidate.01': AD_CONFIG.bingVerification } : {}),
+      ...(AD_CONFIG.hilltopVerification ? { [AD_CONFIG.hilltopVerification]: AD_CONFIG.hilltopVerification } : {}),
+    },
   },
 
   openGraph: {

@@ -29,6 +29,8 @@ export type AdConfig = {
   googleVerification: string;
   /** Bing site verification meta tag content */
   bingVerification: string;
+  /** Hilltop Ads site verification meta tag */
+  hilltopVerification?: string;
 };
 
 export type SeoConfig = {
@@ -89,6 +91,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
+      hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
     },
     seo: {
       title:       'MangaReader — Read Manga Free Online',
@@ -122,6 +125,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
+      hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',
@@ -155,6 +159,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
+      hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
     },
     seo: {
       title:       'ManiReader — Discover Manga & Manhwa',
