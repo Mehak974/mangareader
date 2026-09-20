@@ -109,6 +109,7 @@ const REFERERS = {
   'anilist.co':          'https://anilist.co/',
   's4.anilist.co':       'https://anilist.co/',
   's5.anilist.co':       'https://anilist.co/',
+  'waitst.com':          'https://mangakatana.com/',
 };
 function referer(url) {
   const h = new URL(url).hostname;
@@ -123,6 +124,7 @@ const ALLOWED = [
   '2xstorage.com','img-r1.2xstorage.com','img-r2.2xstorage.com','img-r3.2xstorage.com','img-r4.2xstorage.com','imgs-2.2xstorage.com',
   'media.mangaka.com',
   'anilist.co','s4.anilist.co','s5.anilist.co',
+  'waitst.com',
 ];
 function allowed(url) {
   try {
