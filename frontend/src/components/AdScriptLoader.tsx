@@ -18,7 +18,7 @@ export default function AdScriptLoader() {
     let scriptContent = '';
 
     if (siteConfig.profile === 'manireader.online') {
-      scriptContent = 
+      scriptContent = `
         (function(ised){
         var d = document,
             s = d.createElement('script'),
@@ -29,9 +29,9 @@ export default function AdScriptLoader() {
         s.referrerPolicy = 'no-referrer-when-downgrade';
         l.parentNode.insertBefore(s, l);
         })({})
-      ;
+      `;
     } else if (siteConfig.profile === 'mangaread.pro') {
-      scriptContent = 
+      scriptContent = `
         (function(jkfsm){
         var d = document,
             s = d.createElement('script'),
@@ -42,10 +42,10 @@ export default function AdScriptLoader() {
         s.referrerPolicy = 'no-referrer-when-downgrade';
         l.parentNode.insertBefore(s, l);
         })({})
-      ;
+      `;
     } else {
       // mangareader.pro (default)
-      scriptContent = 
+      scriptContent = `
         (function(xceo){
         var d = document,
             s = d.createElement('script'),
@@ -56,7 +56,7 @@ export default function AdScriptLoader() {
         s.referrerPolicy = 'no-referrer-when-downgrade';
         l.parentNode.insertBefore(s, l);
         })({})
-      ;
+      `;
     }
 
     loaded.current = true;
@@ -72,4 +72,3 @@ export default function AdScriptLoader() {
 
   return null;
 }
-
