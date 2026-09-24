@@ -2,7 +2,7 @@
 
 import React, { use, useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { fetchAnilist, getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
@@ -54,11 +54,11 @@ const AVAILABLE_SOURCES = [
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
 
-export default function MangaDetail({ params, searchParams }) {
+export default function MangaDetail({ params }) {
   const router = useRouter();
   const { title: titleSlug } = use(params);
-  const resolvedSearchParams = searchParams ? use(searchParams) : {};
-  const queryCover = resolvedSearchParams.cover || "";
+  const searchParams = useSearchParams();
+  const queryCover = searchParams ? searchParams.get("cover") || "" : "";
   const {
     isBookmarked,
     toggleBookmark,

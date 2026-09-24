@@ -1,3 +1,5 @@
+export const revalidate = 86400;
+
 import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 

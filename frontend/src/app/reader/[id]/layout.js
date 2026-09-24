@@ -1,3 +1,5 @@
+export const revalidate = 86400;
+
 import { buildMetadata, absoluteUrl, chapterSchema, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
@@ -26,11 +28,10 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export async function generateJsonLd({ params, searchParams }) {
+export async function generateJsonLd({ params }) {
   const { id } = await params;
-  const sp = await searchParams;
-  const mangaTitle = sp.get("title") || "Manga";
-  const mangaSlug = sp.get("mangaId") || "";
+  const mangaTitle = "Manga";
+  const mangaSlug = "";
   
   const chapter = chapterSchema({
     chapterNumber: id,
@@ -49,12 +50,10 @@ export async function generateJsonLd({ params, searchParams }) {
   return [chapter, breadcrumbs];
 }
 
-export default async function ReaderLayout({ children, params, searchParams }) {
+export default async function ReaderLayout({ children, params }) {
   const { id } = await params;
-  // In layout default export, searchParams is already resolved (not a Promise)
-  const sp = searchParams;
-  const mangaTitle = sp?.get?.("title") || "Manga";
-  const mangaSlug = sp?.get?.("mangaId") || "";
+  const mangaTitle = "Manga";
+  const mangaSlug = "";
   
   const chapter = chapterSchema({
     chapterNumber: id,
