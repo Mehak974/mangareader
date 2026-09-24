@@ -90,26 +90,27 @@ const UAS = [
 const ua = () => UAS[Math.floor(Math.random() * UAS.length)];
 
 const REFERERS = {
-  'manganato.com':       'https://manganato.com/',
+  'manganato.com':       'https://www.manganato.gg/',
   'readmanganato.com':   'https://readmanganato.com/',
   'chapmanganato.to':    'https://chapmanganato.to/',
   'mangakatana.com':     'https://mangakatana.com/',
   'mangaread.org':       'https://mangaread.org/',
   'uploads.mangadex.org':'https://mangadex.org/',
   'cmdxd98sb0x3yprd.mangadex.network': 'https://mangadex.org/',
-  '2xstorage.com':       'https://manganato.com/',
-  'img-r1.2xstorage.com':'https://manganato.com/',
-  'img-r2.2xstorage.com':'https://manganato.com/',
-  'img-r3.2xstorage.com':'https://manganato.com/',
-  'img-r4.2xstorage.com':'https://manganato.com/',
-  'imgs-2.2xstorage.com':'https://manganato.com/',
+  'storage.waitst.com':  'https://www.manganato.gg/',
+  'imgs-2.2xstorage.com':'https://www.manganato.gg/',
+  'img-r1.2xstorage.com':'https://www.manganato.gg/',
+  'img-r2.2xstorage.com':'https://www.manganato.gg/',
+  'img-r3.2xstorage.com':'https://www.manganato.gg/',
+  'img-r4.2xstorage.com':'https://www.manganato.gg/',
+  '2xstorage.com':       'https://www.manganato.gg/',
   'mkklcdnv6tempv2.com':'https://mangakatana.com/',
   'mkklcdnv6temp.com':'https://mangakatana.com/',
   'xfs.mangakatana.com':'https://mangakatana.com/',
+  'waitst.com':          'https://mangakatana.com/',
   'anilist.co':          'https://anilist.co/',
   's4.anilist.co':       'https://anilist.co/',
   's5.anilist.co':       'https://anilist.co/',
-  'waitst.com':          'https://mangakatana.com/',
 };
 function referer(url) {
   const h = new URL(url).hostname;
