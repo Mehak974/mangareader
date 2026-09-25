@@ -1,4 +1,4 @@
-import { API_BASE } from "./api";
+import { API_BASE, WORKER_URL } from "./api";
 
 export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1500) {
   for (let i = 0; i < retries; i++) {
@@ -6,7 +6,8 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const url = `${API_BASE.replace(/\/$/, '')}/api/anilist`;
+      const base = WORKER_URL || API_BASE;
+      const url = `${base.replace(/\/$/, '')}/api/anilist`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
