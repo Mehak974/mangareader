@@ -966,8 +966,11 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) return res.status(400).send('URL not allowed');
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
-    // SSRF Allowlist Regex
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv6tempv2\.com|mkklcdnv6temp\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
+    // SSRF Allowlist Regex — covers all manga source image CDNs.
+    // Mangakatana serves images from mkklcdnv*, xfs.*, pixel.*, wds.* subdomains.
+    // All of those end with .mangakatana.com, which is already in the list.
+    // The standalone mkklcdnv.com / mkklcdnv6temp*.com hosts are added explicitly.
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv|mkklcdnv6tempv2\.com|mkklcdnv6temp\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
