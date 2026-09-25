@@ -220,6 +220,50 @@ export default function Sidebar() {
           </svg>
           Blog
         </Link>
+        <Link
+          href="/trending"
+          className={`sb-item ${pathname === "/trending" ? "active" : ""}`}
+          onClick={handleLinkClick}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <polyline
+              points="23 6 13.5 15.5 8.5 10.5 1 18"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polyline
+              points="17 6 23 6 23 12"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Trending<span className="sb-badge">🔥</span>
+        </Link>
+        <Link
+          href="/browse?sort=popular"
+          className="sb-item"
+          onClick={handleLinkClick}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M7 11a5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 2v3m0 14v3M2 12h3m14 0h3"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+          Most Popular
+        </Link>
 
         <div className="sb-section-label">My Stuff</div>
         <Link

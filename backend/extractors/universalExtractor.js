@@ -900,6 +900,12 @@ const SOURCE_SCRAPERS = {
         try {
           const res = await http.get(`https://api.mangadex.org/at-home/server/${chapterId}`);
           const { baseUrl, chapter } = res.data;
+          // Empty data array means the chapter genuinely has no images
+          // (deleted/unavailable). Don't fall through to Puppeteer — that
+          // wastes 25s per request. Return empty so the route can cache it.
+          if (!chapter?.data?.length) {
+            return { images: [], source: 'mangadex', empty: true };
+          }
           const images = chapter.data.map(filename => `${baseUrl}/data/${chapter.hash}/${filename}`);
           return { images, source: 'mangadex' };
         } catch (err) {
@@ -916,7 +922,7 @@ const SOURCE_SCRAPERS = {
         }
       }
       if (lastErr?.response?.status === 404 || lastErr?.response?.status === 429) {
-        return { images: [], source: 'mangadex' };
+        return { images: [], source: 'mangadex', error: 'rate-limited-or-404' };
       }
       throw lastErr;
     }

@@ -7,6 +7,18 @@ main               = "worker.js"
 compatibility_date = "2024-01-15"
 workers_dev        = true
 
+# ── Smart Placement ────────────────────────────────────────────────────────────
+# Enable in the Cloudflare dashboard → Workers → your worker → Settings →
+# Placement → Smart. Runs the Worker in the data center closest to your origin
+# (Railway) rather than closest to the user, reducing cache-miss round-trip time.
+# Free, takes 2 minutes, no config here.
+
+routes = [
+  { pattern = "api.mangareader.pro/*",   zone_name = "mangareader.pro"   },
+  { pattern = "api.mangaread.pro/*",     zone_name = "mangaread.pro"     },
+  { pattern = "api.manireader.online/*", zone_name = "manireader.online" },
+]
+
 [observability.logs]
 enabled = true
 invocation_logs = true

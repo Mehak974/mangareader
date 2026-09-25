@@ -295,3 +295,26 @@ module.exports = {
   query: (text, params) => pool.query(text, params),
   ensureConnection,
 };
+
+// ── Neon cold-start keep-warm ping ────────────────────────────────────────────
+// Neon's free tier hibernates the database after ~5 min of inactivity, so the
+// first query of a new burst can take 2-3 s (LCP spike). Ping every 4 min to
+// keep the connection alive. Skipped for non-Neon URLs and in production if
+// DISABLE_DB_KEEPWARM is set.
+if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')) {
+  const isDisabled = process.env.DISABLE_DB_KEEPWARM === 'true';
+  if (!isDisabled) {
+    const ping = async () => {
+      try {
+        await pool.query('SELECT 1');
+        console.log('[DB] Keep-warm ping OK');
+      } catch (err) {
+        console.warn('[DB] Keep-warm ping failed:', err.message);
+      }
+    };
+    // Initial ping after 2 s, then every 4 min
+    setTimeout(ping, 2000);
+    setInterval(ping, 4 * 60 * 1000);
+    console.log('[DB] Neon keep-warm ping enabled (every 4 min)');
+  }
+}

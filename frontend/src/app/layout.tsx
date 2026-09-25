@@ -27,6 +27,20 @@ import {
 } from '@/lib/site-config';
 import { organizationSchema, websiteSchema } from '@/lib/seo';
 
+// ── hreflang alternates between the 3 domains ──────────────────────────────────
+// All three serve identical content; without these tags Google treats them as
+// duplicates. x-default points to the primary (mangareader.pro).
+const HREFLANG_PROFILES = ['mangareader.pro', 'mangaread.pro', 'manireader.online'];
+const HREFLANG_ALTERNATES: Record<string, string> = {
+  'x-default': 'https://mangareader.pro',
+  'en':       'https://mangareader.pro',
+  'en-US':    'https://mangareader.pro',
+  'en-GB':    'https://mangareader.pro',
+};
+for (const profile of HREFLANG_PROFILES) {
+  HREFLANG_ALTERNATES[profile] = `https://${profile}`;
+}
+
 // ── Google Font per domain ────────────────────────────────────────────────────
 import { DM_Sans, Inter, Plus_Jakarta_Sans } from 'next/font/google';
 
@@ -103,7 +117,10 @@ export const metadata: Metadata = {
     images:      [SEO.ogImage],
   },
 
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    languages: HREFLANG_ALTERNATES,
+  },
 
   robots: {
     index:  true,
@@ -164,7 +181,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={websiteSchema()} />
       </head>
 
-      <body className={`${activeFont.className} antialiased`}>
+      <body className={`${activeFont.className} antialiased`} suppressHydrationWarning>
         <AppProvider>
           <MaintenanceGuard>
             <Header />

@@ -77,6 +77,32 @@ function buildWorkerUrl(route) {
 }
 
 export async function fetchChapterImagesThroughWorker(url, source) {
+  // Mangadex: use the Worker's dedicated chapter-images endpoint, which hits
+  // the official at-home API with CDN caching and retry. Faster + more
+  // reliable than the backend's 25s timeout (which Mangadex rate-limiting
+  // routinely blows past).
+  if (source === 'mangadex' || url.includes('mangadex.org/chapter/')) {
+    const chapterId = url.split('/').pop();
+    // Try the Worker first (official at-home API + CDN caching + retry).
+    // Fall back to the backend scraper when no Worker is configured
+    // (local dev) or when the Worker returns an error.
+    if (WORKER_URL) {
+      const workerUrl = `${buildWorkerUrl('/api/mangadex/chapter-images')}?id=${encodeURIComponent(chapterId)}`;
+      try {
+        const res = await fetch(workerUrl);
+        if (res.ok) return res.json();
+        console.warn('[mangadex] Worker failed, falling back to backend:', res.status);
+      } catch (e) {
+        console.warn('[mangadex] Worker unreachable, falling back to backend:', e.message);
+      }
+    }
+    const res = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=mangadex`);
+    if (!res.ok) throw new Error(`Failed to fetch chapter images: ${res.status}`);
+    return res.json();
+  }
+
+  // Mangakatana: JS-loaded images — route through the backend's scraper
+  // (Consumet API + DOM fallback), not the Worker's static HTML extraction.
   const bypassWorker = source === 'mangakatana' || url.includes('mangakatana');
 
   if (bypassWorker) {

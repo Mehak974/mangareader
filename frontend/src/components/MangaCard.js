@@ -9,7 +9,7 @@ import { isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
 import { proxyImage } from "@/utils/api";
 
-export default function MangaCard({ manga, index }) {
+export default function MangaCard({ manga, index, priority = false }) {
   const router = useRouter();
   const {
     hiddenGenres,
@@ -61,14 +61,15 @@ export default function MangaCard({ manga, index }) {
       aria-label={`Go to ${manga.t}`}
     >
       <div className="m-cover" style={coverStyle}>
-        {imageUrl && (
+{imageUrl && (
           <Image
             src={imageUrl}
             alt={`Cover for ${manga.t}`}
             fill
-             sizes="(max-width: 768px) 120px, 180px"
+            sizes="(max-width: 768px) 120px, 180px"
             style={{ objectFit: "cover" }}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
           />
         )}

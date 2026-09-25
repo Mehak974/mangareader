@@ -13,8 +13,10 @@ const Bottleneck = require('bottleneck');
 const cache = require('./cache');
 
 const ANILIST_URL = 'https://graphql.anilist.co';
-const ANILIST_CLIENT_ID = process.env.ANILIST_CLIENT_ID || '50507';
-const USER_AGENT = `Mangareader.pro/${ANILIST_CLIENT_ID} (+https://www.mangareader.pro)`;
+const ANILIST_CLIENT_ID = process.env.ANILIST_CLIENT_ID || '';
+const USER_AGENT = ANILIST_CLIENT_ID
+  ? `Mangareader.pro/${ANILIST_CLIENT_ID} (+https://www.mangareader.pro)`
+  : 'Mangareader.pro (+https://www.mangareader.pro)';
 
 const ANILIST_HEADERS = {
   'Content-Type': 'application/json',

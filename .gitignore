@@ -29,6 +29,16 @@ fix_manga.js
 # Test/debug HTML artifacts
 backend/*.html
 
+# Stray build output directories (not part of the source tree)
+vercel frontend/
+
+# Local test scripts (one-off checks, never part of the product)
+test.js
+test_direct.js
+test_proxy.js
+patch_worker.js
+patch_reader.js
+
 # Large local binaries / scrapers
 backend/chrome/
 

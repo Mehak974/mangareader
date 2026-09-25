@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const cors = require('cors');
 const { doubleCsrf } = require('csrf-csrf');
 const crypto = require('crypto');
 const dns = require('dns');
@@ -855,7 +854,9 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     return res.json({ data: c, cached: true });
   }
 
-  // Stale-while-revalidate: return stale cache while refreshing in background
+  // Stale-while-revalidate: return stale cache while refreshing in background.
+  // Mangakatana's multi-step scraper (Consumet → DOM → FlareSolverr) routinely
+  // takes 15-30s, so returning stale data immediately prevents 504s.
   const stale = await cache.get('chapter_images', ck);
   if (stale) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -866,7 +867,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   }
 
   try {
-    const resp = await withTimeout(fetchAndCacheChapterImages(url, sid, ck), 25000, 'chapter-images');
+    const resp = await withTimeout(fetchAndCacheChapterImages(url, sid, ck), 30000, 'chapter-images');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.json({ data: resp, cached: false });
   } catch (err) {
@@ -877,8 +878,32 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
 
 async function fetchAndCacheChapterImages(url, sid, ck) {
   const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
-  const MIN = 3; let result = null, usedSrc = sid || 'fallback';
-  if (src) { try { const d = await src.getChapterImages(url); if (d.images?.length >= MIN) { result = d; usedSrc = sid; } } catch (err) { console.warn(`[${sid}] Failed:`, err.message); } }
+  let result = null;
+  let usedSrc = sid || 'fallback';
+
+  // Source scraper first. Accept any non-empty result — Mangakatana's JS-array
+  // extraction is reliable and the old MIN=3 threshold was rejecting valid
+  // results. Empty results (e.g. Mangadex unavailable chapters) are cached
+  // directly so we don't fall through to a 25s Puppeteer attempt.
+  if (src) {
+    try {
+      const d = await src.getChapterImages(url);
+      if (d.images?.length > 0) {
+        result = d;
+        usedSrc = sid;
+      } else if (d.empty || d.error) {
+        // Genuinely no images — cache and return, don't retry with Puppeteer
+        const resp = { ...d, url, usedSource: sid };
+        await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);
+        await setCached(ck, resp, cache.TTL.chapter_images);
+        return resp;
+      }
+    } catch (err) {
+      console.warn(`[${sid}] getChapterImages threw:`, err.message);
+    }
+  }
+
+  // Fallback: Puppeteer-based extraction (only when the source scraper threw)
   if (!result) {
     try {
       const imgs = await Promise.race([
@@ -888,6 +913,7 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
       if (imgs && imgs.length > 0) { result = { images: imgs, source: 'fallback' }; usedSrc = 'fallback'; }
     } catch (err) { console.warn('[fallback] Failed:', err.message); }
   }
+
   if (!result?.images?.length) throw new Error('No images found');
   const resp = { ...result, url, usedSource: usedSrc };
   await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);

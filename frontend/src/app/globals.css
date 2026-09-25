@@ -1012,6 +1012,15 @@ body.incognito .incognito-bar {
   background: linear-gradient(160deg, rgba(255, 255, 255, .08), transparent 55%)
 }
 
+/* Skeleton shimmer — eliminates CLS while cards load */
+.skeleton-card {
+  will-change: transform;
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 [data-theme="light"] .m-shimmer {
   background: linear-gradient(160deg, rgba(255, 255, 255, .4), transparent 55%)
 }

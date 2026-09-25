@@ -102,6 +102,7 @@ const [chPage, setChPage] = useState(1);
   const LONG_PRESS_DURATION = 500;
 
   const redirectDoneRef = useRef(false);
+  const coverCacheRef = useRef(new Map());
 
   useEffect(() => {
     async function loadMangaDetail() {
@@ -110,6 +111,12 @@ const [chPage, setChPage] = useState(1);
       // The slug is always a title-based string like "solo-leveling".
       // We search AniList / MAL by the human-readable title derived from it.
       const searchTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
+
+      // Restore cached cover from this session so navigating back from the
+      // reader doesn't leave the cover blank when AniList is rate-limited.
+      const cachedCover = typeof window !== "undefined"
+        ? sessionStorage.getItem(`cover_${titleSlug}`)
+        : null;
 
       try {
         // 1. Search AniList for the title
@@ -163,6 +170,11 @@ const [chPage, setChPage] = useState(1);
             popularity: media.popularity || 0,
           };
           resolvedId = String(media.id);
+          // Cache the cover so it survives navigation back from the reader
+          if (typeof window !== "undefined" && normalizedManga.cover) {
+            sessionStorage.setItem(`cover_${titleSlug}`, normalizedManga.cover);
+            coverCacheRef.current.set(titleSlug, normalizedManga.cover);
+          }
         } else if (resolvedId) {
           // We matched from getMangaList but couldn't get full details — use the search result data
           const matchData = searchRes?.media?.find(m => m.id === resolvedId);
@@ -170,7 +182,7 @@ const [chPage, setChPage] = useState(1);
             normalizedManga = {
               id: resolvedId,
               title: matchData.t,
-              cover: matchData.cover || "",
+              cover: matchData.cover || cachedCover || "",
               description: "No detailed description available.",
               status: matchData.ongoing ? "RELEASING" : "FINISHED",
               rating: matchData.rating || 4.5,
@@ -187,7 +199,7 @@ const [chPage, setChPage] = useState(1);
           normalizedManga = {
             id: `fallback-${slugify(searchTitle)}`,
             title: searchTitle,
-            cover: queryCover,
+            cover: cachedCover || queryCover,
             description: "Detailed description is not available in our database. You can still read the chapters below.",
             status: "RELEASING",
             rating: 4.5,
@@ -608,7 +620,7 @@ const [chPage, setChPage] = useState(1);
             </div>
           </div>
         </div>
-        
+
         <div className="detail-note-wrapper">
           <MangaNote mangaId={mangaId} />
         </div>
