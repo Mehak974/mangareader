@@ -193,8 +193,11 @@ async function imgProxy(req, ctx) {
       origin = await fetch(target, { headers, cf: { cacheTtl: 0 } });
       if (origin.ok) break;
 
-      // 4xx — don't retry, pass through immediately
-      if (origin.status < 500) {
+      // 429 - rate limited, retry with backoff; other 4xx pass through
+      if (origin.status === 429) {
+        lastError = `Source rate limited (429)`;
+        errorStatus = 429;
+      } else if (origin.status < 500) {
         return new Response(`Source error ${origin.status}`, { status: origin.status });
       }
 
