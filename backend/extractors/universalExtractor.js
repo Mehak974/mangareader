@@ -1046,17 +1046,31 @@ const SOURCE_SCRAPERS = {
         console.warn('[mangakatana] Consumet getChapterImages failed, falling back to DOM:', err.message);
       }
 
-      // Fallback to DOM scraping with improved extraction methods
+      // Fallback to DOM scraping with improved extraction methods.
+      // Wrapped in a race so a slow/flaky upstream can't blow the route's
+      // 30s budget — if fetchHTML takes >12s we bail out and let the
+      // stale-while-revalidate path serve the previous result.
       try {
         let html;
         try {
-          html = await fetchHTML(url);
+          html = await Promise.race([
+            fetchHTML(url),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('fetchHTML timeout')), 12000)),
+          ]);
         } catch (fetchErr) {
+          if (fetchErr.message === 'fetchHTML timeout') {
+            console.warn('[mangakatana] fetchHTML timed out after 12s');
+            return { images: [], source: 'mangakatana', error: 'fetchHTML timeout' };
+          }
           console.warn(`[mangakatana] fetchHTML failed, trying FlareSolverr: ${fetchErr.message}`);
           try {
-            html = await fetchWithFlareSolverr(url);
+            html = await Promise.race([
+              fetchWithFlareSolverr(url),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('FlareSolverr timeout')), 10000)),
+            ]);
           } catch (fsErr) {
             console.warn(`[mangakatana] FlareSolverr also failed: ${fsErr.message}`);
+            return { images: [], source: 'mangakatana', error: 'fetchHTML and FlareSolverr failed' };
           }
         }
         if (!html || html.length < 100) {
