@@ -29,6 +29,7 @@ function ReaderContent({ params }) {
   const [brightness, setBrightness] = useState(0);
   const [brightnessPop, setBrightnessPop] = useState(false);
   const [imgErrors, setImgErrors] = useState({});
+  const [imgRetries, setImgRetries] = useState({});
   const [viewMode, setViewMode] = useState("webtoon");
   const [showNav, setShowNav] = useState(true);
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -479,7 +480,7 @@ function ReaderContent({ params }) {
           </div>
         )}
         {/* Manga Pages List */}
-        <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", maxWidth: "800px", margin: "0 auto", padding: 0 }}>
+        <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", cursor: "pointer", maxWidth: "800px", margin: "0 auto", padding: 0 }}>
           {images.map((imgUrl, i) => {
             if (viewMode === "paged" && i !== page - 1) return null;
             const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
@@ -501,8 +502,8 @@ function ReaderContent({ params }) {
                 }}
               >
                 {hasError ? (
-                  <div style={{
-                    width: "100%",
+                  <div onClick={() => { setImgErrors(prev => { const n = {...prev}; delete n[i]; return n; }); setImgRetries(prev => { const n = {...prev}; delete n[i]; return n; }); }} style={{
+                    width: "100%", cursor: "pointer",
                     aspectRatio: "2/3",
                     background: "var(--bg2)",
                     border: "1px solid var(--border2)",
@@ -521,10 +522,10 @@ function ReaderContent({ params }) {
                       <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                     <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 600 }}>
-                      Cannot read &quot;{fileName}&quot;
+                      Failed to load &quot;{fileName}&quot;
                     </div>
                     <div style={{ color: "var(--text2)", fontSize: "12px", lineHeight: 1.5 }}>
-                      this model does not support image input
+                      Image unavailable. Tap to retry.
                     </div>
                   </div>
                 ) : (
@@ -545,7 +546,20 @@ function ReaderContent({ params }) {
                     }}
                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}
                     unoptimized={true}
-                    onError={() => setImgErrors(prev => ({ ...prev, [i]: true }))}
+                    onError={() => {
+                      const retryCount = (imgRetries[i] || 0) + 1;
+                      if (retryCount < 3) {
+                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
+                        // Force reload by appending retry param
+                        const img = document.querySelectorAll('.reader-page img')[i];
+                        if (img) {
+                          const sep = img.src.includes('?') ? '&' : '?';
+                          img.src = img.src.replace(/[&?]_retry=\d+/, '') + sep + '_retry=' + retryCount;
+                        }
+                      } else {
+                        setImgErrors(prev => ({ ...prev, [i]: true }));
+                      }
+                    }}
                     onDoubleClick={() => setZoomedImage(zoomedImage === i ? null : i)}
                   />
                 )}
