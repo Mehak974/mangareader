@@ -6,8 +6,7 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const base = WORKER_URL || API_BASE;
-      const url = `${base.replace(/\/$/, '')}/api/anilist`;
+      const url = 'https://graphql.anilist.co';
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
