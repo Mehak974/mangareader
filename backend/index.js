@@ -969,8 +969,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     // SSRF Allowlist Regex — covers all manga source image CDNs.
     // Mangakatana serves images from mkklcdnv*, xfs.*, pixel.*, wds.* subdomains.
     // All of those end with .mangakatana.com, which is already in the list.
-    // The standalone mkklcdnv.com / mkklcdnv6temp*.com hosts are added explicitly.
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv|mkklcdnv6tempv2\.com|mkklcdnv6temp\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
+    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv[^\.]*\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
     if (!allowedDomainsRegex.test(parsed.hostname)) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
@@ -987,7 +986,11 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       'mkklcdnv6tempv2.com': 'https://mangakatana.com/',
       'mkklcdnv6temp.com': 'https://mangakatana.com/',
     };
-    const referer = refererMap[parsed.hostname] || (parsed.hostname.includes('mangakatana') ? 'https://mangakatana.com/' : (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : `${origin}/`));
+    const referer = refererMap[parsed.hostname] || 
+      (parsed.hostname.includes('mangakatana') || parsed.hostname.includes('mkklcdnv') || parsed.hostname.includes('waitst.com') ? 'https://mangakatana.com/' : 
+      (parsed.hostname.includes('mangadex.org') || parsed.hostname.includes('mangadex.network') ? 'https://mangadex.org/' :
+      (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : 
+      `${origin}/`)));
     const r = await axios({
       method: 'get', url, responseType: 'arraybuffer', headers: {
         Referer: referer,
