@@ -22,16 +22,16 @@ export const metadata = buildMetadata({
 });
 
 export default async function TrendingPage() {
-  let trending: any[] = [];
-  let popular: any[] = [];
+  let trending = [];
+  let popular = [];
 
   try {
     const [trendingRes, popularRes] = await Promise.all([
       getMangaList({ perPage: 30, sort: ["TRENDING_DESC", "POPULARITY_DESC"] }),
       getMangaList({ perPage: 30, sort: ["POPULARITY_DESC", "SCORE_DESC"] }),
     ]);
-    trending = trendingRes?.media?.filter((m: any) => !isExplicitNSFW(m.genres, m.title?.userPreferred || m.title?.english || "", { isAdult: m.isAdult })) || [];
-    popular = popularRes?.media?.filter((m: any) => !isExplicitNSFW(m.genres, m.title?.userPreferred || m.title?.english || "", { isAdult: m.isAdult })) || [];
+    trending = trendingRes?.media?.filter((m) => !isExplicitNSFW(m.genres, m.title?.userPreferred || m.title?.english || "", { isAdult: m.isAdult })) || [];
+    popular = popularRes?.media?.filter((m) => !isExplicitNSFW(m.genres, m.title?.userPreferred || m.title?.english || "", { isAdult: m.isAdult })) || [];
   } catch {
     // leave empty — same behavior as /browse when AniList is unreachable
   }
@@ -88,7 +88,7 @@ export default async function TrendingPage() {
           </span>
         </div>
         <div className="manga-grid">
-          {trending.map((m: any, idx: number) => (
+          {trending.map((m, idx) => (
             <MangaCard key={m.id} manga={m} index={idx} priority={idx < 4} />
           ))}
         </div>
@@ -105,7 +105,7 @@ export default async function TrendingPage() {
           </span>
         </div>
         <div className="manga-grid">
-          {popular.map((m: any, idx: number) => (
+          {popular.map((m, idx) => (
             <MangaCard key={m.id} manga={m} index={idx} priority={idx < 4} />
           ))}
         </div>
