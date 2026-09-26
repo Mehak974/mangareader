@@ -3,51 +3,78 @@
  *
  * Opaque server-side sessions: a random token is set in an httpOnly cookie and
  * only its SHA-256 hash is stored in the DB, so a database leak cannot be
- * replayed as a login. Passwords use Node's built-in scrypt (no extra
- * dependency) with a per-user random salt and constant-time comparison.
+ * replayed as a login. Passwords use @noble/hashes scrypt (pure JS, works on
+ * both Node.js and the Cloudflare edge runtime) with a per-user random salt
+ * and constant-time comparison.
  */
 import "server-only";
 import { cookies } from "next/headers";
-import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "node:crypto";
-import { promisify } from "util";
+import { scryptAsync } from "@noble/hashes/scrypt.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import type { User, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
-const scrypt = promisify(_scrypt) as (
-  password: string,
-  salt: string,
-  keylen: number
-) => Promise<Buffer>;
-
 export const SESSION_COOKIE = "mr_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const SCRYPT_N = 1 << 15; // 32768
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
 const SCRYPT_KEYLEN = 64;
 
-// ── Password hashing ─────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function randomBytes(n: number): Uint8Array {
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  return buf;
+}
+
+function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a[i] ^ b[i];
+  return out === 0;
+}
+
+function sha256Hex(input: string): string {
+  return bytesToHex(sha256(new TextEncoder().encode(input)));
+}
+
+// ── Password hashing ───────────────────────────────────────────────────────────
 
 /** Hash a password as `salt:hash` (both hex). */
 export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
-  const derived = await scrypt(password, salt, SCRYPT_KEYLEN);
-  return `${salt}:${derived.toString("hex")}`;
+  const salt = randomBytes(16);
+  const derived = await scryptAsync(
+    new TextEncoder().encode(password),
+    salt,
+    { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, dkLen: SCRYPT_KEYLEN }
+  );
+  return `${bytesToHex(salt)}:${bytesToHex(derived)}`;
 }
 
 /** Constant-time verify a password against a stored `salt:hash`. */
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [salt, hash] = stored.split(":");
-  if (!salt || !hash) return false;
-  const derived = await scrypt(password, salt, SCRYPT_KEYLEN);
-  const hashBuf = Buffer.from(hash, "hex");
+  const [saltHex, hashHex] = stored.split(":");
+  if (!saltHex || !hashHex) return false;
+  const salt = hexToBytes(saltHex);
+  const hashBuf = hexToBytes(hashHex);
+  const derived = await scryptAsync(
+    new TextEncoder().encode(password),
+    salt,
+    { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, dkLen: SCRYPT_KEYLEN }
+  );
   if (hashBuf.length !== derived.length) return false;
   return timingSafeEqual(hashBuf, derived);
 }
 
-// ── Session tokens ───────────────────────────────────────────────────────────
+// ── Session tokens ────────────────────────────────────────────────────────────
 
 function hashToken(token: string): string {
   // The DB stores only this hash; the raw token lives solely in the cookie.
-  return createHash("sha256").update(token + env.AUTH_SECRET).digest("hex");
+  return sha256Hex(token + env.AUTH_SECRET);
 }
 
 /** Create a session row and set the httpOnly cookie. Returns the raw token. */
@@ -55,7 +82,7 @@ export async function createSession(
   userId: string,
   meta?: { ip?: string; userAgent?: string }
 ): Promise<void> {
-  const token = randomBytes(32).toString("hex");
+  const token = bytesToHex(randomBytes(32));
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
   await prisma.session.create({
@@ -124,7 +151,7 @@ export async function destroySession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-// ── Authorization ────────────────────────────────────────────────────────────
+// ── Authorization ──────────────────────────────────────────────────────────────
 
 const ROLE_RANK: Record<UserRole, number> = { USER: 0, EDITOR: 1, ADMIN: 2 };
 

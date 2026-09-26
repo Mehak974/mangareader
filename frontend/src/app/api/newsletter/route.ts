@@ -1,10 +1,16 @@
 export const runtime = 'edge';
 import type { NextRequest } from "next/server";
-import { randomBytes } from "node:crypto";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { prisma } from "@/lib/prisma";
 import { newsletterSchema, firstZodMessage } from "@/lib/validation";
 import { checkRateLimit, recordAttempt } from "@/lib/ratelimit";
 import { clientIp, userAgent, jsonError } from "@/lib/request";
+
+function randomBytes(n: number): Uint8Array {
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  return buf;
+}
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
@@ -35,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   // No email delivery exists yet, so treat a signup as confirmed immediately.
   // The token is still generated so a future double-opt-in flow can reuse it.
-  const token = randomBytes(32).toString("hex");
+  const token = bytesToHex(randomBytes(32));
   await prisma.newsletterSubscriber.upsert({
     where: { email },
     update: { confirmed: true, confirmedAt: new Date() },
