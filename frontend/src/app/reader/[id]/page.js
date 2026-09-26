@@ -550,11 +550,30 @@ function ReaderContent({ params }) {
                       const retryCount = (imgRetries[i] || 0) + 1;
                       if (retryCount < 3) {
                         setImgRetries(prev => ({ ...prev, [i]: retryCount }));
-                        // Force reload by appending retry param
                         const img = document.querySelectorAll('.reader-page img')[i];
                         if (img) {
                           const sep = img.src.includes('?') ? '&' : '?';
                           img.src = img.src.replace(/[&?]_retry=\d+/, '') + sep + '_retry=' + retryCount;
+                        }
+                      } else if (retryCount === 3) {
+                        // ponytail: swap proxy — try the OTHER proxy before giving up
+                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
+                        const img = document.querySelectorAll('.reader-page img')[i];
+                        if (img) {
+                          try {
+                            const u = new URL(img.src);
+                            const rawUrl = u.searchParams.get('url') || imgUrl;
+                            const API = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
+                            const WKR = process.env.NEXT_PUBLIC_WORKER_URL || '';
+                            // If currently on backend, try worker; if on worker, try backend
+                            if (img.src.includes('/api/proxy-image') && WKR) {
+                              img.src = `${WKR}/img-proxy?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
+                            } else if (API) {
+                              img.src = `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
+                            } else {
+                              setImgErrors(prev => ({ ...prev, [i]: true }));
+                            }
+                          } catch { setImgErrors(prev => ({ ...prev, [i]: true })); }
                         }
                       } else {
                         setImgErrors(prev => ({ ...prev, [i]: true }));

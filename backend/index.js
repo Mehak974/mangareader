@@ -11,6 +11,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const bcrypt = require('bcryptjs');
 const NodeCache = require('node-cache');
+const sharp = require('sharp');
 const cookieParser = require('cookie-parser');
 const { getConfig, getAllowedOrigins } = require('./config/domains');
 const domainCfg = getConfig();
@@ -966,37 +967,44 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) return res.status(400).send('URL not allowed');
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
-    // SSRF Allowlist Regex — covers all manga source image CDNs.
-    // Mangakatana serves images from mkklcdnv*, xfs.*, pixel.*, wds.* subdomains.
-    // All of those end with .mangakatana.com, which is already in the list.
-    const allowedDomainsRegex = /^(.*?\.)?(anilist\.co|myanimelist\.net|cdn\.myanimelist\.net|pinimg\.com|mangaread\.org|mangadex\.org|mangadex\.network|mangakatana\.com|manganato\.gg|mangakakalot\.gg|2xstorage\.com|mkklcdnv[^\.]*\.com|media\.mangaka\.com|storage\.waitst\.com|i\.imgur\.com|githubusercontent\.com|consumet\.org|api\.consumet\.org)$/i;
-    if (!allowedDomainsRegex.test(parsed.hostname)) {
+    // ponytail: substring-based SSRF allowlist — future-proof against CDN subdomain rotation.
+    // New subdomains like i2.mangakatana.com or newnode.mangadex.network match automatically.
+    const ALLOWED_PATTERNS = [
+      'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
+      'mangadex.org', 'mangadex.network', 'mangakatana.com', 'mkklcdnv',
+      'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
+      'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
+    ];
+    const h = parsed.hostname;
+    if (!ALLOWED_PATTERNS.some(p => h.includes(p))) {
       return res.status(403).send('Forbidden: Domain not in allowlist');
     }
 
-    const origin = parsed.origin;
-    const refererMap = {
-      'storage.waitst.com': 'https://www.manganato.gg/',
-      'imgs-2.2xstorage.com': 'https://www.manganato.gg/',
-      'img-r1.2xstorage.com': 'https://www.manganato.gg/',
-      'img-r2.2xstorage.com': 'https://www.manganato.gg/',
-      'img-r3.2xstorage.com': 'https://www.manganato.gg/',
-      'img-r4.2xstorage.com': 'https://www.manganato.gg/',
-      '2xstorage.com': 'https://www.manganato.gg/',
-      'mkklcdnv6tempv2.com': 'https://mangakatana.com/',
-      'mkklcdnv6temp.com': 'https://mangakatana.com/',
-    };
-    const referer = refererMap[parsed.hostname] || 
-      (parsed.hostname.includes('mangakatana') || parsed.hostname.includes('mkklcdnv') || parsed.hostname.includes('waitst.com') ? 'https://mangakatana.com/' : 
-      (parsed.hostname.includes('mangadex.org') || parsed.hostname.includes('mangadex.network') ? 'https://mangadex.org/' :
-      (parsed.hostname.includes('manganato') || parsed.hostname.includes('mangakakalot') ? 'https://www.manganato.gg/' : 
-      `${origin}/`)));
-    const r = await axios({
-      method: 'get', url, responseType: 'arraybuffer', headers: {
-        Referer: referer,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'image/*,*/*;q=0.8'
-      }, timeout: 3000
-    });
+    // ponytail: referer detection by substring — no map to maintain.
+    const referer =
+      h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
+      h.includes('mangadex')    ? 'https://mangadex.org/' :
+      h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') || h.includes('waitst.com') ? 'https://www.manganato.gg/' :
+      h.includes('mangaread')   ? 'https://mangaread.org/' :
+      `${parsed.origin}/`;
+
+    // ponytail: retry once with backoff — CDN transient errors are common
+    let r;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        r = await axios({
+          method: 'get', url, responseType: 'arraybuffer', headers: {
+            Referer: referer,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+          }, timeout: 8000
+        });
+        if (r.status === 200) break;
+      } catch (fetchErr) {
+        if (attempt === 0) { await new Promise(rs => setTimeout(rs, 500)); continue; }
+        throw fetchErr;
+      }
+    }
     let buf, ct = 'image/webp';
     try {
       const p = sharp(Buffer.from(r.data));
@@ -1024,7 +1032,10 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     res.setHeader('Content-Type', ct); res.removeHeader('Content-Disposition');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.send(buf);
-  } catch (err) { res.status(502).send('Error proxying image'); }
+  } catch (err) {
+    console.warn('[proxy-image] Failed:', url, err.message);
+    res.status(502).send('Error proxying image');
+  }
 });
 
 // ── BLOG API ──────────────────────────────────────────────────────────────────

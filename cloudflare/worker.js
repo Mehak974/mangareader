@@ -136,28 +136,19 @@ const UAS = [
 ];
 const ua = () => UAS[Math.floor(Math.random() * UAS.length)];
 
+// ponytail: substring-based matching — future-proof against CDN subdomain rotation.
+// referer() and allowed() both use .includes(), so keys here are just patterns.
 const REFERERS = {
-  'manganato.com':       'https://mangakakalot.com/',
-  'readmanganato.com':   'https://readmanganato.com/',
-  'chapmanganato.to':    'https://chapmanganato.to/',
-  'mangakatana.com':     'https://mangakatana.com/',
-  'mangaread.org':       'https://mangaread.org/',
-  'mangadex.org':        'https://mangadex.org/',
-  'mangadex.network':    'https://mangadex.org/',
-  'uploads.mangadex.org':'https://mangadex.org/',
-  'storage.waitst.com':  'https://mangakakalot.com/',
-  'imgs-2.2xstorage.com':'https://mangakakalot.com/',
-  'img-r1.2xstorage.com':'https://mangakakalot.com/',
-  'img-r2.2xstorage.com':'https://mangakakalot.com/',
-  'img-r3.2xstorage.com':'https://mangakakalot.com/',
-  'img-r4.2xstorage.com':'https://mangakakalot.com/',
-  '2xstorage.com':       'https://mangakakalot.com/',
+  'mangakatana':         'https://mangakatana.com/',
   'mkklcdnv':            'https://mangakatana.com/',
-  'xfs.mangakatana.com':'https://mangakatana.com/',
+  'manganato':           'https://mangakakalot.com/',
+  'mangakakalot':        'https://mangakakalot.com/',
+  'chapmanganato':       'https://chapmanganato.to/',
+  'mangaread.org':       'https://mangaread.org/',
+  'mangadex':            'https://mangadex.org/',
+  '2xstorage':           'https://mangakakalot.com/',
   'waitst.com':          'https://mangakatana.com/',
   'anilist.co':          'https://anilist.co/',
-  's4.anilist.co':       'https://anilist.co/',
-  's5.anilist.co':       'https://anilist.co/',
 };
 function referer(url) {
   const h = new URL(url).hostname;
@@ -165,14 +156,10 @@ function referer(url) {
 }
 
 const ALLOWED = [
-  'manganato.com','readmanganato.com','chapmanganato.to',
-  'mangakatana.com','mangaread.org',
-  'uploads.mangadex.org','mangadex.network',
-  'mkklcdnv','xfs.mangakatana.com',
-  '2xstorage.com','img-r1.2xstorage.com','img-r2.2xstorage.com','img-r3.2xstorage.com','img-r4.2xstorage.com','imgs-2.2xstorage.com',
-  'media.mangaka.com',
-  'anilist.co','s4.anilist.co','s5.anilist.co',
-  'waitst.com',
+  'manganato','mangakakalot','chapmanganato',
+  'mangakatana','mkklcdnv','mangaread.org',
+  'mangadex','2xstorage','waitst.com',
+  'media.mangaka','anilist.co','imgur.com',
 ];
 function allowed(url) {
   try {
