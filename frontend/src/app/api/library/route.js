@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 /**
  * GET  /api/library — fetch all libraries for the current user (auto-creates "default" if none)
  * POST /api/library — create a new library { name }

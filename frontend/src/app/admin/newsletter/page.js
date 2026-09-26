@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { prisma } from "@/lib/prisma";
 import NewsletterRowActions from "@/components/admin/NewsletterRowActions";
 

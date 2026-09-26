@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { destroySession } from "@/lib/auth";
 
 export async function POST() {

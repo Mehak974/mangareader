@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import AuthorRowActions from "@/components/admin/AuthorRowActions";

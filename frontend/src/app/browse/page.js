@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { getMangaList } from "@/utils/anilist";
 import BrowseContent from "@/app/browse/BrowseContent";
 import { proxyImage } from "@/utils/api";

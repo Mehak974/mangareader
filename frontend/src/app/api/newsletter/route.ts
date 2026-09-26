@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import type { NextRequest } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";

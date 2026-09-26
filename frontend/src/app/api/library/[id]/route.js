@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 /**
  * PUT    /api/library/[id] — rename a library
  * DELETE /api/library/[id] — delete a library (cannot delete "default")

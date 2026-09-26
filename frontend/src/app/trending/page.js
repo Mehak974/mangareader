@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 /**
  * /trending — high-intent landing page for "best manga 2024"-style queries.
  *

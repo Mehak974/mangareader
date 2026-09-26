@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import AAdsBanner from "@/components/AAdsBanner";
 
 export const metadata = {

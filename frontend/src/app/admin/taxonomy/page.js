@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { prisma } from "@/lib/prisma";
 import TaxonomyManager from "@/components/admin/TaxonomyManager";
 

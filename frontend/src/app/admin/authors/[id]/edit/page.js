@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AuthorEditor from "@/components/admin/AuthorEditor";

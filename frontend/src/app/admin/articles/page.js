@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import Link from "next/link";
 import { listAdminArticles, getAdminArticleCounts } from "@/lib/editorial";
 import AdminArticlesClient from "@/components/admin/AdminArticlesClient";

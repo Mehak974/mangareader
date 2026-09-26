@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAdminArticle } from "@/lib/editorial";

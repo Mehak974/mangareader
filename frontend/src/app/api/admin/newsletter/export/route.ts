@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import type { NextRequest } from "next/server";
 import { withRole } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";

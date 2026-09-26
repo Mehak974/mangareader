@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 /**
  * POST   /api/library/manga — add a manga to a library
  *        body: { libraryId, manga: { id, t, cover, ongoing, rating, g } }

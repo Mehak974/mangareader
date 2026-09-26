@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 /**
  * GET /api/auth/me — return the current authenticated user, or 401.
  * Used by the client AppContext to hydrate session state on load.
