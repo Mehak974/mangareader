@@ -1,0 +1,11 @@
+# Cloudflare Pages config — frontend/wrangler.toml
+# (mangaread.pro and manireader.online are configured in the CF dashboard)
+name                   = "mangareader-pro"
+pages_build_output_dir = ".vercel/output/static"
+compatibility_date     = "2024-09-23"
+compatibility_flags    = ["nodejs_compat"]
+
+[vars]
+NEXT_PUBLIC_SITE_URL = "https://mangareader.pro"
+DOMAIN_PROFILE       = "mangareader.pro"
+NODE_ENV             = "production"

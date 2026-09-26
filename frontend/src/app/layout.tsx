@@ -19,8 +19,6 @@ import { Toaster }          from 'react-hot-toast';
 import Header               from '@/components/Header';
 import JsonLd               from '@/components/JsonLd';
 import MaintenanceGuard     from '@/components/MaintenanceGuard';
-import { Analytics }        from '@vercel/analytics/react';
-import { SpeedInsights }    from '@vercel/speed-insights/next';
 import {
   SITE_NAME, SITE_URL, SEO, AD_CONFIG, ADSENSE_ENABLED,
   siteConfig,
@@ -179,6 +177,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Structured data */}
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
+
+        {/* Cloudflare Web Analytics — replaces @vercel/analytics + @vercel/speed-insights.
+            No package, no cookies, zero impact on Core Web Vitals. Token per domain. */}
+        {process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN && (
+          <script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={`{"token":"${process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN}"}`}
+          />
+        )}
       </head>
 
       <body className={`${activeFont.className} antialiased`} suppressHydrationWarning>
@@ -203,9 +211,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="bottom-right" />
           </MaintenanceGuard>
         </AppProvider>
-
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

@@ -22,6 +22,12 @@ const nextConfig = {
   // Performance
   poweredByHeader: false,
 
+  // Workers can't bundle 'ws' in the browser — exclude it client-side
+  webpack: (config, { isServer }) => {
+    if (!isServer) config.resolve.fallback = { ws: false };
+    return config;
+  },
+
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', 'react-hot-toast', '@use-gesture/react', 'react-markdown', 'remark-gfm', 'rehype-sanitize'],
@@ -93,7 +99,7 @@ const nextConfig = {
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: process.env.NODE_ENV === "development" || process.env.CF_PAGES === "1",
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,

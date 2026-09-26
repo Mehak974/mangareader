@@ -14,6 +14,7 @@ build/
 step*.txt
 *_history.txt
 fix_all.js
+tsconfig.tsbuildinfo
 
 # Temporary utility/debug scripts (backfill, checks, tests, fixes)
 backend/test*.js
