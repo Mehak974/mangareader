@@ -8,7 +8,7 @@
  */
 import "server-only";
 import { cookies } from "next/headers";
-import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "crypto";
+import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "util";
 import type { User, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";

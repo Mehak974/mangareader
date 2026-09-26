@@ -1,6 +1,6 @@
 export const runtime = 'edge';
 import type { NextRequest } from "next/server";
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { newsletterSchema, firstZodMessage } from "@/lib/validation";
 import { checkRateLimit, recordAttempt } from "@/lib/ratelimit";
