@@ -14,6 +14,16 @@ import CommentSection from "@/components/CommentSection";
 import MangaNote from "@/components/MangaNote";
 import { MANGA, abbr, COVER_GRADS } from "@/data/mockData";
 import { proxyImage } from "@/utils/api";
+import {
+  readDetail,
+  writeDetail,
+  isFresh,
+  clearDetail,
+  readCover,
+  writeCover,
+  seedCover,
+  markViewedOnce,
+} from "@/utils/detailCache";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -79,7 +89,15 @@ export default function MangaDetail({ params }) {
   const [chapters, setChapters] = useState([]);
   const [sourceId, setSourceId] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  
+  // Cover candidates are tried in order via coverIndex. Source-site covers
+  // (Server 1–4) 403 through the image proxy fairly often, so the AniList
+  // cover is kept as a known-good second choice; an exhausted list falls back
+  // to the gradient placeholder rather than a broken image.
+  const [coverAlt, setCoverAlt] = useState("");
+  const [coverIndex, setCoverIndex] = useState(0);
+  const coverCandidates = [manga?.cover, coverAlt].filter(Boolean);
+  const primaryCover = coverCandidates[coverIndex] || "";
+
   const [loading, setLoading] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
 const [chPage, setChPage] = useState(1);
@@ -88,13 +106,13 @@ const [chPage, setChPage] = useState(1);
    const [selectMode, setSelectMode] = useState(false);
    const [activeTab, setActiveTab] = useState('chapters');
    const [selected, setSelected] = useState(() => new Set()); // chapter numbers
-   const CHS_PER_PAGE = 20;
+    const CHS_PER_PAGE = 20;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
       setChPage(1);
       setSelected(new Set());
       setSelectMode(false);
+      setCoverIndex(0);
       redirectDoneRef.current = false;
     }, [titleSlug]);
 
@@ -105,18 +123,43 @@ const [chPage, setChPage] = useState(1);
   const coverCacheRef = useRef(new Map());
 
   useEffect(() => {
-    async function loadMangaDetail() {
-      setLoading(true);
+    let cancelled = false;
 
+    async function loadMangaDetail() {
       // The slug is always a title-based string like "solo-leveling".
       // We search AniList / MAL by the human-readable title derived from it.
       const searchTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
 
-      // Restore cached cover from this session so navigating back from the
-      // reader doesn't leave the cover blank when AniList is rate-limited.
-      const cachedCover = typeof window !== "undefined"
-        ? sessionStorage.getItem(`cover_${titleSlug}`)
-        : null;
+      // ── 1. Hydrate from the session cache ──────────────────────────────────
+      // Back-navigation from the reader remounts this component, so without a
+      // cache every back-nav was a full cold load (and an AniList 429 waiting
+      // to happen, which is what left the cover blank). A cache hit paints
+      // instantly and the network refresh happens underneath it.
+      const cached = readDetail(titleSlug);
+      let currentManga = null;
+      let currentChapters = [];
+      let currentSourceId = cached?.sourceId || "";
+      let currentSourceUrl = cached?.sourceUrl || "";
+      if (cached && cached.manga) {
+        currentManga = cached.manga;
+        currentChapters = cached.chapters || [];
+        setManga(currentManga);
+        setMangaId(cached.mangaId || "");
+        setChapters(currentChapters);
+        setSourceId(cached.sourceId || "");
+        setSourceUrl(cached.sourceUrl || "");
+        setLoading(false);
+        setCoverAlt(readCover(titleSlug));
+        if (isFresh(cached)) return; // recent enough — no revalidation needed
+      } else {
+        setLoading(true);
+      }
+
+      // Restore cached cover from this session so a slow or rate-limited
+      // AniList response never leaves the cover blank.
+      const cachedCover = readCover(titleSlug);
+      if (cachedCover) seedCover(titleSlug, cachedCover);
+      if (queryCover) seedCover(titleSlug, queryCover);
 
       try {
         // 1. Search AniList for the title
@@ -161,7 +204,7 @@ const [chPage, setChPage] = useState(1);
           normalizedManga = {
             id: String(media.id),
             title: aniTitle,
-            cover: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
+            cover: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || cachedCover || queryCover || "",
             description: media.description || "No description available.",
             status: media.status === "RELEASING" ? "RELEASING" : "FINISHED",
             rating: media.averageScore ? media.averageScore / 20 : 4.5,
@@ -172,7 +215,7 @@ const [chPage, setChPage] = useState(1);
           resolvedId = String(media.id);
           // Cache the cover so it survives navigation back from the reader
           if (typeof window !== "undefined" && normalizedManga.cover) {
-            sessionStorage.setItem(`cover_${titleSlug}`, normalizedManga.cover);
+            writeCover(titleSlug, normalizedManga.cover);
             coverCacheRef.current.set(titleSlug, normalizedManga.cover);
           }
         } else if (resolvedId) {
@@ -210,7 +253,10 @@ const [chPage, setChPage] = useState(1);
           resolvedId = normalizedManga.id;
         }
 
-        setManga(normalizedManga);
+        if (cancelled) return;
+
+        currentManga = normalizedManga;
+        setManga(currentManga);
         setMangaId(resolvedId);
         setLoading(false);
 
@@ -219,7 +265,9 @@ const [chPage, setChPage] = useState(1);
           router.replace(`/manga/${titleSlug}`);
         }
 
-        if (typeof window !== 'undefined') {
+        // One view write per slug per session — previously every back-nav
+        // from the reader added another Postgres write.
+        if (typeof window !== 'undefined' && markViewedOnce(titleSlug)) {
           fetch(`${apiBase}/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
             method: 'GET',
             keepalive: true,
@@ -229,7 +277,9 @@ const [chPage, setChPage] = useState(1);
         // 2. Fetch chapters from backend API (client-side CORS fetching removed
         //    because source sites block cross-origin requests and public CORS
         //    proxies are unreliable).
-        setLoadingChapters(true);
+        //    Only show the chapter spinner when we have nothing cached to show.
+        const hadCachedChapters = (cached?.chapters?.length || 0) > 0;
+        if (!hadCachedChapters) setLoadingChapters(true);
         let chaptersLoaded = false;
         const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
 
@@ -243,14 +293,27 @@ const [chPage, setChPage] = useState(1);
           if (mapRes.ok) {
             const mapData = await mapRes.json();
             if (mapData.data && mapData.data.chapters?.length > 0) {
-              setChapters(mapData.data.chapters || []);
-              setSourceId(mapData.data.sourceId || "");
-              setSourceUrl(mapData.data.url || "");
-              if (mapData.data.cover && (!manga || !manga.cover)) {
-                setManga(prev => prev ? { ...prev, cover: mapData.data.cover } : prev);
+              currentChapters = mapData.data.chapters || [];
+              currentSourceId = mapData.data.sourceId || "";
+              currentSourceUrl = mapData.data.url || "";
+              setChapters(currentChapters);
+              setSourceId(currentSourceId);
+              setSourceUrl(currentSourceUrl);
+              // Only fill gaps — never overwrite an existing cover. The old
+              // `!manga || !manga.cover` read `manga` from the effect closure,
+              // which is always null on mount, so the source-site cover
+              // clobbered the working AniList cover on every back-nav. Those
+              // covers 403 through the image proxy often enough that the cover
+              // ended up blank.
+              const patch = {};
+              if (mapData.data.cover && !currentManga.cover) patch.cover = mapData.data.cover;
+              if (mapData.data.title && !currentManga.description) {
+                patch.title = mapData.data.title;
+                patch.description = mapData.data.description || currentManga.description;
               }
-              if (mapData.data.title && (!manga || !manga.description)) {
-                setManga(prev => prev ? { ...prev, title: mapData.data.title, description: mapData.data.description || prev?.description, status: prev?.status, genres: prev?.genres } : prev);
+              if (Object.keys(patch).length) {
+                currentManga = { ...currentManga, ...patch };
+                setManga(currentManga);
               }
               chaptersLoaded = true;
               if (mapData.data.sourceId) {
@@ -264,6 +327,18 @@ const [chPage, setChPage] = useState(1);
 
         setLoadingChapters(false);
 
+        // Persist the resolved payload so the next visit (especially the
+        // back-navigation from the reader) paints instantly.
+        if (!cancelled && currentManga) {
+          writeDetail(titleSlug, {
+            manga: currentManga,
+            mangaId: resolvedId,
+            chapters: currentChapters,
+            sourceId: currentSourceId,
+            sourceUrl: currentSourceUrl,
+          });
+        }
+
       } catch (err) {
         console.error("Failed to load manga details:", err.message);
         setLoading(false);
@@ -273,6 +348,7 @@ const [chPage, setChPage] = useState(1);
     if (titleSlug) {
       loadMangaDetail();
     }
+    return () => { cancelled = true; };
   }, [titleSlug]);
 
   const handleSourceChange = async (newSourceId) => {
@@ -445,14 +521,15 @@ const [chPage, setChPage] = useState(1);
         <div 
           className="detail-cover"
           style={
-            manga.cover 
+            primaryCover
               ? { position: "relative", overflow: "hidden" }
               : {}
           }
         >
-          {manga.cover ? (
+          {primaryCover ? (
             <Image
-              src={proxyImage(manga.cover, 200)}
+              key={primaryCover}
+              src={proxyImage(primaryCover, 200)}
               alt={`Cover for ${manga.title}`}
               fill
               sizes="(max-width: 768px) 110px, (max-width: 900px) 140px, 195px"
@@ -464,6 +541,7 @@ const [chPage, setChPage] = useState(1);
               }}
               priority
               fetchPriority="high"
+              onError={() => setCoverIndex((i) => i + 1)}
             />
           ) : (
             <div style={{
@@ -825,7 +903,7 @@ const [chPage, setChPage] = useState(1);
           )}
         </div>
         <div className="manga-detail-discussion">
-          <CommentSection mangaId={mangaId} />
+          <CommentSection mangaId={mangaId} active={activeTab === 'discussion'} />
         </div>
       </div>
 

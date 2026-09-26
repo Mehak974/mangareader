@@ -23,13 +23,13 @@ function timeAgo(d) {
  * Reads/writes /api/comments. Posting requires auth; the section prompts a
  * guest to sign in via the existing sheet.
  */
-export default function CommentSection({ mangaId, articleId }) {
+export default function CommentSection({ mangaId, articleId, active = true }) {
   const { isLoggedIn, user, setSigninSheetOpen } = useApp();
   const isMod = user?.role === "EDITOR" || user?.role === "ADMIN";
 
   const [comments, setComments] = useState([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(active);
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState(null);
   const [replyBody, setReplyBody] = useState("");
@@ -53,10 +53,13 @@ export default function CommentSection({ mangaId, articleId }) {
     }
   }, [query]);
 
+  // Lazy: on the manga detail page this panel sits behind the "Discussion"
+  // tab, so don't pay for the fetch until the user actually opens it.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!active) return;
+    setLoading(true);
     load();
-  }, [load]);
+  }, [load, active]);
 
   const post = async (text, parentId) => {
     setError("");
