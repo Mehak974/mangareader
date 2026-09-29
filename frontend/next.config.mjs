@@ -23,6 +23,7 @@ const nextConfig = {
   poweredByHeader: false,
 
   experimental: {
+    instrumentationHook: true,
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', 'react-hot-toast', '@use-gesture/react', 'react-markdown', 'remark-gfm', 'rehype-sanitize'],
   },

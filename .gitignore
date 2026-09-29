@@ -38,6 +38,7 @@ test_direct.js
 test_proxy.js
 patch_worker.js
 patch_reader.js
+cookies.txt
 
 # Large local binaries / scrapers
 backend/chrome/
