@@ -791,7 +791,9 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
   let query, variables;
   
   // Permanent sections (readers_also_love, popular_now) - cache forever
+  // Trending and recently_added use 1 hour TTL
   const isPermanentSection = key === 'readers_also_love' || key === 'popular_now';
+  const isTrendingSection = key === 'trending' || key === 'recently_added';
   const namespace = isPermanentSection ? 'readers_also_love' : 'anilist_trending';
   const sectionTTL = isPermanentSection ? cache.TTL.readers_also_love : cache.TTL.anilist_trending;
   
@@ -803,6 +805,14 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
     case 'readers_also_love':
       query = ANILIST_MANGA_QUERY;
       variables = { perPage: 12, sort: ['POPULARITY_DESC'] };
+      break;
+    case 'trending':
+      query = ANILIST_MANGA_QUERY;
+      variables = { perPage: 16, sort: ['TRENDING_DESC', 'POPULARITY_DESC'] };
+      break;
+    case 'recently_added':
+      query = ANILIST_MANGA_QUERY;
+      variables = { perPage: 5, genre_in: ['Adventure', 'Fantasy'], countryOfOrigin: 'KR', sort: ['ID_DESC'] };
       break;
     default:
       return res.status(400).json({ error: 'Unknown section key' });

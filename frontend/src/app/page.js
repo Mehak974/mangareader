@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
-import { getMangaList, getRecentMangaList, isExplicitNSFW } from "@/utils/anilist";
+import { isExplicitNSFW } from "@/utils/anilist";
 import { proxyImage, fetchHomeSection } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
@@ -33,14 +33,14 @@ export default async function Home() {
       await Promise.all([
         fetchHomeSection('popular_now').catch(() => ({ data: [] })),
         fetchHomeSection('readers_also_love').catch(() => ({ data: [] })),
-        withTimeout(getMangaList({ perPage: 16, sort: ["TRENDING_DESC", "POPULARITY_DESC"] }), 8000),
-        withTimeout(getRecentMangaList({ perPage: 5, genre_in: ["Adventure", "Fantasy"], countryOfOrigin: "KR", sort: ["ID_DESC"] }), 8000),
+        fetchHomeSection('trending').catch(() => ({ data: [] })),
+        fetchHomeSection('recently_added').catch(() => ({ data: [] })),
       ]);
 
     popularNow = popularNowData?.data?.length > 0 ? popularNowData.data : [];
     popularOverall = readersAlsoLoveData?.data?.length > 0 ? readersAlsoLoveData.data : [];
-    trending = trendingRes?.media?.length > 0 ? trendingRes.media : [];
-    recentlyAdded = recentRes?.media?.length > 0 ? recentRes.media.slice(0, 5) : [];
+    trending = trendingRes?.data?.length > 0 ? trendingRes.data : [];
+    recentlyAdded = recentRes?.data?.length > 0 ? recentRes.data.slice(0, 5) : [];
   } catch {
     // leave empty — same behavior as /browse when AniList is unreachable
   }
