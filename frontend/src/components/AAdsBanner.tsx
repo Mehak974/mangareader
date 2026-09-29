@@ -44,7 +44,12 @@ export default function AAdsBanner() {
       style={{
         width: '100%',
         margin: 'auto',
-        position: 'relative'
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        gap: '8px',
+        flexWrap: 'wrap',
       }}
     >
       <iframe
@@ -54,21 +59,26 @@ export default function AAdsBanner() {
         style={{
           border: 0,
           padding: 0,
-          width: '70%',
+          width: '80%',
           height: 'auto',
           overflow: 'hidden',
           display: 'block',
-          margin: 'auto'
+          margin: 'auto',
+          flex: '0 0 auto',
         }}
         title="Advertisement"
         scrolling="no"
         allow="autoplay"
       />
-      {/* Monetag banner — inline alongside A-ADS, fresh impression on every nav */}
-      <script
-        key={key}
-        dangerouslySetInnerHTML={{
-          __html: `(function(uyhgkx){
+      {/* Hilltop banner — inline alongside A-ADS, fresh impression on every nav.
+          The script tag itself has zero width; Hilltop injects its own creative
+          into the DOM wherever it decides. Wrapping in a 20% flex slot gives
+          Hilltop a proportional container to render into. */}
+      <div style={{ flex: '0 0 20%', minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <script
+          key={key}
+          dangerouslySetInnerHTML={{
+            __html: `(function(uyhgkx){
 var d = document,
     s = d.createElement('script'),
     l = d.currentScript || d.scripts[d.scripts.length - 1];
@@ -78,8 +88,9 @@ s.async = true;
 s.referrerPolicy = 'no-referrer-when-downgrade';
 l.parentNode.insertBefore(s, l);
 })({})`,
-        }}
-      />
+          }}
+        />
+      </div>
       {siteConfig.profile === 'manireader.online' && (
         <div style={{ width: '70%', margin: 'auto', position: 'absolute', left: 0, right: 0 }}>
           <a

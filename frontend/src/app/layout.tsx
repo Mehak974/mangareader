@@ -81,7 +81,7 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
-const MonetagBottomBanner = dynamic(() => import('@/components/MonetagBottomBanner'));
+const MonetagBottomBanner = dynamic(() => import('@/components/HilltopBottomBanner'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
