@@ -29,9 +29,16 @@ const rateMap = new Map();
 // should produce exactly 1 origin fetch, not 100.
 const IN_FLIGHT = new Map();
 
+let rateLimitSweep = 0;
 function isRateLimited(ip) {
   if (!ip) return false;
   const now = Date.now();
+  if (now - rateLimitSweep > 30000) {
+    rateLimitSweep = now;
+    for (const [k, v] of rateMap) {
+      if (now > v.reset) rateMap.delete(k);
+    }
+  }
   const entry = rateMap.get(ip);
   if (!entry || now > entry.reset) {
     rateMap.set(ip, { count: 1, reset: now + RATE_LIMIT_WINDOW_MS });

@@ -157,10 +157,11 @@ initRateLimit();
 const memCache = new NodeCache({ stdTTL: 600, checkperiod: 600, maxKeys: 10000 });
 
 function withTimeout(promise, ms, label) {
+  let timer;
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms)),
-  ]);
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms); }),
+  ]).finally(() => clearTimeout(timer));
 }
 async function getCached(key) {
   const rc = getRedisClient();
@@ -1394,8 +1395,7 @@ app.listen(PORT, "0.0.0.0", () => {
 process.on('unhandledRejection', (r) => console.error('[UnhandledRejection]', r?.message || r));
 process.on('uncaughtException', (e) => console.error('[UncaughtException]', e.message));
 module.exports = app;
-
-module.exports = { performSearch };
+module.exports.performSearch = performSearch;
 
 
 

@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminTaxonomyPage({ searchParams }) {
   const sp = await searchParams;
   const type = sp?.type === "tags" ? "tags" : "categories";
-  const sort = ["name", "_count.articles"].includes(sp?.sort) ? sp.sort : "name";
+  const countField = type === "tags" ? "ArticleToArticleTag" : "articles";
+  const sort = ["name", `_count.${countField}`].includes(sp?.sort) ? sp.sort : "name";
   const order = sp?.order === "asc" ? "asc" : "desc";
 
   const orderBy = sort.startsWith("_count.")
@@ -31,7 +32,7 @@ export default async function AdminTaxonomyPage({ searchParams }) {
         id: true,
         slug: true,
         name: true,
-        _count: { select: { articles: true } },
+        _count: { select: { ArticleToArticleTag: true } },
       },
     }),
   ]);
@@ -72,7 +73,7 @@ export default async function AdminTaxonomyPage({ searchParams }) {
       </div>
 
       <div className="admin-filter-row">
-        {["name", "_count.articles"].map((f) => (
+        {["name", `_count.${countField}`].map((f) => (
           <a
             key={f}
             href={sortHref(f)}

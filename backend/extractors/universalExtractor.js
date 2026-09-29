@@ -94,10 +94,11 @@ async function getPuppeteer() {
 }
 
 function withTimeout(promise, ms, label) {
+  let timer;
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms)),
-  ]);
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms); }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 async function fetchWithPuppeteer(url, extraHeaders = {}) {

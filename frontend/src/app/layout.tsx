@@ -13,6 +13,7 @@
 
 import dynamic from 'next/dynamic';
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { AppProvider }       from '@/context/AppContext';
 import AnalyticsProvider   from '@/components/AnalyticsProvider';
@@ -170,9 +171,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Google AdSense — only when NEXT_PUBLIC_ADSENSE_ID is set */}
         {ADSENSE_ENABLED && (
-          <script
+          <Script
             async
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CONFIG.adsenseId}`}
+            strategy="lazyOnload"
             crossOrigin="anonymous"
           />
         )}
@@ -180,11 +182,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Google Analytics 4 */}
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <>
-            <script
+            <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
               strategy="afterInteractive"
             />
-            <script
+            <Script
+              id="gtag-init"
+              strategy="afterInteractive"
               dangerouslySetInnerHTML={{
                 __html: `
                   window.dataLayer = window.dataLayer || [];
@@ -199,7 +203,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   });
                 `,
               }}
-              strategy="afterInteractive"
             />
           </>
         )}

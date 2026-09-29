@@ -170,7 +170,7 @@ export default function TaxonomyManager({ categories, tags }) {
                     {t.name}
                     <span className="admin-table-sub"> /{t.slug}</span>
                   </span>
-                  <span className="admin-list-meta">{t._count.articles} article{t._count.articles === 1 ? "" : "s"}</span>
+                  <span className="admin-list-meta">{t._count.ArticleToArticleTag} article{t._count.ArticleToArticleTag === 1 ? "" : "s"}</span>
                   <button
                     className="admin-row-link admin-row-danger"
                     onClick={() => remove(`/api/admin/tags/${t.id}`, `tag "${t.name}"`)}
