@@ -3,13 +3,33 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
+// Hilltop snippet — must be set as textContent on a script element (NOT
+// innerHTML). Scripts inserted via innerHTML are not executed by browsers,
+// but scripts created via document.createElement + textContent + appendChild
+// ARE executed. Hilltop's snippet then creates its own src-based script and
+// inserts it before itself.
+const HILLTOP_SNIPPET = `(function(uyhgkx){
+var d = document,
+    s = d.createElement('script'),
+    l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = uyhgkx || {};
+s.src = "//purple-text.com/bkX/Vhs.dfGblz0pYCW/cO/qeMm_9/u/ZEUqlhk/PmTBcC0_NPz/Ip4aOaTTcstSNyzVQw3GMfj/krwSMgQr";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})`;
+
+function injectHilltop(container: HTMLElement) {
+  const script = document.createElement('script');
+  script.textContent = HILLTOP_SNIPPET;
+  container.appendChild(script);
+}
+
 /**
  * Bottom Hilltop banner — re-injects the purple-text.com script on every
  * client-side navigation so Hilltop serves a new creative impression.
  *
- * Renders a visible container div that Hilltop's injected script can
- * populate. The script tag is appended to this container, giving Hilltop a
- * clear insertion point instead of relying on `document.body`.
+ * Uses document.createElement + textContent (executed) NOT innerHTML (ignored).
  */
 export default function HilltopBottomBanner() {
   const pathname = usePathname();
@@ -24,19 +44,7 @@ export default function HilltopBottomBanner() {
 
     // Clear previous banner so Hilltop serves a new creative
     container.innerHTML = '';
-
-    const script = document.createElement('script');
-    script.innerHTML = `(function(uyhgkx){
-var d = document,
-    s = d.createElement('script'),
-    l = d.currentScript || d.scripts[d.scripts.length - 1];
-s.settings = uyhgkx || {};
-s.src = "//purple-text.com/bkX/Vhs.dfGblz0pYCW/cO/qeMm_9/u/ZEUqlhk/PmTBcC0_NPz/Ip4aOaTTcstSNyzVQw3GMfj/krwSMgQr";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})`;
-    container.appendChild(script);
+    injectHilltop(container);
   }, [key]);
 
   return (

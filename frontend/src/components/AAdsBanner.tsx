@@ -6,8 +6,31 @@ import { AD_CONFIG, siteConfig } from '@/lib/site-config';
 
 const { aadsUnitId, aadsBgColor, aadsTitleColor } = AD_CONFIG;
 
+// Hilltop snippet — must be set as textContent on a script element (NOT
+// innerHTML). Scripts inserted via innerHTML are not executed by browsers,
+// but scripts created via document.createElement + textContent + appendChild
+// ARE executed. Hilltop's snippet then creates its own src-based script and
+// inserts it before itself.
+const HILLTOP_SNIPPET = `(function(uyhgkx){
+var d = document,
+    s = d.createElement('script'),
+    l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = uyhgkx || {};
+s.src = "//purple-text.com/bkX/Vhs.dfGblz0pYCW/cO/qeMm_9/u/ZEUqlhk/PmTBcC0_NPz/Ip4aOaTTcstSNyzVQw3GMfj/krwSMgQr";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})`;
+
+function injectHilltop(container: HTMLElement) {
+  const script = document.createElement('script');
+  script.textContent = HILLTOP_SNIPPET;
+  container.appendChild(script);
+}
+
 export default function AAdsBanner() {
   const ref      = useRef<HTMLDivElement>(null);
+  const hilltopRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const [key, setKey] = useState(0);
 
@@ -27,6 +50,17 @@ export default function AAdsBanner() {
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, []);
+
+  // Hilltop banner — re-inject on every nav.
+  // Uses textContent on a script element (executed) NOT innerHTML (ignored).
+  useEffect(() => {
+    const container = hilltopRef.current;
+    if (!container) return;
+
+    // Clear previous banner so Hilltop serves a new creative
+    container.innerHTML = '';
+    injectHilltop(container);
+  }, [key]);
 
   if (!aadsUnitId) return null;
 
@@ -70,27 +104,19 @@ export default function AAdsBanner() {
         scrolling="no"
         allow="autoplay"
       />
-      {/* Hilltop banner — inline alongside A-ADS, fresh impression on every nav.
-          The script tag itself has zero width; Hilltop injects its own creative
-          into the DOM wherever it decides. Wrapping in a 20% flex slot gives
-          Hilltop a proportional container to render into. */}
-      <div style={{ flex: '0 0 20%', minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <script
-          key={key}
-          dangerouslySetInnerHTML={{
-            __html: `(function(uyhgkx){
-var d = document,
-    s = d.createElement('script'),
-    l = d.currentScript || d.scripts[d.scripts.length - 1];
-s.settings = uyhgkx || {};
-s.src = "//purple-text.com/bkX/Vhs.dfGblz0pYCW/cO/qeMm_9/u/ZEUqlhk/PmTBcC0_NPz/Ip4aOaTTcstSNyzVQw3GMfj/krwSMgQr";
-s.async = true;
-s.referrerPolicy = 'no-referrer-when-downgrade';
-l.parentNode.insertBefore(s, l);
-})({})`,
-          }}
-        />
-      </div>
+      {/* Hilltop banner — 20% slot alongside A-ADS, fresh impression on every nav.
+          The script is appended via createElement + textContent so the browser
+          actually executes it. */}
+      <div
+        ref={hilltopRef}
+        style={{
+          flex: '0 0 20%',
+          minWidth: '120px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      />
       {siteConfig.profile === 'manireader.online' && (
         <div style={{ width: '70%', margin: 'auto', position: 'absolute', left: 0, right: 0 }}>
           <a
