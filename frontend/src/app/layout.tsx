@@ -169,6 +169,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           })();
         `}} />
 
+        {/* Clickadu verification tag */}
+        <meta name="clckd" content="c6d752ed812b825429e733afcb6fbc21" />
+
         {/* Google AdSense — only when NEXT_PUBLIC_ADSENSE_ID is set */}
         {ADSENSE_ENABLED && (
           <Script
