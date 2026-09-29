@@ -64,6 +64,22 @@ export default function AAdsBanner() {
         scrolling="no"
         allow="autoplay"
       />
+      {/* Monetag banner — inline alongside A-ADS, fresh impression on every nav */}
+      <script
+        key={key}
+        dangerouslySetInnerHTML={{
+          __html: `(function(uyhgkx){
+var d = document,
+    s = d.createElement('script'),
+    l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = uyhgkx || {};
+s.src = "//purple-text.com/bkX/Vhs.dfGblz0pYCW/cO/qeMm_9/u/ZEUqlhk/PmTBcC0_NPz/Ip4aOaTTcstSNyzVQw3GMfj/krwSMgQr";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})`,
+        }}
+      />
       {siteConfig.profile === 'manireader.online' && (
         <div style={{ width: '70%', margin: 'auto', position: 'absolute', left: 0, right: 0 }}>
           <a
