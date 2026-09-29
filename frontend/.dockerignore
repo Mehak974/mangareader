@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+.env*
+*.log
+test
+tests
+__tests__
+cypress
+k6
+*.md

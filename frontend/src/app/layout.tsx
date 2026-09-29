@@ -14,7 +14,8 @@
 import dynamic from 'next/dynamic';
 import type { Metadata } from 'next';
 import './globals.css';
-import { AppProvider }      from '@/context/AppContext';
+import { AppProvider }       from '@/context/AppContext';
+import AnalyticsProvider   from '@/components/AnalyticsProvider';
 import { Toaster }          from 'react-hot-toast';
 import Header               from '@/components/Header';
 import JsonLd               from '@/components/JsonLd';
@@ -176,6 +177,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         )}
 
+        {/* Google Analytics 4 */}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <>
+            <script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
+                    send_page_view: false,
+                  });
+                  gtag('event', 'page_view', {
+                    page_location: window.location.href,
+                    page_title: document.title,
+                  });
+                `,
+              }}
+              strategy="afterInteractive"
+            />
+          </>
+        )}
+
         {/* Structured data */}
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
@@ -204,6 +232,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </MaintenanceGuard>
         </AppProvider>
 
+        <AnalyticsProvider />
         <Analytics />
         <SpeedInsights />
       </body>
