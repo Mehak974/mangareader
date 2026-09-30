@@ -22,7 +22,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'api.yourdomain.com' },
       { protocol: 'https', hostname: 's4.anilist.co' },
       { protocol: 'https', hostname: 'media.kitsu.app' },
-      { protocol: 'https', hostname: '**.mangadex.org' },
     ],
     // Serve WebP by default
     formats: ['image/avif', 'image/webp'],
