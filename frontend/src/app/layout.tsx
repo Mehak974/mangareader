@@ -94,14 +94,11 @@ export const metadata: Metadata = {
   keywords:    SEO.keywords,
   applicationName: SITE_NAME,
 
-  // Google / Bing site verification — set per domain in Vercel env vars
-  verification: {
-    google: AD_CONFIG.googleVerification || undefined,
-    other: {
-      ...(AD_CONFIG.bingVerification ? { 'msvalidate.01': AD_CONFIG.bingVerification } : {}),
-      ...(AD_CONFIG.hilltopVerification ? { [AD_CONFIG.hilltopVerification]: AD_CONFIG.hilltopVerification } : {}),
+// Google / Bing site verification — set per domain in Vercel env vars
+    verification: {
+      google: AD_CONFIG.googleVerification || undefined,
+      other: AD_CONFIG.bingVerification ? { 'msvalidate.01': AD_CONFIG.bingVerification } : {},
     },
-  },
 
   openGraph: {
     type:      'website',
