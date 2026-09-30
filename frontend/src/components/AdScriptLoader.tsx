@@ -27,7 +27,11 @@ export default function AdScriptLoader() {
 
     loaded.current = true;
     const script = document.createElement('script');
-    script.innerHTML = `
+
+    // textContent, not innerHTML: scripts inserted via innerHTML are not
+    // executed by the browser. This snippet then creates its own src-based
+    // script (purple-text.com) and inserts it before itself.
+    script.textContent = `
       (function(ht){
         var d = document,
             s = d.createElement('script'),
