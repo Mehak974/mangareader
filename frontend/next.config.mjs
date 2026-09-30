@@ -1,10 +1,22 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import withPWAInit from "@ducanh2912/next-pwa";
 
 /** @type {import('next').NextConfig} */
 
-// Content-Security-Policy moved to src/middleware.js — it now uses a
-// per-request nonce instead of 'unsafe-inline'/'unsafe-eval', which a static
-// header here can't express (a nonce has to be different on every request).
+// The repo root has its own package.json/package-lock.json (cypress, percy,
+// helmet) for tooling, so Turbopack inferred the repo root as the workspace
+// root instead of frontend/. On Vercel that made next/font resolve
+// @vercel/turbopack-next relative to the wrong tree and the build failed with
+// "Module not found: Can't resolve
+// '@vercel/turbopack-next/internal/font/google/font'". Pin the root to this
+// config's own directory so resolution does not depend on which lockfile
+// Turbopack happens to find first.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Content-Security-Policy moved to src/middleware.js — it uses
+// 'unsafe-inline' rather than a per-request nonce, because ~12 routes are
+// prerendered at build time and a nonce cannot be baked into their HTML.
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -17,13 +29,14 @@ const securityHeaders = [
 
 const nextConfig = {
 
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
 
   // Performance
   poweredByHeader: false,
 
   experimental: {
-    instrumentationHook: true,
     optimizeCss: true,
     optimizePackageImports: ['lucide-react', 'react-hot-toast', '@use-gesture/react', 'react-markdown', 'remark-gfm', 'rehype-sanitize'],
   },
