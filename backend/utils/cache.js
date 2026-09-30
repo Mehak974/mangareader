@@ -15,7 +15,11 @@ const TTL = {
   anilist_trending:   60 * 60 * 1,            // 1 hour
   anilist_meta_search: 60 * 60 * 2,           // 2 hours (metadata by title)
   chapter_list:       60 * 60 * 12,           // 12 hours
-  chapter_images:     60 * 60 * 24 * 365,     // 1 year (images are immutable)
+  // MangaKatana serves tokenized image URLs (/token/<expiry>/0.jpg) that return
+  // 403 once the token expires, so its image lists must not outlive the token.
+  // Sources with stable image URLs still get the 1-year TTL.
+  chapter_images:     60 * 30,                // 30 minutes
+  chapter_images_mangakatana: 60 * 10,        // 10 minutes (tokenized URLs)
   scraper_search:     60 * 60 * 2,            // 2 hours
   image_proxy:        60 * 60 * 24 * 365,     // 1 year (images are immutable)
   readers_also_love:  60 * 60 * 24 * 365 * 10, // 10 years (effectively forever)

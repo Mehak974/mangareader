@@ -846,18 +846,28 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     return res.status(400).json({ error: 'valid url required', received: url });
   }
   const ck = `ch:${url}`;
+  const tokenized = sid === 'mangakatana' || url.includes('mangakatana');
+  // MangaKatana image URLs embed an expiring token, so a 1-year immutable
+  // browser cache would pin dead URLs indefinitely. Everything else keeps the
+  // long cache since those image URLs are stable.
+  const browserCache = tokenized
+    ? 'public, max-age=600'
+    : 'public, max-age=31536000, immutable';
+
   const c = await getCached(ck);
   if (c) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Cache-Control', browserCache);
     return res.json({ data: c, cached: true });
   }
 
   // Stale-while-revalidate: return stale cache while refreshing in background.
   // Mangakatana's multi-step scraper (Consumet → DOM → FlareSolverr) routinely
   // takes 15-30s, so returning stale data immediately prevents 504s.
-  const stale = await cache.get('chapter_images', ck);
+  // Skipped for tokenized sources: a stale list there serves 403s on every
+  // image, which is worse than a brief wait for fresh tokens.
+  const stale = tokenized ? null : await cache.get('chapter_images', ck);
   if (stale) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Cache-Control', browserCache);
     setImmediate(async () => {
       try { await fetchAndCacheChapterImages(url, sid, ck); } catch (_) {}
     });
@@ -866,7 +876,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
 
   try {
     const resp = await withTimeout(fetchAndCacheChapterImages(url, sid, ck), 30000, 'chapter-images');
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Cache-Control', browserCache);
     res.json({ data: resp, cached: false });
   } catch (err) {
     console.warn('[chapter/images] Timeout or error:', err.message);
@@ -878,6 +888,12 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
   const src = SOURCE_SCRAPERS[sid || helpers.detectSource(url)];
   let result = null;
   let usedSrc = sid || 'fallback';
+
+  // MangaKatana hands out tokenized image URLs that 403 once the token expires,
+  // so its cached list is only valid briefly. Sources with stable image URLs
+  // keep the long TTL.
+  const isTokenized = usedSrc === 'mangakatana' || url.includes('mangakatana');
+  const imgTtl = isTokenized ? cache.TTL.chapter_images_mangakatana : cache.TTL.chapter_images;
 
   // Source scraper first. Accept any non-empty result — Mangakatana's JS-array
   // extraction is reliable and the old MIN=3 threshold was rejecting valid
@@ -892,8 +908,8 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
       } else if (d.empty || d.error) {
         // Genuinely no images — cache and return, don't retry with Puppeteer
         const resp = { ...d, url, usedSource: sid };
-        await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);
-        await setCached(ck, resp, cache.TTL.chapter_images);
+        await cache.set('chapter_images', ck, resp, imgTtl);
+        await setCached(ck, resp, imgTtl);
         return resp;
       }
     } catch (err) {
@@ -914,8 +930,8 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
 
   if (!result?.images?.length) throw new Error('No images found');
   const resp = { ...result, url, usedSource: usedSrc };
-  await cache.set('chapter_images', ck, resp, cache.TTL.chapter_images);
-  await setCached(ck, resp, cache.TTL.chapter_images);
+  await cache.set('chapter_images', ck, resp, imgTtl);
+  await setCached(ck, resp, imgTtl);
   return resp;
 }
 
@@ -985,18 +1001,33 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
       `${parsed.origin}/`;
 
     // ponytail: retry once with backoff — CDN transient errors are common
+    // Retry once on transient CDN errors. A 403 is deliberately NOT retried:
+    // on MangaKatana's tokenized URLs it means the token expired, and retrying
+    // the same URL cannot help — the chapter image list has to be re-scraped
+    // to get a fresh token.
     let r;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         r = await axios({
-          method: 'get', url, responseType: 'arraybuffer', headers: {
+          method: 'get', url, responseType: 'arraybuffer', validateStatus: (s) => s < 500, headers: {
             Referer: referer,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
           }, timeout: 8000
         });
-        if (r.status === 200) break;
+        if (r.status !== 200) {
+          const expired = r.status === 403 || r.status === 401;
+          res.setHeader('Cache-Control', 'no-store');
+          return res.status(expired ? 403 : 502).send(expired ? 'Image token expired' : 'Error proxying image');
+        }
+        break;
       } catch (fetchErr) {
+        const status = fetchErr.response?.status;
+        if (status === 403 || status === 401) {
+          console.warn(`[proxy-image] token expired (${status}), not retrying:`, url);
+          res.setHeader('Cache-Control', 'no-store');
+          return res.status(403).send('Image token expired');
+        }
         if (attempt === 0) { await new Promise(rs => setTimeout(rs, 500)); continue; }
         throw fetchErr;
       }
