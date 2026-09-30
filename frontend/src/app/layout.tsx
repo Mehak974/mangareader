@@ -81,7 +81,6 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
-const MonetagBottomBanner = dynamic(() => import('@/components/HilltopBottomBanner'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -234,9 +233,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AAdsBanner />
 
             <main>{children}</main>
-
-            {/* Monetag banner — bottom of every page (fresh impression on nav) */}
-            <MonetagBottomBanner />
 
             <Toaster position="bottom-right" />
           </MaintenanceGuard>
