@@ -2,16 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname }       from 'next/navigation';
-import { siteConfig } from '@/lib/site-config';
 
 const EXCLUDED_PATHS = ['/aads', '/admin', '/login', '/signup'];
 
-// ── Hilltop Ads (served from purple-text.com) — one script per domain ────────
-const HILLTOP_SCRIPTS: Record<string, string> = {
-  'mangaread.pro':    '//purple-text.com/c.D-9x6wbe2/5il/SWW_QJ9iN/z/Q/0lNIDIQy2XO/SE0K3RNxD/Q/0lNeDncGzt',
-  'mangareader.pro':  '//purple-text.com/cJD.9/6tbA2q5ClCSeWGQl9uNYzGMJyVMlDrU/y/OkS_0/3gMVzHI/wNNATwMEzV',
-  'manireader.online':'//purple-text.com/c.DT9/6/b/2A5gl/SmWFQo9/NjzqQ/0wNkDwQf2VMkSl0/3RNDDuQT0YNBD/Y/1j',
-};
+// ── Hilltop Ads (served from purple-text.com) ────────────────────────────────
+const HILLTOP_SRC = '//purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTOXS/0B3SMNzDIAw-NxTgMszu';
 
 export default function AdScriptLoader() {
   const pathname = usePathname();
@@ -21,9 +16,6 @@ export default function AdScriptLoader() {
     if (process.env.NODE_ENV === 'development') return;
     if (EXCLUDED_PATHS.some(p => pathname.startsWith(p))) return;
     if (loaded.current) return;
-
-    const src = HILLTOP_SCRIPTS[siteConfig.profile];
-    if (!src) return;
 
     loaded.current = true;
     const script = document.createElement('script');
@@ -37,7 +29,7 @@ export default function AdScriptLoader() {
             s = d.createElement('script'),
             l = d.currentScript || d.scripts[d.scripts.length - 1];
         s.settings = ht || {};
-        s.src = "${src}";
+        s.src = "${HILLTOP_SRC}";
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
         l.parentNode.insertBefore(s, l);
