@@ -56,9 +56,20 @@ export function middleware(request) {
     return NextResponse.redirect(new URL("/browse", request.url), { status: 301 });
   }
 
+  // Ad script origins. The Hilltop popunder is a two-stage loader: the inline
+  // snippet in components/AdScriptLoader.tsx passes CSP via 'unsafe-inline',
+  // then inserts a <script src> pointing at purple-text.com, which in turn
+  // inserts another one at www.quizzical-topic.com. 'unsafe-inline' allows
+  // inline code only — external script origins still need listing here, and
+  // script-src-elem falls back to script-src when unset.
+  //
+  // A-ADS is absent on purpose: it renders inside an iframe, so it is covered
+  // by frame-src rather than script-src.
+  const adScriptOrigins = ['https://purple-text.com', 'https://www.quizzical-topic.com'];
+
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com https://vercel.live;
