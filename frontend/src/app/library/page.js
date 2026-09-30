@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
@@ -10,22 +10,55 @@ import { proxyImage } from "@/utils/api";
 
 function LibraryContent() {
   const searchParams = useSearchParams();
-  const { isLoggedIn, bookmarks, libraries, readChapters, setSigninSheetOpen } = useApp();
+  const router = useRouter();
+  const { isLoggedIn, libraries, readManga, setSigninSheetOpen } = useApp();
   const [selectedLibraryId, setSelectedLibraryId] = useState(null);
+  const [activeTab, setActiveTab] = useState("collections");
 
   // Read initial tab parameter
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam) {
-      if (tabParam === "completed") setActiveTab("completed");
-      else if (tabParam === "collections") setActiveTab("collections");
+    if (tabParam === "completed" || tabParam === "collections") {
+      setActiveTab(tabParam);
     }
   }, [searchParams]);
 
   // Find selected library
-  const selectedLibrary = selectedLibraryId 
-    ? libraries.find(l => l.id === selectedLibraryId) 
+  const selectedLibrary = selectedLibraryId
+    ? libraries.find(l => l.id === selectedLibraryId)
     : null;
+
+  // Series the user marked read, resolved against library entries so we keep
+  // cover/genre metadata. Deduped by id since a title can sit in several
+  // collections at once.
+  const completedManga = useMemo(() => {
+    const read = new Set(readManga || []);
+    const seen = new Set();
+    const out = [];
+    for (const lib of libraries) {
+      for (const m of lib.manga || []) {
+        if (!m.title || !read.has(m.title)) continue;
+        const key = String(m.mangaId ?? m.title);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          id: m.mangaId,
+          t: m.title,
+          cover: m.cover,
+          ongoing: m.ongoing,
+          rating: m.rating,
+          g: m.genre,
+        });
+      }
+    }
+    return out;
+  }, [libraries, readManga]);
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setSelectedLibraryId(null);
+    router.replace(tab === "collections" ? "/library" : `/library?tab=${tab}`, { scroll: false });
+  };
 
   return (
     <div>
@@ -34,12 +67,19 @@ function LibraryContent() {
           <h1 style={{fontSize: '24px', marginBottom: '16px'}}>Library</h1>
           <div className="lib-tabs">
             <button
-              className={`lib-tab active`}
-              onClick={() => setSelectedLibraryId(null)}
+              className={`lib-tab ${activeTab === "collections" ? "active" : ""}`}
+              onClick={() => switchTab("collections")}
             >
               Collections
             </button>
-            {selectedLibrary && (
+            <button
+              className={`lib-tab ${activeTab === "completed" ? "active" : ""}`}
+              style={{ marginLeft: "8px" }}
+              onClick={() => switchTab("completed")}
+            >
+              Completed
+            </button>
+            {activeTab === "collections" && selectedLibrary && (
               <button className="lib-tab active" style={{ marginLeft: "8px", background: "var(--surface2)" }}>
                 {selectedLibrary.name === "default" ? "Default Library" : selectedLibrary.name}
               </button>
@@ -47,7 +87,19 @@ function LibraryContent() {
           </div>
 
           <div className="section">
-            {!selectedLibrary ? (
+            {activeTab === "completed" ? (
+              completedManga.length ? (
+                <div className="manga-grid">
+                  {completedManga.map((m, idx) => (
+                    <MangaCard key={m.id ?? m.t} manga={m} index={idx} />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "40px", color: "var(--text3)" }}>
+                  Nothing completed yet. Mark a series read from its card and it will show up here.
+                </div>
+              )
+            ) : !selectedLibrary ? (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
                   <div className="s-title">My Collections</div>
