@@ -21,10 +21,6 @@ export type AdConfig = {
   aadsBgColor: string;
   /** A-ADS title link color (hex without #) */
   aadsTitleColor: string;
-  /** Pop-ads / propeller script URL snippet key */
-  popAdsKey: string;
-  /** Google AdSense publisher ID (ca-pub-xxx) — if using AdSense instead */
-  adsenseId: string;
   /** Google site verification meta tag content */
   googleVerification: string;
   /** Bing site verification meta tag content */
@@ -87,8 +83,6 @@ const CONFIGS: Record<string, SiteConfig> = {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2454751',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0A0612',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'A855F7',
-      popAdsKey:          process.env.NEXT_PUBLIC_POP_ADS_KEY         || '',
-      adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
@@ -121,8 +115,6 @@ const CONFIGS: Record<string, SiteConfig> = {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455860',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0C1220',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || '38BDF8',
-      popAdsKey:          process.env.NEXT_PUBLIC_POP_ADS_KEY         || '',
-      adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
@@ -155,8 +147,6 @@ const CONFIGS: Record<string, SiteConfig> = {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455863',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0E0F14',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'F97316',
-      popAdsKey:          process.env.NEXT_PUBLIC_POP_ADS_KEY         || '',
-      adsenseId:          process.env.NEXT_PUBLIC_ADSENSE_ID          || '',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
@@ -212,9 +202,6 @@ export const THEME     = siteConfig.theme;
 /** True when AADS banner should be shown */
 export const AADS_ENABLED = Boolean(siteConfig.ads.aadsUnitId && siteConfig.ads.aadsUnitId !== '0000000');
 
-/** True when pop-ads script should be injected */
-export const POP_ADS_ENABLED = Boolean(siteConfig.ads.popAdsKey);
-
-/** True when Google AdSense should be shown */
-export const ADSENSE_ENABLED = Boolean(siteConfig.ads.adsenseId);
+/** True when the Hilltop script should be injected */
+export const HILLTOP_ENABLED = Boolean(siteConfig.ads.hilltopVerification);
 

@@ -34,7 +34,7 @@ export default function PrivacyPage() {
         <section>
           <h2>3. Cookies and Tracking</h2>
           <p>
-            MangaReader uses strictly necessary cookies to keep you logged in. We also work with ad networks (like Monetag) to serve clean banner ads that pay for the server costs. These third-party networks may use cookies to serve non-intrusive ads. Unlike other platforms, we actively block malicious or pop-up ad networks.
+            MangaReader uses strictly necessary cookies to keep you logged in. We also work with ad networks (A-ADS and Hilltop) to serve clean banner ads that pay for the server costs. These third-party networks may use cookies to serve non-intrusive ads. Unlike other platforms, we actively block malicious ad networks.
           </p>
         </section>
 

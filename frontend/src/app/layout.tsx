@@ -5,10 +5,9 @@
  *
  * Changes from the original:
  *  - All brand strings come from site-config.ts (name, description, OG image)
- *  - Google / Bing verification meta tags injected per domain
- *  - AdSense publisher script injected per domain (if ADSENSE_ENABLED)
+ *  - Google / Bing / Hilltop verification meta tags injected per domain
  *  - Google Font chosen per domain (DM Sans / Inter / Plus Jakarta Sans)
- *  - AAdsBanner + AdScriptLoader already use site-config internally
+ *  - AAdsBanner (A-ADS) + AdScriptLoader (Hilltop) already use site-config internally
  */
 
 import dynamic from 'next/dynamic';
@@ -24,7 +23,7 @@ import MaintenanceGuard     from '@/components/MaintenanceGuard';
 import { Analytics }        from '@vercel/analytics/react';
 import { SpeedInsights }    from '@vercel/speed-insights/next';
 import {
-  SITE_NAME, SITE_URL, SEO, AD_CONFIG, ADSENSE_ENABLED,
+  SITE_NAME, SITE_URL, SEO, AD_CONFIG,
   siteConfig,
 } from '@/lib/site-config';
 import { organizationSchema, websiteSchema } from '@/lib/seo';
@@ -99,7 +98,7 @@ export const metadata: Metadata = {
     google: AD_CONFIG.googleVerification || undefined,
     other: {
       ...(AD_CONFIG.bingVerification ? { 'msvalidate.01': AD_CONFIG.bingVerification } : {}),
-      ...(AD_CONFIG.hilltopVerification ? { [AD_CONFIG.hilltopVerification]: AD_CONFIG.hilltopVerification } : {}),
+      ...(AD_CONFIG.hilltopVerification ? { hltp: AD_CONFIG.hilltopVerification } : {}),
     },
   },
 
@@ -169,19 +168,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           })();
         `}} />
 
-        {/* Clickadu verification tag */}
-        <meta name="clckd" content="c6d752ed812b825429e733afcb6fbc21" />
-
-        {/* Google AdSense — only when NEXT_PUBLIC_ADSENSE_ID is set */}
-        {ADSENSE_ENABLED && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CONFIG.adsenseId}`}
-            strategy="lazyOnload"
-            crossOrigin="anonymous"
-          />
-        )}
-
         {/* Google Analytics 4 */}
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <>
@@ -226,7 +212,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PWAInstall />
             <LibraryPicker />
 
-            {/* Pop-ads script (domain-specific) */}
+            {/* Hilltop script (purple-text.com) — domain-specific */}
             <AdScriptLoader />
 
             {/* A-ADS banner (domain-specific unit ID + colors) */}

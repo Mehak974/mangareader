@@ -32,7 +32,7 @@ export default function CookiesPage() {
         </section>
         <section>
           <h2>Third-Party Cookies</h2>
-          <p>If ads are displayed, Google AdSense may set advertising cookies. See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's Privacy Policy</a>.</p>
+          <p>If ads are displayed, our ad partners (A-ADS and Hilltop) may set advertising cookies. You can opt out of personalised advertising at <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer">aboutads.info</a>.</p>
         </section>
         <section>
           <h2>Managing Cookies</h2>

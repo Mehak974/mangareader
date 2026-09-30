@@ -30,9 +30,10 @@ AUTH_SECRET="your-64-byte-hex-secret"
 NEXT_PUBLIC_SITE_URL="https://yourdomain.com"
 NEXT_PUBLIC_SITE_NAME="MangaKakalot"
 
-# ── ADSENSE (optional) ────────────────────────────────────────────────────────
-# Your AdSense publisher ID (e.g. ca-pub-1234567890)
-# NEXT_PUBLIC_ADSENSE_ID="ca-pub-xxxx"
+# ── ADS (optional overrides) ──────────────────────────────────────────────────
+# Per-domain defaults live in frontend/src/lib/site-config.ts
+# NEXT_PUBLIC_AADS_UNIT_ID="2454751"
+# NEXT_PUBLIC_HILLTOP_VERIFICATION=""
 
 # ── ANALYTICS (optional) ─────────────────────────────────────────────────────
 # Vercel Analytics is enabled automatically on Vercel deployments.
