@@ -56,11 +56,10 @@ const SINGLE_MANGA_QUERY = `
 
 // Reading servers are exposed generically — provider brands are never shown to users.
 const AVAILABLE_SOURCES = [
-  { id: "mangaread", name: "Server 1" },
-  { id: "mangakatana", name: "Server 2" },
-  { id: "mangadex", name: "Server 3" },
-  { id: "manganato", name: "Server 4" }
-];
+    { id: "mangaread", name: "Server 1" },
+    { id: "mangakatana", name: "Server 2" },
+    { id: "manganato", name: "Server 3" }
+  ];
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
 
