@@ -31,7 +31,6 @@ const { SOURCE_SCRAPERS } = require('./backend/extractors/universalExtractor.js'
     process.stdout.write('[2] getMangaDetail() ... ');
     const detailUrls = {
       mangaread: 'https://www.mangaread.org/manga/academys-genius-swordmaster/',
-      mangadex: 'https://mangadex.org/title/b70113a5-32a3-44e8-a28f-0e88392808ba/one-piece',
       mangakatana: 'https://mangakatana.com/manga/baki-rahen.27070/',
       manganato: 'https://www.manganato.gg/manga/martial-peak/',
     };

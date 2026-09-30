@@ -152,7 +152,6 @@ const REFERERS = {
   'mangakakalot':        'https://mangakakalot.com/',
   'chapmanganato':       'https://chapmanganato.to/',
   'mangaread.org':       'https://mangaread.org/',
-  'mangadex':            'https://mangadex.org/',
   '2xstorage':           'https://mangakakalot.com/',
   'waitst.com':          'https://mangakatana.com/',
   'anilist.co':          'https://anilist.co/',
@@ -165,7 +164,7 @@ function referer(url) {
 const ALLOWED = [
   'manganato','mangakakalot','chapmanganato',
   'mangakatana','mkklcdnv','mangaread.org',
-  'mangadex','2xstorage','waitst.com',
+  '2xstorage','waitst.com',
   'media.mangaka','anilist.co','imgur.com',
 ];
 function allowed(url) {
@@ -188,7 +187,6 @@ export default {
     try {
       if (path.startsWith('/img-proxy'))       return imgProxy(req, ctx, origin);
       if (path.startsWith('/api/anilist'))     return anilist(req, ctx, origin);
-      if (path.startsWith('/api/mangadex'))   return mangadex(req, ctx, origin);
       if (path.startsWith('/api/manganato'))   return scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
       if (path.startsWith('/api/mangakatana')) return scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
       if (path.startsWith('/api/mangaread'))   return scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
@@ -327,83 +325,6 @@ async function anilist(req, ctx, origin) {
   const ttl = 86400; // 24h — AniList data barely changes
   memSet(ck, data, 3600);
   cachePut(ctx, ck, data, ttl); // async, non-blocking
-  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
-}
-
-// ─── MangaDex (official API) ──────────────────────────────────────────────────
-async function mangadex(req, ctx, origin) {
-  const url = new URL(req.url);
-  const urlParam = url.searchParams.get('url');
-  if (urlParam) return scraped(req, ctx, 'mangadex', 'https://mangadex.org/', origin);
-
-  // /api/mangadex/chapter-images?id=<uuid> — proxy the official at-home API
-  // with CDN caching. Faster and more reliable than routing through the
-  // backend (which has a 25s timeout that Mangadex rate-limiting routinely
-  // blows past).
-  if (url.pathname.startsWith('/api/mangadex/chapter-images')) {
-    const chapterId = url.searchParams.get('id') || url.pathname.split('/').pop();
-    if (!chapterId) return json({ error: 'chapter id required' }, 400, {}, origin);
-    const ck = await sha1Key('mdx', chapterId);
-
-    const mem = memGet(ck);
-    if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 86400 } }, origin);
-
-    const cacheHit = await cacheGet(ck);
-    if (cacheHit) {
-      memSet(ck, cacheHit, 300);
-      return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 86400 } }, origin);
-    }
-
-    let r;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        r = await fetch(`https://api.mangadex.org/at-home/server/${chapterId}`, {
-          headers: { 'User-Agent': 'MangaReader/2.0', 'Accept': 'application/json' },
-        });
-        if (r.ok) break;
-        if (r.status === 429) { await new Promise(rs => setTimeout(rs, 2000 * (attempt + 1))); continue; }
-        if (r.status === 404) { await new Promise(rs => setTimeout(rs, 2000)); continue; }
-        return json({ error: `MangaDex ${r.status}` }, r.status, {}, origin);
-      } catch (e) {
-        if (attempt < 2) await new Promise(rs => setTimeout(rs, 1000 * (attempt + 1)));
-      }
-    }
-    if (!r || !r.ok) return json({ error: 'MangaDex chapter images unavailable' }, 502, {}, origin);
-
-    const data = await r.json();
-    const images = (data?.chapter?.data || []).map(
-      fn => `${data.baseUrl}/data/${data.chapter.hash}/${fn}`
-    );
-    if (images.length === 0) return json({ error: 'No images in chapter' }, 404, {}, origin);
-
-    const payload = { images, source: 'mangadex' };
-    memSet(ck, payload, 300);
-    cachePut(ctx, ck, payload, 86400);
-    return json(payload, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: 86400 } }, origin);
-  }
-
-  const path = url.pathname.replace('/api/mangadex', '');
-  const target = `https://api.mangadex.org${path}${url.search}`;
-  const ck = await sha1Key('md', target);
-
-  const mem = memGet(ck);
-  if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } }, origin);
-
-  const cacheHit = await cacheGet(ck);
-  if (cacheHit) {
-    memSet(ck, cacheHit, 300);
-    return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 3600 } }, origin);
-  }
-
-  const r = await fetch(target, {
-    headers: { 'User-Agent': 'MangaReader/2.0', 'Accept': 'application/json' },
-  });
-  if (!r.ok) return json({ error: `MangaDex ${r.status}` }, r.status, {}, origin);
-
-  const data = await r.json();
-  const ttl = path.includes('/feed') ? 600 : 3600; // feed: 10min, rest: 1h
-  memSet(ck, data, Math.min(ttl, 300));
-  cachePut(ctx, ck, data, ttl);
   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
 }
 

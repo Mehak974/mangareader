@@ -58,8 +58,7 @@ const SINGLE_MANGA_QUERY = `
 const AVAILABLE_SOURCES = [
   { id: "mangaread", name: "Server 1" },
   { id: "mangakatana", name: "Server 2" },
-  { id: "mangadex", name: "Server 3" },
-  { id: "manganato", name: "Server 4" }
+  { id: "manganato", name: "Server 3" }
 ];
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
@@ -90,7 +89,7 @@ export default function MangaDetail({ params }) {
   const [sourceId, setSourceId] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   // Cover candidates are tried in order via coverIndex. Source-site covers
-  // (Server 1–4) 403 through the image proxy fairly often, so the AniList
+  // (Server 1–3) 403 through the image proxy fairly often, so the AniList
   // cover is kept as a known-good second choice; an exhausted list falls back
   // to the gradient placeholder rather than a broken image.
   const [coverAlt, setCoverAlt] = useState("");

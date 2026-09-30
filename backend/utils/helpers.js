@@ -90,7 +90,6 @@ async function verifyRedirectLink(link, orig) {
 function detectSource(url) {
   const h = new URL(url).hostname;
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
-  if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
   if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
   if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';

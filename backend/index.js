@@ -333,7 +333,7 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     }
 
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
-    const sourceIds = ['mangaread', 'manganato', 'mangakatana', 'mangadex'];
+    const sourceIds = ['mangaread', 'manganato', 'mangakatana'];
 
     let mappings = (await db.query('SELECT source_id,source_slug FROM source_mappings WHERE manga_id=$1', [mangaId])).rows;
     if (!mappings.length) {
@@ -622,19 +622,6 @@ async function performSearch(sourceId, query, origTitle) {
     });
     return score >= 1 ? best : null;
   }
-  if (sourceId === 'mangadex') {
-    const r = await http.get(`https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
-    if (r.data?.data?.length) {
-      let bestId = null, bestScore = 0;
-      r.data.data.forEach(item => {
-        const titles = Object.values(item.attributes.title || {}).concat((item.attributes.altTitles || []).map(t => Object.values(t)[0])).map(t => t.toLowerCase());
-        if (!titles.some(t => helpers.isGoodMatch(origTitle, t))) return;
-        const words = origTitle.toLowerCase().split(/\s+/);
-        titles.forEach(t => { let s = 0; words.forEach(w => { if (w.length > 2 && t.includes(w)) s++; }); if (s > bestScore) { bestScore = s; bestId = item.id; } });
-      });
-      if (bestId) return `https://mangadex.org/title/${bestId}`;
-    }
-  }
   if (sourceId === 'manganato') {
     const base = 'https://www.manganato.gg';
     const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
@@ -749,7 +736,6 @@ async function searchSource(sourceId, title, mangaId = null) {
 function detectSource(url) {
   const h = new URL(url).hostname;
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
-  if (h === 'mangadex.org') return 'mangadex';
   if (h === 'mangakatana.com') return 'mangakatana';
   if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
   if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
@@ -895,8 +881,8 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
 
   // Source scraper first. Accept any non-empty result — Mangakatana's JS-array
   // extraction is reliable and the old MIN=3 threshold was rejecting valid
-  // results. Empty results (e.g. Mangadex unavailable chapters) are cached
-  // directly so we don't fall through to a 25s Puppeteer attempt.
+  // results. Results flagged as empty or errored are cached directly so we
+  // don't fall through to a 25s Puppeteer attempt.
   if (src) {
     try {
       const d = await src.getChapterImages(url);
@@ -979,10 +965,10 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
 
     // ponytail: substring-based SSRF allowlist — future-proof against CDN subdomain rotation.
-    // New subdomains like i2.mangakatana.com or newnode.mangadex.network match automatically.
+    // New subdomains like i2.mangakatana.com or newnode.mdrproxy.net match automatically.
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
-      'mangadex.org', 'mangadex.network', 'mangakatana.com', 'mkklcdnv',
+      'mangakatana.com', 'mkklcdnv',
       'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
@@ -994,7 +980,6 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     // ponytail: referer detection by substring — no map to maintain.
     const referer =
       h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
-      h.includes('mangadex')    ? 'https://mangadex.org/' :
       h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') || h.includes('waitst.com') ? 'https://www.manganato.gg/' :
       h.includes('mangaread')   ? 'https://mangaread.org/' :
       `${parsed.origin}/`;

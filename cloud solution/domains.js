@@ -21,7 +21,7 @@ const DOMAIN_CONFIGS = {
       'https://www.mangareader.pro',
     ],
     // Scraper source preference order for this domain
-    preferredSources: ['mangadex', 'manganato', 'mangaread', 'mangakatana'],
+    preferredSources: ['manganato', 'mangaread', 'mangakatana'],
     // Cache TTL multipliers (1.0 = default, higher = cache longer)
     cacheTtlMultiplier: 1.0,
     // Rate limit overrides for the public API
@@ -41,7 +41,7 @@ const DOMAIN_CONFIGS = {
       'https://mangaread.pro',
       'https://www.mangaread.pro',
     ],
-    preferredSources: ['mangaread', 'mangadex', 'manganato', 'mangakatana'],
+    preferredSources: ['mangaread', 'manganato', 'mangakatana'],
     cacheTtlMultiplier: 1.2,  // cache slightly longer — "speed" UX focus
     rateLimit: {
       windowMs: 60000,
@@ -58,7 +58,7 @@ const DOMAIN_CONFIGS = {
       'https://manireader.online',
       'https://www.manireader.online',
     ],
-    preferredSources: ['mangadex', 'mangakatana', 'manganato', 'mangaread'],
+    preferredSources: ['mangakatana', 'manganato', 'mangaread'],
     cacheTtlMultiplier: 0.8,  // fresher content — discovery focus
     rateLimit: {
       windowMs: 60000,
@@ -73,7 +73,7 @@ const DEV_CONFIG = {
   siteName: 'MangaReader (Dev)',
   tagline: 'Development mode',
   allowedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
-  preferredSources: ['mangadex', 'manganato', 'mangaread', 'mangakatana'],
+  preferredSources: ['manganato', 'mangaread', 'mangakatana'],
   cacheTtlMultiplier: 0.1,  // short cache in dev
   rateLimit: { windowMs: 60000, max: 1000 },
   maintenanceMode: false,

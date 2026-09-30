@@ -157,7 +157,6 @@ const DOMAIN_CONFIGS = {
   'manganato.gg':     { maxConcurrent: 3, minTime:  500, reservoir: 12, reservoirRefreshAmount: 12, reservoirRefreshInterval: 4000 },
   'mangakakalot.gg':  { maxConcurrent: 3, minTime:  500, reservoir: 12, reservoirRefreshAmount: 12, reservoirRefreshInterval: 4000 },
   'coffeemanga.net':  { maxConcurrent: 2, minTime:  700, reservoir: 8,  reservoirRefreshAmount: 8,  reservoirRefreshInterval: 5000 },
-  'api.mangadex.org': { maxConcurrent: 5, minTime:  200, reservoir: 40, reservoirRefreshAmount: 40, reservoirRefreshInterval: 1000 },
 };
 const DEFAULT_DOMAIN_CONFIG = { maxConcurrent: 2, minTime: 600, reservoir: 10, reservoirRefreshAmount: 10, reservoirRefreshInterval: 4000 };
 
