@@ -88,7 +88,15 @@ export async function fetchChapterImagesThroughWorker(url, source) {
 
   const workerRoute = getWorkerSourceRoute(source, url);
   const workerUrl = `${buildWorkerUrl(workerRoute)}?url=${encodeURIComponent(url)}`;
-  const res = await fetch(workerUrl);
+  let res = await fetch(workerUrl);
+
+  // Fallback to backend proxy on worker 5xx errors
+  if (res.status >= 500 && res.status < 600) {
+    console.warn(`Worker returned ${res.status}, falling back to backend proxy`);
+    const fallbackRes = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
+    if (!fallbackRes.ok) throw new Error(`Failed to fetch chapter images: ${fallbackRes.status}`);
+    return fallbackRes.json();
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to fetch chapter images: ${res.status}`);
