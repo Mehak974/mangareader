@@ -215,66 +215,97 @@ async function imgProxy(req, ctx, origin) {
     });
   }
 
-  // Fetch from source with correct headers
-  const ref = referer(target);
-  const headers = {
-    'User-Agent':      ua(),
-    'Accept':          'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Sec-Fetch-Dest':  'image',
-    'Sec-Fetch-Mode':  'no-cors',
-    'Sec-Fetch-Site':  'cross-site',
-  };
-  if (ref) headers['Referer'] = ref;
+  // Request coalescing: if another request is already fetching this image, await it
+  const imgKey = await sha1Key('img', target);
+  if (IN_FLIGHT.has(imgKey)) {
+    const result = await IN_FLIGHT.get(imgKey);
+    if (result.type === 'error') {
+      return new Response(result.body, { status: result.status, headers: { ...result.headers, 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) } });
+    }
+    return new Response(result.buf, {
+      headers: { ...result.hdrs, 'X-Cache': 'HIT-INFLIGHT' },
+      cf: { cacheEverything: true, cacheTtl: 31536000 },
+    });
+  }
 
-  // Retry loop — transient 5xx from the origin CDN are common; retry 2x with backoff
-  let originFetch = null;
-  let lastError = 'Failed to fetch image';
-  let errorStatus = 502;
-
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const promise = (async () => {
     try {
-      originFetch = await fetch(target, { headers, cf: { cacheTtl: 0 } });
-      if (originFetch.ok) break;
+      // Fetch from source with correct headers
+      const ref = referer(target);
+      const fetchHeaders = {
+        'User-Agent':      ua(),
+        'Accept':          'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Fetch-Dest':  'image',
+        'Sec-Fetch-Mode':  'no-cors',
+        'Sec-Fetch-Site':  'cross-site',
+      };
+      if (ref) fetchHeaders['Referer'] = ref;
 
-      // 429 - rate limited, retry with backoff; other 4xx pass through
-      if (originFetch.status === 429) {
-        lastError = `Source rate limited (429)`;
-        errorStatus = 429;
-      } else if (originFetch.status < 500) {
-        return new Response(`Source error ${originFetch.status}`, { status: originFetch.status, headers: corsHeaders(origin) });
+      // Retry loop — transient 5xx from the origin CDN are common; retry 2x with backoff
+      let originFetch = null;
+      let lastError = 'Failed to fetch image';
+      let errorStatus = 502;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          originFetch = await fetch(target, { headers: fetchHeaders, cf: { cacheTtl: 0 } });
+          if (originFetch.ok) break;
+
+          // 429 - rate limited, retry with backoff; other 4xx pass through
+          if (originFetch.status === 429) {
+            lastError = `Source rate limited (429)`;
+            errorStatus = 429;
+          } else if (originFetch.status < 500) {
+            const text = await originFetch.text();
+            return { type: 'error', status: originFetch.status, body: text, headers: corsHeaders(origin) };
+          }
+
+          // 5xx — record and retry
+          lastError = `Source error ${originFetch.status}`;
+          errorStatus = originFetch.status;
+        } catch (err) {
+          lastError = err.message;
+        }
+
+        // Brief backoff before retry (only for 5xx and network errors)
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+        }
       }
 
-      // 5xx — record and retry
-      lastError = `Source error ${originFetch.status}`;
-      errorStatus = originFetch.status;
-    } catch (err) {
-      lastError = err.message;
+      if (!originFetch || !originFetch.ok) {
+        return { type: 'error', status: errorStatus, body: lastError, headers: { 'Cache-Control': 'public, max-age=15', ...corsHeaders(origin) } };
+      }
+
+      const ct = originFetch.headers.get('content-type') || 'image/jpeg';
+      const buf = await originFetch.arrayBuffer();
+
+      // Populate CDN cache (non-blocking)
+      const cacheResp = new Response(buf, {
+        headers: {
+          'Content-Type':  ct,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'X-Cache':       'MISS',
+          ...corsHeaders(origin),
+        },
+        cf: { cacheEverything: true, cacheTtl: 31536000 },
+      });
+      ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
+
+      // Return buffer + content-type so concurrent waiters each build their own Response
+      return { type: 'image', buf, ct, hdrs: { 'Content-Type': ct, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'MISS', ...corsHeaders(origin) } };
+    } finally {
+      IN_FLIGHT.delete(imgKey);
     }
+  })();
 
-    // Brief backoff before retry (only for 5xx and network errors)
-    if (attempt < 2) {
-      await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
-    }
+  IN_FLIGHT.set(imgKey, promise);
+  const result = await promise;
+  if (result.type === 'error') {
+    return new Response(result.body, { status: result.status, headers: result.headers });
   }
-
-  if (!originFetch || !originFetch.ok) {
-    return new Response(lastError, { status: errorStatus, headers: { 'Cache-Control': 'public, max-age=15', ...corsHeaders(origin) } });
-  }
-
-  const ct = originFetch.headers.get('content-type') || 'image/jpeg';
-  const toCache = new Response(originFetch.body, {
-    headers: {
-      'Content-Type':  ct,
-      'Cache-Control': 'public, max-age=31536000, immutable', // 1 year — images never change
-      'X-Cache':       'MISS',
-      ...corsHeaders(origin),
-    },
-    cf: { cacheEverything: true, cacheTtl: 31536000 },
-  });
-
-  ctx.waitUntil(caches.default.put(cacheKey, toCache.clone()));
-  return toCache;
+  return new Response(result.buf, { headers: result.hdrs, cf: { cacheEverything: true, cacheTtl: 31536000 } });
 }
 
 // ─── AniList ──────────────────────────────────────────────────────────────────
@@ -344,26 +375,49 @@ async function scraped(req, ctx, source, siteReferer, origin) {
     return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
   }
 
-  const r = await fetch(target, {
-    headers: {
-      'User-Agent':      ua(),
-      'Referer':         siteReferer,
-      'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Sec-Fetch-Dest':  'document',
-      'Sec-Fetch-Mode':  'navigate',
-      'Sec-Fetch-Site':  'same-origin',
-      'Upgrade-Insecure-Requests': '1',
-    },
-  });
-  if (!r.ok) return json({ error: `${source} ${r.status}` }, r.status, {}, origin);
+  // Request coalescing — concurrent cache misses for the same URL share one origin fetch
+  if (IN_FLIGHT.has(ck)) {
+    try {
+      const data = await IN_FLIGHT.get(ck);
+      memSet(ck, data, 300);
+      return json(data, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
+    } catch {
+      // fall through to fresh fetch
+    }
+  }
 
-  const html = await r.text();
-  const data = { html, status: r.status };
-  const ttl = 1800; // 30min — chapter HTML doesn't change
+  const promise = (async () => {
+    try {
+      const targetOrigin = new URL(target).origin + '/';
+      const r = await fetch(target, {
+        headers: {
+          'User-Agent':      ua(),
+          'Referer':         targetOrigin,
+          'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Sec-Fetch-Dest':  'document',
+          'Sec-Fetch-Mode':  'navigate',
+          'Sec-Fetch-Site':  'same-origin',
+          'Upgrade-Insecure-Requests': '1',
+        },
+      });
+      if (!r.ok) throw new Error(`${source} ${r.status}`);
 
-  memSet(ck, data, 300); // 5min in memory
-  cachePut(ctx, ck, data, ttl); // 30min in CDN cache
-  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
+      const html = await r.text();
+      const data = { html, status: r.status };
+      const ttl = 1800; // 30min — chapter HTML doesn't change
+
+      memSet(ck, data, 300); // 5min in memory
+      cachePut(ctx, ck, data, ttl); // 30min in CDN cache
+      return data;
+    } finally {
+      IN_FLIGHT.delete(ck);
+    }
+  })();
+
+  IN_FLIGHT.set(ck, promise);
+
+  const data = await promise;
+  return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
 }

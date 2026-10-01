@@ -13,6 +13,7 @@ const bcrypt = require('bcryptjs');
 const NodeCache = require('node-cache');
 const sharp = require('sharp');
 const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const { getConfig, getAllowedOrigins } = require('./config/domains');
 const domainCfg = getConfig();
 
@@ -36,10 +37,11 @@ function getProxy() {
   return PROXY_URL;
 }
 
+const proxy = getProxy();
 const http = axios.create({
   timeout: 15000,
   maxRedirects: 5,
-  proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+  proxy: proxy ? { host: proxy.host, port: proxy.port, protocol: proxy.protocol || 'http' } : undefined,
 });
 
 const Piscina = require('piscina');
@@ -622,18 +624,24 @@ async function performSearch(sourceId, query, origTitle) {
     });
     return score >= 1 ? best : null;
   }
-  if (sourceId === 'manganato') {
-    const base = 'https://www.manganato.gg';
-    const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
-    let best = null, score = 0;
-    $('.search-story-item a, .list-story-item a, a[href*="/manga/"]').each((_, el) => {
-      const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
-      if (!href || !href.includes('/manga/')) return;
-      if (!helpers.isGoodMatch(origTitle, text)) return;
-      let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
-      if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
-    });
-    if (score >= 1) return best;
+   if (sourceId === 'manganato') {
+    const bases = ['https://www.manganato.com', 'https://manganato.com', 'https://www.manganato.gg', 'https://manganato.gg'];
+    let found = null;
+    for (const base of bases) {
+      try {
+        const $ = cheerio.load(await fetchHTML(`${base}/search/story/${encodeURIComponent(query)}`));
+        let best = null, score = 0;
+        $('.search-story-item a, .list-story-item a, a[href*="/manga/"]').each((_, el) => {
+          const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
+          if (!href || !href.includes('/manga/')) return;
+          if (!helpers.isGoodMatch(origTitle, text)) return;
+          let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+          if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
+        });
+        if (score >= 1) { found = best; break; }
+      } catch (e) { console.warn(`[performSearch] manganato search failed for ${base}:`, e.message); }
+    }
+    return found;
   }
   return null;
 }
@@ -694,19 +702,22 @@ async function searchSource(sourceId, title, mangaId = null) {
 
     if (!result && sourceId === 'manganato') {
       const topTitlesForDirect = allTitles.slice(0, 3);
+      const directUrls = ['https://www.manganato.com', 'https://manganato.com', 'https://www.manganato.gg', 'https://manganato.gg'];
       await Promise.race([
         (async () => {
           for (const t of topTitlesForDirect) {
             const slug = t.toLowerCase().replace(/['']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
             if (!slug || slug.length < 2) continue;
-            const directUrl = `https://www.manganato.gg/manga/${slug}`;
-            try {
-              const html = await Promise.race([
-                fetchHTML(directUrl),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
-              ]);
-              if (html.includes('chapter-list-container')) { result = directUrl; return; }
-            } catch (e) { }
+            for (const base of directUrls) {
+              const directUrl = `${base}/manga/${slug}`;
+              try {
+                const html = await Promise.race([
+                  fetchHTML(directUrl),
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+                ]);
+                if (html.includes('chapter-list-container') || html.includes('chapter-list') || html.includes('container-chapter-reader')) { result = directUrl; return; }
+              } catch (e) { }
+            }
           }
         })(),
         new Promise(resolve => setTimeout(resolve, 12000)),
@@ -996,7 +1007,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     // ponytail: referer detection by substring — no map to maintain.
     const referer =
       h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
-      h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') || h.includes('waitst.com') ? 'https://www.manganato.gg/' :
+       h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') || h.includes('waitst.com') ? 'https://www.manganato.com/' :
       h.includes('mangaread')   ? 'https://mangaread.org/' :
       `${parsed.origin}/`;
 

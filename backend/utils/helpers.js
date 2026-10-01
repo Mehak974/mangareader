@@ -91,8 +91,8 @@ function detectSource(url) {
   const h = new URL(url).hostname;
   if (h === 'www.mangaread.org' || h === 'mangaread.org') return 'mangaread';
   if (h === 'mangakatana.com') return 'mangakatana';
-  if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
-  if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
+  if (h === 'www.manganato.gg' || h === 'manganato.gg' || h === 'www.manganato.com' || h === 'manganato.com') return 'manganato';
+  if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg' || h === 'www.mangakakalot.com' || h === 'mangakakalot.com') return 'manganato';
   return null;
 }
 

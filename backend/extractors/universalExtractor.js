@@ -51,7 +51,10 @@ const REFERERS = {
   'coffeemanga.net': 'https://coffeemanga.net/',
   'mangaread.org': 'https://www.mangaread.org/',
   'manganato.gg': 'https://www.manganato.gg/',
+  'manganato.com': 'https://www.manganato.com/',
   'mangakakalot.gg': 'https://www.mangakakalot.gg/',
+  'mangakakalot.com': 'https://www.mangakakalot.com/',
+  'chapmanganato.to': 'https://chapmanganato.to/',
 };
 
 let puppeteer = null;
@@ -286,6 +289,7 @@ async function fetchHTML(url, extraHeaders = {}) {
 
     try {
       await new Promise(r => setTimeout(r, 200 + Math.random() * 800));
+      const proxy = getProxy();
       const response = await http.get(url, {
         headers: {
           ...headers,
@@ -294,7 +298,7 @@ async function fetchHTML(url, extraHeaders = {}) {
         },
         timeout: 10000,
         maxRedirects: 5,
-        proxy: getProxy() ? { host: getProxy().host, port: getProxy().port, protocol: getProxy().protocol || 'http' } : undefined,
+        proxy: proxy ? { host: proxy.host, port: proxy.port, protocol: proxy.protocol || 'http' } : undefined,
         validateStatus: (status) => status < 500,
       });
 
@@ -1055,7 +1059,7 @@ const SOURCE_SCRAPERS = {
     baseUrl: 'https://www.manganato.gg',
     color: '#27ae60',
     // Multiple domain aliases for failover
-    domainAliases: ['https://www.manganato.gg', 'https://manganato.gg', 'https://mangakakalot.gg', 'https://www.mangakakalot.gg'],
+    domainAliases: ['https://www.manganato.gg', 'https://manganato.gg', 'https://manganato.com', 'https://www.manganato.com', 'https://mangakakalot.gg', 'https://www.mangakakalot.gg', 'https://mangakakalot.com', 'https://www.mangakakalot.com'],
 
     async fetchWithFallback(urls, options = {}) {
       for (const url of urls) {
@@ -1135,6 +1139,10 @@ const SOURCE_SCRAPERS = {
         // Try multiple API endpoints
         const allApiUrls = [...apiUrls, ...altApiUrls, 
           `https://chap.manganato.com/api/manga/${slug}/chapters?limit=50&offset=0`,
+          `https://www.manganato.com/api/manga/${slug}/chapters?limit=50&offset=0`,
+          `https://manganato.com/api/manga/${slug}/chapters?limit=50&offset=0`,
+          `https://www.mangakakalot.com/api/manga/${slug}/chapters?limit=50&offset=0`,
+          `https://mangakakalot.com/api/manga/${slug}/chapters?limit=50&offset=0`,
           `https://www.manganato.gg/api/manga/${slug}/chapters?limit=100&offset=0`
         ];
 
@@ -1220,8 +1228,8 @@ const SOURCE_SCRAPERS = {
         const html = await this.fetchWithFallback(pageUrls);
         const $ = cheerio.load(html);
         
-        // Method 1: Parse window.chapterImages from inline script
-        const scriptMatch = html.match(/window\.chapterImages\s*=\s*(\[.*?\]);/s);
+        // Method 1: Parse window.chapterImages from inline script (semicolon optional)
+        const scriptMatch = html.match(/window\.chapterImages\s*=\s*(\[.*?\])\s*;?/s);
         if (scriptMatch) {
           try {
             const parsed = JSON.parse(scriptMatch[1]);

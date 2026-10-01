@@ -18,7 +18,7 @@ const TTL = {
   // MangaKatana serves tokenized image URLs (/token/<expiry>/0.jpg) that return
   // 403 once the token expires, so its image lists must not outlive the token.
   // Sources with stable image URLs still get the 1-year TTL.
-  chapter_images:     60 * 30,                // 30 minutes
+  chapter_images:     60 * 60 * 24 * 365,    // 1 year — Manganato/MangaRead URLs are stable
   chapter_images_mangakatana: 60 * 10,        // 10 minutes (tokenized URLs)
   scraper_search:     60 * 60 * 2,            // 2 hours
   image_proxy:        60 * 60 * 24 * 365,     // 1 year (images are immutable)
