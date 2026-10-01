@@ -26,21 +26,11 @@ export default function robots(): MetadataRoute.Robots {
         '/profile',
         '/library',
         '/history',
-        '/messages',
-        '/aads',
+        '/reader/',   // reader pages are duplicate content — no index value
       ],
-      // NOTE: '/reader/' is deliberately NOT disallowed here.
-      //
-      // Reader pages are noindexed via the X-Robots-Tag response header set in
-      // middleware.js. A robots.txt disallow stops the crawler from fetching
-      // the page at all, so it can never observe that noindex header — the
-      // result is "Indexed, though blocked by robots.txt", which keeps already
-      // indexed chapters in the index indefinitely. Letting the crawler fetch
-      // and read the header is what actually removes them.
-      //
-      // crawlDelay is omitted because Google ignores it entirely; it only slows
-      // Bing/Yandex and was giving no crawl-budget protection in return.
+      crawlDelay: 2,
     },
     sitemap: [`${SITE_URL}/sitemap.xml`],
+    host:    SITE_URL,
   };
 }

@@ -91,7 +91,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       title:       'MangaReader — Read Manga Free Online',
       tagline:     'The premier manga reading experience',
       description: 'MangaReader: Read manga, manhwa and manhua free. Sync reading across devices, bookmark chapters and discover new series — all in one place.',
-      ogImage:     '/og-default.svg',
+      ogImage:     '/og-mangareader.png',
       twitterHandle: 'mangareader_pro',
       keywords:    'read manga online free, manga reader, manhwa, manhua, best manga site, manga chapters, manga series',
     },
@@ -123,7 +123,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       title:       'MangaRead — The Fastest Manga Reader',
       tagline:     'Read at the speed of thought',
       description: 'MangaRead delivers manga chapters instantly — no registration, no popups. Read manhwa, manhua and manga online free with the fastest reader on the web.',
-      ogImage:     '/og-default.svg',
+      ogImage:     '/og-mangaread.png',
       twitterHandle: 'mangaread_pro',
       keywords:    'fast manga reader, read manga free, manga online, manhwa reader, manhua reader, no ads manga, instant manga chapters',
     },
@@ -155,7 +155,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       title:       'ManiReader — Discover Manga & Manhwa',
       tagline:     'Discover your next manga obsession',
       description: 'ManiReader helps you find your next favourite manga, manhwa or manhua. Explore trending series, genre picks and community favourites — all free.',
-      ogImage:     '/og-default.svg',
+      ogImage:     '/og-manireader.png',
       twitterHandle: 'manireader',
       keywords:    'discover manga, trending manga, manga recommendations, best manhwa, webtoon reader, manga discovery, new manga series',
     },
@@ -189,49 +189,12 @@ function resolveProfile(): string {
   return 'mangareader.pro';
 }
 
-/**
- * Resolve the canonical origin for this deployment.
- *
- * If NEXT_PUBLIC_SITE_URL is unset on a secondary domain project, this used to
- * fall back to that profile's own URL while branding still resolved correctly —
- * so the site looked right but emitted canonicals/robots/sitemap pointing
- * somewhere else, which reads to Google as "these pages live on another site"
- * and quietly drains rankings. When the env var is absent in production we now
- * fail the build instead, because that misconfiguration has no safe default.
- */
-function resolveSiteUrl(profileUrl: string): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL;
-
-  if (!raw) {
-    if (process.env.NODE_ENV !== 'production') return profileUrl;
-    throw new Error(
-      `[site-config] NEXT_PUBLIC_SITE_URL is not set. Refusing to build: without it every ` +
-      `canonical, robots.txt and sitemap URL for this domain is derived from a fallback and ` +
-      `may point at a different domain. Set it to https://<this-domain> (e.g. ` +
-      `"https://${profileUrl.replace(/^https?:\/\//, '')}").`
-    );
-  }
-
-  const cleaned = raw.replace(/\/+$/, '');
-  // Guard against a path component, a missing scheme, or a bare host — any of
-  // which produce malformed canonicals that Google silently discards.
-  if (!/^https:\/\/[a-z0-9.-]+$/i.test(cleaned)) {
-    throw new Error(
-      `[site-config] NEXT_PUBLIC_SITE_URL must be an https origin with no path or trailing ` +
-      `slash (got "${raw}"). A value like "https://site.com/" or "site.com" produces broken ` +
-      `canonicals.`
-    );
-  }
-
-  return cleaned;
-}
-
 const profile = resolveProfile();
 export const siteConfig: SiteConfig = CONFIGS[profile] ?? CONFIGS['mangareader.pro'];
 
 // ── Convenience re-exports ───────────────────────────────────────────────────
 export const SITE_NAME = siteConfig.name;
-export const SITE_URL  = resolveSiteUrl(siteConfig.url);
+export const SITE_URL  = (process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url).replace(/\/+$/, '');
 export const AD_CONFIG = siteConfig.ads;
 export const SEO       = siteConfig.seo;
 export const THEME     = siteConfig.theme;
