@@ -6,7 +6,6 @@
  * canonical origin is defined in exactly one place.
  */
 import type { Metadata } from "next";
-import { env } from "@/lib/env";
 import { SITE_NAME as CONFIG_SITE_NAME, SITE_URL as CONFIG_SITE_URL, SEO } from '@/lib/site-config';
 
 /** Canonical site origin, without a trailing slash. */
@@ -28,6 +27,39 @@ export function absoluteUrl(pathOrUrl: string): string {
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
   return `${SITE_URL}${path}`;
+}
+
+/** The three domains serve identical content; the first is the canonical host. */
+export const HREFLANG_HOSTS = [
+  "https://mangareader.pro",
+  "https://mangaread.pro",
+  "https://manireader.online",
+] as const;
+
+/**
+ * Build a self-referential hreflang cluster for one specific path.
+ *
+ * Every alternate must point at the SAME path on each host, and each page must
+ * list itself. The previous implementation lived in the root layout and pointed
+ * every alternate at a bare origin, so no page ever declared itself and every
+ * page claimed the homepage was its alternate — Google discarded the cluster.
+ */
+export function languageAlternates(path = "/"): Record<string, string> {
+  const suffix = path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
+  const alternates: Record<string, string> = {};
+
+  // en / en-US / en-GB all resolve to the canonical host for this path.
+  const primary = `${HREFLANG_HOSTS[0]}${suffix}`;
+  alternates["en"] = primary;
+  alternates["en-US"] = primary;
+  alternates["en-GB"] = primary;
+
+  for (const host of HREFLANG_HOSTS) {
+    alternates[new URL(host).hostname] = `${host}${suffix}`;
+  }
+
+  alternates["x-default"] = primary;
+  return alternates;
 }
 
 export type BuildMetadataInput = {
@@ -66,6 +98,7 @@ export function buildMetadata({
     description,
     alternates: {
       canonical: url,
+      languages: languageAlternates(path),
     },
     openGraph: {
       type,
@@ -289,16 +322,11 @@ export function mangaSchema(manga: MangaSchemaInput): JsonLdObject {
     };
   }
   if (manga.status) schema.publicationStatus = manga.status;
-  if (manga.chapters) schema.numberOfPages = manga.chapters;
-  if (manga.rating) {
-    schema.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: manga.rating,
-      ratingCount: 100,
-      bestRating: 10,
-      worstRating: 1,
-    };
-  }
+  if (manga.chapters) schema.numberOfItems = manga.chapters;
+  // No aggregateRating is emitted. `rating` is a user-supplied UI score with no
+  // verifiable review count behind it, and Google's structured data policy treats
+  // fabricated or unverifiable review/rating markup as a spam violation. An
+  // aggregateRating object requires a real ratingCount tied to actual reviews.
   if (manga.datePublished) schema.datePublished = manga.datePublished;
   if (manga.alternativeTitles?.length) {
     schema.alternativeHeadline = manga.alternativeTitles.join(", ");
@@ -313,7 +341,12 @@ export type ChapterSchemaInput = {
   title?: string;
   mangaTitle: string;
   mangaSlug: string;
-  mangaUrl: string;
+  /**
+   * Route segment for the chapter itself. The real route is a single-segment
+   * `/reader/[id]` — there is no `/reader/[slug]/[chapter]` path, so callers must
+   * pass the `id`, not a slug+number pair.
+   */
+  chapterId: string | number;
   datePublished?: string;
   imageUrls?: string[];
 };
@@ -323,10 +356,12 @@ export type ChapterSchemaInput = {
  */
 export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
   const chapterNum = typeof chapter.chapterNumber === "string" ? chapter.chapterNumber : String(chapter.chapterNumber);
+  const chapterId = typeof chapter.chapterId === "string" ? chapter.chapterId : String(chapter.chapterId);
   const name = chapter.title ?? `Chapter ${chapterNum}`;
-  const url = absoluteUrl(`/reader/${chapter.mangaSlug}/${chapterNum}`);
+  const url = absoluteUrl(`/reader/${chapterId}`);
+  const seriesUrl = absoluteUrl(`/manga/${chapter.mangaSlug}`);
 
-  return {
+  const schema: JsonLdObject = {
     "@context": "https://schema.org",
     "@type": "Chapter",
     name,
@@ -335,7 +370,7 @@ export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
     isPartOf: {
       "@type": "CreativeWorkSeries",
       name: chapter.mangaTitle,
-      url: absoluteUrl(`/manga/${chapter.mangaSlug}`),
+      url: seriesUrl,
     },
     publisher: {
       "@type": "Organization",
@@ -345,4 +380,10 @@ export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
     datePublished: chapter.datePublished,
     position: typeof chapter.chapterNumber === "number" ? chapter.chapterNumber : parseInt(chapterNum, 10) || 1,
   };
+
+  if (chapter.imageUrls?.length) {
+    schema.image = chapter.imageUrls.slice(0, 3).map(absoluteUrl);
+  }
+
+  return schema;
 }

@@ -3,8 +3,8 @@ import AAdsBanner from "@/components/AAdsBanner";
 export const metadata = {
   title: "Advertisements",
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
   },
 };
 

@@ -1,6 +1,6 @@
 export const revalidate = 86400;
 
-import { buildMetadata, absoluteUrl, chapterSchema, breadcrumbSchema } from "@/lib/seo";
+import { buildMetadata, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
 /**
@@ -28,50 +28,23 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export async function generateJsonLd({ params }) {
-  const { id } = await params;
-  const mangaTitle = "Manga";
-  const mangaSlug = "";
-  
-  const chapter = chapterSchema({
-    chapterNumber: id,
-    mangaTitle,
-    mangaSlug,
-    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
-  });
-  
-  const breadcrumbs = breadcrumbSchema([
-    { name: "Home", url: "/" },
-    { name: "Browse", url: "/browse" },
-    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
-    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
-  ]);
-
-  return [chapter, breadcrumbs];
-}
-
 export default async function ReaderLayout({ children, params }) {
   const { id } = await params;
-  const mangaTitle = "Manga";
-  const mangaSlug = "";
-  
-  const chapter = chapterSchema({
-    chapterNumber: id,
-    mangaTitle,
-    mangaSlug,
-    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
-  });
-  
+
+  // The manga slug is not available to a layout (see note above), so the
+  // Chapter/BreadcrumbList entities below would otherwise advertise the parent
+  // series as a literal manga titled "Manga" sitting at the site root. Emitting
+  // a knowingly-wrong isPartOf is worse than emitting no isPartOf, so the
+  // Chapter schema is dropped and only the breadcrumb trail is kept, using the
+  // real chapter URL.
   const breadcrumbs = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Browse", url: "/browse" },
-    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
-    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
+    { name: `Chapter ${id}`, url: `/reader/${id}` },
   ]);
 
   return (
     <>
-      <JsonLd data={chapter} />
       <JsonLd data={breadcrumbs} />
       {children}
     </>

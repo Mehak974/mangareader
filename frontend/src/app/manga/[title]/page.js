@@ -25,7 +25,16 @@ import {
   markViewedOnce,
 } from "@/utils/detailCache";
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Order matters and must stay in sync with utils/api.js: NEXT_PUBLIC_SCRAPER_URL
+// is checked first. This local copy previously read only NEXT_PUBLIC_API_URL and
+// fell back to localhost:3001, so a deployment configured with just
+// NEXT_PUBLIC_SCRAPER_URL sent every chapter fetch and view beacon to localhost,
+// making manga pages render "No chapters found" for real users and crawlers
+// alike while the rest of the app worked fine.
+const apiBase =
+  process.env.NEXT_PUBLIC_SCRAPER_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:3001";
 
 const SINGLE_MANGA_QUERY = `
   query ($id: Int) {

@@ -30,6 +30,25 @@ import { NextResponse } from "next/server";
  */
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host") || "";
+
+  // ── Host canonicalisation ────────────────────────────────────────────────
+  // cloudflare/worker.js whitelists both the apex and www host for all three
+  // domains, so both were serving identical HTML with identical self-canonicals
+  // — an unmitigated duplicate-host pair. Collapse www -> apex with a single
+  // 301 so link equity and crawl signals land on one host.
+  //
+  // Skipped in development so localhost:3000 (which includes no host match)
+  // and any *.vercel.app preview deployment passes through untouched.
+  if (process.env.NODE_ENV === "production") {
+    const m = host.match(/^www\.(mangareader\.pro|mangaread\.pro|manireader\.online)$/i);
+    if (m) {
+      const url = request.nextUrl.clone();
+      url.hostname = m[1].toLowerCase();
+      url.port = "";
+      return NextResponse.redirect(url, { status: 301 });
+    }
+  }
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
@@ -92,10 +111,31 @@ export function middleware(request) {
   });
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
 
-   // Prevent search engines from indexing reader pages (duplicate content /
-   // chapter images that shouldn't be crawled).
-   if (request.nextUrl.pathname.startsWith("/reader/")) {
-     response.headers.set("X-Robots-Tag", "noindex, nofollow");
+   // ── noindex headers ────────────────────────────────────────────────────
+   // These routes are private, session-scoped, or empty ad wrappers. Most of
+   // them are "use client" components and so cannot export a `metadata` object,
+   // which means the root layout's `robots: { index: true }` was being inherited
+   // by all of them — Google was being invited to index /library, /history,
+   // /settings, /messages and friends.
+   //
+   // /reader/ is noindexed because its URL carries no manga identity: manga
+   // details arrive via ?url=&source=&title=&mangaId= query params, so /reader/1
+   // is a different chapter for every one of ~3,400 titles under one URL.
+   const NOINDEX_PREFIXES = [
+     "/admin",
+     "/library",
+     "/history",
+     "/profile",
+     "/settings",
+     "/messages",
+     "/login",
+     "/signup",
+     "/aads",
+     "/reader/",
+   ];
+
+   if (NOINDEX_PREFIXES.some((p) => pathname === p.replace(/\/$/, "") || pathname.startsWith(p))) {
+     response.headers.set("X-Robots-Tag", "noindex, follow");
    }
 
    return response;

@@ -563,7 +563,7 @@ function ReaderContent({ params }) {
                           try {
                             const u = new URL(img.src);
                             const rawUrl = u.searchParams.get('url') || imgUrl;
-                            const API = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
+                            const API = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || '';
                             const WKR = process.env.NEXT_PUBLIC_WORKER_URL || '';
                             // If currently on backend, try worker; if on worker, try backend
                             if (img.src.includes('/api/proxy-image') && WKR) {
