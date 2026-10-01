@@ -166,15 +166,18 @@ function referer(url) {
 }
 
 const ALLOWED = [
-  'manganato','mangakakalot','chapmanganato',
-  'mangakatana','mkklcdnv','mangaread.org',
-  '2xstorage','waitst.com',
-  'media.mangaka','anilist.co','imgur.com',
+  'manganato.com','mangakakalot.com','chapmanganato.to',
+  'mangakatana.com','mkklcdnv','mangaread.org',
+  '2xstorage.com','waitst.com',
+  'media.mangaka.com','anilist.co','imgur.com',
 ];
 function allowed(url) {
   try {
     const h = new URL(url).hostname;
-    return ALLOWED.some(d => h.includes(d));
+    // Hostname-aware matching. Substring matching (h.includes(d)) is
+    // vulnerable: 'mangakatana' matches 'mangakatana.com.evil.com'.
+    // Each pattern is matched as an exact hostname OR a subdomain of it.
+    return ALLOWED.some(d => h === d || h.endsWith('.' + d));
   } catch { return false; }
 }
 

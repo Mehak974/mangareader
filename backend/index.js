@@ -891,13 +891,16 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     if (helpers.isPrivateIP(parsed.hostname)) {
       return res.status(400).json({ error: 'URL not allowed', received: url });
     }
+    // Hostname-aware allowlist. Substring matching (h.includes(p)) is
+    // vulnerable: 'mangakatana' matches 'mangakatana.com.evil.com'.
+    // Each pattern is matched as an exact hostname OR a subdomain of it.
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
       'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
-    if (!ALLOWED_PATTERNS.some(p => parsed.hostname.includes(p))) {
+    if (!ALLOWED_PATTERNS.some(p => parsed.hostname === p || parsed.hostname.endsWith('.' + p))) {
       return res.status(403).json({ error: 'Forbidden: Domain not in allowlist', received: url });
     }
   } catch (err) {
@@ -1194,16 +1197,16 @@ async function proxyImage(url, w, q, cacheKey) {
     if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) throw fail(400, 'URL not allowed');
     if (helpers.isPrivateIP(parsed.hostname)) throw fail(400, 'URL not allowed');
 
-    // ponytail: substring-based SSRF allowlist — future-proof against CDN subdomain rotation.
-    // New subdomains like i2.mangakatana.com or newnode.mdrproxy.net match automatically.
+    // Hostname-aware SSRF allowlist. Substring matching (h.includes(p)) is
+    // vulnerable: 'mangakatana' matches 'mangakatana.com.evil.com'.
+    // Each pattern is matched as an exact hostname OR a subdomain of it.
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
       'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
-    const h = parsed.hostname;
-    if (!ALLOWED_PATTERNS.some(p => h.includes(p))) {
+    if (!ALLOWED_PATTERNS.some(p => h === p || h.endsWith('.' + p))) {
       throw fail(403, 'Forbidden: Domain not in allowlist');
     }
 

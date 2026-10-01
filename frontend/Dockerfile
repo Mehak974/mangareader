@@ -5,11 +5,16 @@ COPY prisma ./prisma
 # Prisma query engine binary target for Alpine (musl). Without this, the
 # default linux dynamic binary fails to load on musl-based images.
 RUN npm ci && npx prisma generate --schema=prisma/schema.prisma
+COPY . .
 RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Standalone Next.js server binds to 0.0.0.0 by default in containers, but
+# explicitly setting HOSTNAME avoids a warning and guarantees it listens on
+# all interfaces rather than falling back to localhost in some images.
+ENV HOSTNAME=0.0.0.0
 COPY package*.json .npmrc* ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev && npx prisma generate --schema=prisma/schema.prisma

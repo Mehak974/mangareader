@@ -10,7 +10,13 @@ const { getRedisClient } = require('../middleware/rateLimit');
 // useClones: false — NodeCache defaults to deep-cloning values on get/set.
 // For image Buffers that doubles memory per cache hit. Verified: the Buffer
 // returned by get() is a different instance than the one stored.
-const memFallback = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 5000, useClones: false });
+//
+// maxKeys is deliberately NOT set: NodeCache throws "Cache max keys amount
+// exceeded" on the (maxKeys + 1)th key, and set() was unguarded, so every
+// new key after the limit returned 502 until restart. The byte-based
+// pruning in backend/index.js (imageCache) is the right approach; here we
+// rely on the Redis primary and let the process restart if memory grows.
+const memFallback = new NodeCache({ stdTTL: 3600, checkperiod: 600, useClones: false });
 
 const TTL = {
   anilist_manga_info: 60 * 60 * 24 * 7,       // 7 days
@@ -65,16 +71,29 @@ async function get(ns, id) {
 
 async function set(ns, id, data, ttlOverride = null) {
   const k = key(ns, id);
-  const ttl = ttlOverride !== null ? ttlOverride : (TTL[ns] || 3600);
+  let ttl = ttlOverride !== null ? ttlOverride : (TTL[ns] || 3600);
+  // Cap the in-memory fallback at 6h. The TTL table has entries like
+  // chapter_images (1 year) and readers_also_love (10 years) that are meant
+  // for Redis. When Redis is down or unset, storing those in process memory
+  // would grow unbounded and never expire.
+  if (ttl > 6 * 3600) ttl = 6 * 3600;
   if (redis) {
     try {
-      await redis.set(k, JSON.stringify(data), 'EX', ttl);
+      await redis.set(k, JSON.stringify(data), 'EX', ttlOverride !== null ? ttlOverride : (TTL[ns] || 3600));
       return;
     } catch (err) {
       console.error('[cache] Redis set error:', err.message);
     }
   }
-  memFallback.set(k, data, ttl);
+  // Guard the memFallback set. NodeCache throws "Cache max keys amount
+  // exceeded" when the internal limit is hit, and without a try/catch that
+  // propagates as an unhandled rejection and kills the request. Skip the
+  // write rather than crashing — the caller already has the data in hand.
+  try {
+    memFallback.set(k, data, ttl);
+  } catch (err) {
+    console.error('[cache] memFallback set error:', err.message);
+  }
 }
 
 async function del(ns, id) {

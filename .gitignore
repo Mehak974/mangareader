@@ -71,5 +71,10 @@ tags.js
 # Vercel CLI artifacts — contains an OIDC token that should never ship
 frontend/.env.test
 
-# Cloudflare Wrangler account cache — contains account ID and email
+# Cloudflare Wrangler account cache — contains account ID and email.
+# Both the repo-root copy (used by wrangler CLI) and the frontend/cloudflare
+# copy (used by `wrangler deploy` from that dir) are tracked. The bare
+# .wrangler/ pattern does not match cloudflare/.wrangler/ because gitignore
+# patterns don't cross directory boundaries, so both prefixes are listed.
 .wrangler/
+cloudflare/.wrangler/
