@@ -69,6 +69,7 @@ const extractionWorker = new Piscina({
 });
 
 const db = require('./db');
+const { initDB } = require('./db');
 const { getOrFetchMangaMetadata } = require('./utils/metadataFetcher');
 const cache = require('./utils/cache');
 const anilistClient = require('./utils/anilistClient');
@@ -1108,7 +1109,7 @@ function releaseImageSlot() {
 // URL produce one upstream fetch and one sharp pipeline.
 const imageInFlight = new Map();
 
-app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
+app.get('/api/proxy-image', rateLimit(60000, 1000), async (req, res) => {
   const { url, w, q } = req.query;
   if (!url || !helpers.isValidUrl(url)) return res.status(400).send('Invalid url');
   const cacheKey = `${url}|${w || ''}|${q || ''}`;
@@ -1636,6 +1637,16 @@ app.use((err, req, res, next) => {
   }
   res.status(500).json({ error: 'Internal error' });
 });
+
+// Initialize database tables
+(async () => {
+  try {
+    await initDB();
+    console.log('[DB] Tables initialized');
+  } catch (err) {
+    console.error('[DB] initDB failed:', err.message);
+  }
+})();
 
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Manga Reader API on http://localhost:${PORT}`);

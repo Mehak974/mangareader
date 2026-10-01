@@ -8,6 +8,9 @@ import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 import { API_BASE, proxyImage, fetchChapterImagesThroughWorker } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
+import dynamic from "next/dynamic";
+
+const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
 
 function ReaderContent({ params }) {
   const router = useRouter();
@@ -596,10 +599,11 @@ function ReaderContent({ params }) {
         {/* Bottom Footer Actions */}
         {showNav && (
           <div className="reader-footer">
-            <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: "12px" }}>
+            <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: 0 }}>
               End of Chapter {id}
             </div>
-            <div className="reader-footer-btns" style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+            <AAdsBanner style={{ marginTop: 0 }} />
+            <div className="reader-footer-btns" style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: 0 }}>
               <button
                 className="rt-btn"
                 style={{ padding: "8px 16px", height: "auto" }}

@@ -1305,8 +1305,19 @@ const SOURCE_SCRAPERS = {
           if (src && isValidImageUrl(src)) images.push(src.trim());
         });
         
+        // Filter out trailing non-chapter images (ads, recommendations, etc.)
+        // Keep only images from known chapter CDN domains
+        const chapterCdnDomains = ['2xstorage.com', 'img-r', 'mangakatana', 'mangakakalot', 'manganato', 'cdn.', 'storage'];
+        const filteredImages = images.filter(src => 
+          chapterCdnDomains.some(domain => src.includes(domain))
+        );
+        
+        if (filteredImages.length >= 3) {
+          return { images: filteredImages, source: 'manganato' };
+        }
+        
         // Method 4: Any img with chapter paths
-        if (images.length === 0) {
+        if (images.length === 0 || filteredImages.length < 3) {
           $('img').each((_, el) => {
             const src = $(el).attr('data-src') || $(el).attr('src') || '';
             if (src && /\/manga\/|\/chapter\/|\/uploads\/|storage|cdn/i.test(src) && isValidImageUrl(src)) {
@@ -1315,7 +1326,12 @@ const SOURCE_SCRAPERS = {
           });
         }
         
-        return { images: dedupByHref(images), source: 'manganato' };
+        // Final filter to remove non-chapter images
+        const finalImages = images.filter(src => 
+          chapterCdnDomains.some(domain => src.includes(domain))
+        );
+        
+        return { images: dedupByHref(finalImages.length >= 3 ? finalImages : images), source: 'manganato' };
       } catch (err) {
         console.warn('[manganato] getChapterImages failed:', err.message);
         return { images: [], source: 'manganato' };

@@ -6,7 +6,7 @@ import { AD_CONFIG, siteConfig } from '@/lib/site-config';
 
 const { aadsUnitId, aadsBgColor, aadsTitleColor } = AD_CONFIG;
 
-export default function AAdsBanner() {
+function AAdsBannerInner({ style }: { style?: React.CSSProperties }) {
   const ref      = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const [key, setKey] = useState(0);
@@ -43,8 +43,10 @@ export default function AAdsBanner() {
       ref={ref}
       style={{
         width: '100%',
-        margin: 'auto',
-        position: 'relative'
+        margin: '0 auto',
+        position: 'relative',
+        textAlign: 'center',
+        ...style
       }}
     >
       <iframe
@@ -54,18 +56,20 @@ export default function AAdsBanner() {
         style={{
           border: 0,
           padding: 0,
-          width: '70%',
-          height: 'auto',
+          width: '100%',
+          maxWidth: '728px',
+          height: '90px',
+          minHeight: '90px',
           overflow: 'hidden',
-          display: 'block',
-          margin: 'auto'
+          display: 'inline-block',
+          verticalAlign: 'top'
         }}
         title="Advertisement"
         scrolling="no"
         allow="autoplay"
       />
       {siteConfig.profile === 'manireader.online' && (
-        <div style={{ width: '70%', margin: 'auto', position: 'absolute', left: 0, right: 0 }}>
+        <div style={{ width: '100%', maxWidth: '728px', margin: '4px auto 0', textAlign: 'center' }}>
           <a
             target="_blank"
             style={{
@@ -75,7 +79,7 @@ export default function AAdsBanner() {
               padding: '4px 10px',
               background: '#F8F8F9',
               textDecoration: 'none',
-              borderRadius: '0 0 4px 4px'
+              borderRadius: '4px'
             }}
             id="frame-link"
             href={`https://aads.com/campaigns/new/?source_id=${aadsUnitId}&source_type=ad_unit&partner=${aadsUnitId}`}
@@ -86,4 +90,13 @@ export default function AAdsBanner() {
       )}
     </div>
   );
+}
+
+export default function AAdsBanner({ hideOnReader = false, style = {} }) {
+  const pathname = usePathname();
+  
+  // Hide on reader pages if requested (reader page has its own banner in footer)
+  if (hideOnReader && pathname?.startsWith('/reader/')) return null;
+  
+  return <AAdsBannerInner style={style} />;
 }

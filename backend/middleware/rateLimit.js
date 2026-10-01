@@ -19,6 +19,10 @@ function initRateLimit() {
 }
 
 function rateLimit(windowMs = 60000, maxRequests = 60) {
+  // Disable rate limiting in development
+  if (process.env.NODE_ENV === 'development') {
+    return (req, res, next) => next();
+  }
   return expressRateLimit({
     windowMs,
     max: maxRequests,

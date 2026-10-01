@@ -215,8 +215,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* Hilltop script (purple-text.com) — domain-specific */}
             <AdScriptLoader />
 
-            {/* A-ADS banner (domain-specific unit ID + colors) */}
-            <AAdsBanner />
+            {/* A-ADS banner (domain-specific unit ID + colors) — top banner for non-reader pages */}
+            <AAdsBanner hideOnReader />
 
             <main>{children}</main>
 

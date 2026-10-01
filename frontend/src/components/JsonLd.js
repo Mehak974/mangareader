@@ -11,6 +11,7 @@ export default function JsonLd({ data }) {
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: json }}
+      suppressHydrationWarning
     />
   );
 }
