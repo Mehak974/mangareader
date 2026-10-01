@@ -1197,6 +1197,8 @@ async function proxyImage(url, w, q, cacheKey) {
     if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) throw fail(400, 'URL not allowed');
     if (helpers.isPrivateIP(parsed.hostname)) throw fail(400, 'URL not allowed');
 
+    const h = parsed.hostname;
+
     // Hostname-aware SSRF allowlist. Substring matching (h.includes(p)) is
     // vulnerable: 'mangakatana' matches 'mangakatana.com.evil.com'.
     // Each pattern is matched as an exact hostname OR a subdomain of it.
