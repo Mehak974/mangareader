@@ -29,6 +29,12 @@ const securityHeaders = [
 
 const nextConfig = {
 
+  // Phase 0: standalone output so the app can run on Railway (or any container)
+  // without `npx next start`. The standalone bundle copies only the runtime
+  // deps needed to serve the app — significantly smaller than the full
+  // node_modules tree.
+  output: 'standalone',
+
   turbopack: {
     root: __dirname,
   },

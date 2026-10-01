@@ -7,7 +7,10 @@
 const NodeCache = require('node-cache');
 const { getRedisClient } = require('../middleware/rateLimit');
 
-const memFallback = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 5000 });
+// useClones: false — NodeCache defaults to deep-cloning values on get/set.
+// For image Buffers that doubles memory per cache hit. Verified: the Buffer
+// returned by get() is a different instance than the one stored.
+const memFallback = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 5000, useClones: false });
 
 const TTL = {
   anilist_manga_info: 60 * 60 * 24 * 7,       // 7 days

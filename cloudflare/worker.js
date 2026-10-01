@@ -389,6 +389,10 @@ async function scraped(req, ctx, source, siteReferer, origin) {
   const target = new URL(req.url).searchParams.get('url');
   if (!target) return json({ error: 'Missing ?url=' }, 400, {}, origin);
 
+  // SSRF guard — imgProxy has this check but scraped did not, making the
+  // Worker an open HTML proxy for any URL. Add the same allowlist.
+  if (!allowed(target)) return json({ error: 'Domain not allowed' }, 403, {}, origin);
+
   const ck = await sha1Key(source, target);
 
   const mem = memGet(ck);

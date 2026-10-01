@@ -870,6 +870,40 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
   if (!url || !helpers.isValidUrl(url) || url === '#' || url.startsWith('#')) {
     return res.status(400).json({ error: 'valid url required', received: url });
   }
+
+  // SSRF guard — mirror the allowlist and private-IP checks from /api/proxy-image.
+  // Without this, any http/https URL was accepted and routed through fetchHTML
+  // and Puppeteer, making internal hosts like *.railway.internal reachable.
+  // Each new hostname also leaked a Bottleneck instance, circuit breaker, and
+  // cookie jar into antiBlock.js Maps that never evicted, plus a 1-year cache
+  // entry. Reject unknown hosts BEFORE any fetch or Puppeteer launch.
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'Only HTTPS URLs allowed', received: url });
+    }
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1') {
+      return res.status(400).json({ error: 'URL not allowed', received: url });
+    }
+    if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) {
+      return res.status(400).json({ error: 'URL not allowed', received: url });
+    }
+    if (helpers.isPrivateIP(parsed.hostname)) {
+      return res.status(400).json({ error: 'URL not allowed', received: url });
+    }
+    const ALLOWED_PATTERNS = [
+      'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
+      'mangakatana.com', 'mkklcdnv',
+      'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
+      'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
+    ];
+    if (!ALLOWED_PATTERNS.some(p => parsed.hostname.includes(p))) {
+      return res.status(403).json({ error: 'Forbidden: Domain not in allowlist', received: url });
+    }
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid URL', received: url });
+  }
+
   const ck = `ch:${url}`;
   const tokenized = sid === 'mangakatana' || url.includes('mangakatana');
   // MangaKatana image URLs embed an expiring token, so a 1-year immutable
@@ -983,10 +1017,18 @@ function isPrivateIP(hostname) {
 // Image Buffers are large and this cache lives in-process only, so it is
 // bounded by total bytes rather than entry count: 500 entries of ~150KB-2MB
 // each could retain close to 1GB against a 512MB heap cap.
+//
+// maxKeys is deliberately NOT set: NodeCache throws "Cache max keys amount
+// exceeded" on the 301st key, and imageCacheSet had no try/catch, so every
+// new image after 300 unique images returned 502 until restart.
+//
+// useClones is false: NodeCache defaults to deep-cloning values on get/set.
+// For image Buffers (100KB-2MB) that doubles memory per cache hit and was
+// verified to return a different Buffer instance on every read.
 const IMAGE_CACHE_MAX_BYTES = parseInt(process.env.IMAGE_CACHE_MAX_BYTES || String(64 * 1024 * 1024), 10);
-const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 300 });
+const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, useClones: false });
 // Tracked separately from the cache because NodeCache silently drops entries
-// on its own maxKeys/checkperiod eviction, which would leave a byte counter
+// on its own checkperiod eviction, which would leave a byte counter
 // permanently over-stating usage and thrash the cache.
 const imageCacheSizes = new Map();
 
@@ -1011,9 +1053,17 @@ function pruneImageCache() {
 }
 
 function imageCacheSet(key, entry) {
-  imageCache.set(key, entry, cache.TTL.image_proxy);
-  imageCacheSizes.set(key, entry.buf.length);
+  // Prune BEFORE setting so we never exceed the byte budget. The previous
+  // order (set then prune) briefly held total + newEntry in memory.
   pruneImageCache();
+  try {
+    imageCache.set(key, entry, cache.TTL.image_proxy);
+    imageCacheSizes.set(key, entry.buf.length);
+  } catch (err) {
+    // NodeCache can throw on bad keys or if the event loop is shutting down.
+    // Dropping the entry is safer than crashing the request.
+    console.warn('[imageCacheSet] set failed, skipping:', err.message);
+  }
 }
 
 // Concurrency gate. Each in-flight image costs 3-4 copies of the source Buffer

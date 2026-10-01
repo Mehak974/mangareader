@@ -67,3 +67,9 @@ tags.js
 
 # Vercel
 .vercel/
+
+# Vercel CLI artifacts — contains an OIDC token that should never ship
+frontend/.env.test
+
+# Cloudflare Wrangler account cache — contains account ID and email
+.wrangler/
