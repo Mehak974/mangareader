@@ -60,25 +60,34 @@ const REFERERS = {
 let puppeteer = null;
 let puppeteerBusy = 0;
 const PUPPETEER_CONCURRENCY_LIMIT = parseInt(process.env.PUPPETEER_CONCURRENCY || '1', 10);
+// A browser launch takes seconds; anyone still queuing after this is better
+// served by a fast error than by an Express response held open indefinitely.
+const PUPPETEER_QUEUE_TIMEOUT = parseInt(process.env.PUPPETEER_QUEUE_TIMEOUT || '30000', 10);
 const puppeteerQueue = [];
 
 function acquirePuppeteerSlot() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     if (puppeteerBusy < PUPPETEER_CONCURRENCY_LIMIT) {
       puppeteerBusy++;
-      resolve();
-    } else {
-      puppeteerQueue.push(resolve);
+      return resolve();
     }
+    const waiter = { resolve, timer: null };
+    waiter.timer = setTimeout(() => {
+      const idx = puppeteerQueue.indexOf(waiter);
+      if (idx !== -1) puppeteerQueue.splice(idx, 1);
+      reject(new Error('Timed out waiting for a Puppeteer slot'));
+    }, PUPPETEER_QUEUE_TIMEOUT);
+    puppeteerQueue.push(waiter);
   });
 }
 function releasePuppeteerSlot() {
   puppeteerBusy--;
   if (puppeteerBusy < 0) puppeteerBusy = 0;
-  if (puppeteerQueue.length > 0) {
-    const next = puppeteerQueue.shift();
+  const next = puppeteerQueue.shift();
+  if (next) {
+    clearTimeout(next.timer);
     puppeteerBusy++;
-    next();
+    next.resolve();
   }
 }
 
@@ -114,9 +123,14 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
 
   await acquirePuppeteerSlot();
   let browser;
+  // pp.launch() is not cancellable. If the 15s race times out, the Chrome it
+  // was starting finishes launching moments later — and with the old code
+  // `browser` was still undefined in the finally block, so it was never closed.
+  // Each of those leaked a live Chrome process until the container was
+  // OOM-killed. Track the launch promise separately and reap it here.
+  let launchPromise = null;
   try {
-    browser = await withTimeout(
-      pp.launch({
+    launchPromise = pp.launch({
         headless: 'new',
         args: [
           '--no-sandbox',
@@ -131,10 +145,8 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
         defaultViewport: { width: 1366, height: 768 },
         handleSIGINT: false,
         handleSIGTERM: false,
-      }),
-      15000,
-      'puppeteer launch'
-    );
+      });
+    browser = await withTimeout(launchPromise, 15000, 'puppeteer launch');
     const page = await withTimeout(browser.newPage(), 10000, 'browser.newPage');
     await page.setUserAgent(headers['User-Agent']);
     await page.setExtraHTTPHeaders({
@@ -167,6 +179,9 @@ async function fetchWithPuppeteer(url, extraHeaders = {}) {
     if (browser) {
       try { await browser.close(); } catch (_) { }
       try { await browser.kill(); } catch (_) { }
+    } else if (launchPromise) {
+      // The launch outlived the timeout — reap it instead of leaking it.
+      launchPromise.then(b => b && b.close().catch(() => b.kill?.())).catch(() => { });
     }
     releasePuppeteerSlot();
   }
@@ -254,24 +269,32 @@ function isCloudflareChallenge(html, status, headers) {
 //    too many concurrent HTML responses buffered in memory) ──────────────
 let fetchHtmlBusy = 0;
 const FETCH_HTML_LIMIT = parseInt(process.env.FETCH_HTML_CONCURRENCY || '15', 10);
+const FETCH_HTML_QUEUE_TIMEOUT = parseInt(process.env.FETCH_HTML_QUEUE_TIMEOUT || '20000', 10);
 const fetchHtmlQueue = [];
 
 function acquireFetchSlot() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     if (fetchHtmlBusy < FETCH_HTML_LIMIT) {
       fetchHtmlBusy++;
-      resolve();
-    } else {
-      fetchHtmlQueue.push(resolve);
+      return resolve();
     }
+    const waiter = { resolve, timer: null };
+    waiter.timer = setTimeout(() => {
+      const idx = fetchHtmlQueue.indexOf(waiter);
+      if (idx !== -1) fetchHtmlQueue.splice(idx, 1);
+      reject(new Error('Timed out waiting for an HTML fetch slot'));
+    }, FETCH_HTML_QUEUE_TIMEOUT);
+    fetchHtmlQueue.push(waiter);
   });
 }
 function releaseFetchSlot() {
   fetchHtmlBusy--;
   if (fetchHtmlBusy < 0) fetchHtmlBusy = 0;
-  if (fetchHtmlQueue.length > 0) {
+  const next = fetchHtmlQueue.shift();
+  if (next) {
+    clearTimeout(next.timer);
     fetchHtmlBusy++;
-    fetchHtmlQueue.shift()();
+    next.resolve();
   }
 }
 

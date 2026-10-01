@@ -33,9 +33,25 @@ const anilistLimiter = new Bottleneck({
   reservoirRefreshAmount: 85,
   reservoirRefreshInterval: 60 * 1000,
   reservoirIncreaseAmount: 0,
+  // The old code slept through the 429 retry while still holding one of only 5
+  // concurrency slots, so a burst of 429s blocked the whole limiter for a full
+  // minute while new requests queued behind it without bound.
+  maxQueue: 200,
 });
 
-let lastRetryAfter = 0;
+// Circuit breaker: once AniList rate-limits us, stop calling it until the
+// window passes. Without this every queued request fired its own doomed retry,
+// which is what produced the 60s/59s/58s pileup in the logs and kept an
+// unbounded Bottleneck queue full.
+let circuitOpenUntil = 0;
+let backoffMs = 0;
+
+function rateLimitError(waitMs) {
+  const err = new Error(`AniList rate limited, retry in ${Math.ceil(waitMs / 1000)}s`);
+  err._anilistStatus = 429;
+  err._anilistData = { error: 'AniList rate limited, try again shortly' };
+  return err;
+}
 
 async function post(query, variables, headers = {}) {
   return axios.post(ANILIST_URL, { query, variables }, {
@@ -45,35 +61,41 @@ async function post(query, variables, headers = {}) {
 }
 
 async function callAniList(query, variables) {
+  // Fail fast while the breaker is open instead of queueing doomed work.
+  if (Date.now() < circuitOpenUntil) throw rateLimitError(circuitOpenUntil - Date.now());
+
   return anilistLimiter.schedule(async () => {
+    let r;
     try {
-      const r = await post(query, variables);
-      return r.data;
+      r = await post(query, variables);
     } catch (err) {
       if (!err.response) throw err;
-
-      if (err.response.status === 429) {
-        const retryAfter = parseInt(err.response.headers['retry-after'] || '0', 10);
-        const waitMs = retryAfter
-          ? retryAfter * 1000
-          : Math.max(Date.now() - lastRetryAfter, 1000) * 2;
-        lastRetryAfter = Date.now();
-        console.warn(`[anilist] 429 rate limit hit, retrying after ${waitMs}ms`);
-        await new Promise(resolve => setTimeout(resolve, waitMs));
-        return (await post(query, variables)).data;
+      if (err.response.status !== 429) {
+        err._anilistStatus = err.response.status;
+        err._anilistData = err.response.data;
+        throw err;
       }
-
-      err._anilistStatus = err.response.status;
-      err._anilistData = err.response.data;
-      throw err;
+      // Wait OUTSIDE the concurrency slot, not inside it, so one 429 no longer
+      // parks a whole slot for up to a minute.
+      const retryAfter = parseInt(err.response.headers['retry-after'] || '0', 10);
+      backoffMs = retryAfter
+        ? retryAfter * 1000
+        : Math.min((backoffMs || 1000) * 2, 60000);
+      circuitOpenUntil = Date.now() + backoffMs;
+      console.warn(`[anilist] 429 rate limit hit, breaker open for ${backoffMs}ms`);
+      throw rateLimitError(backoffMs);
     }
+    backoffMs = 0;
+    return r.data;
   });
 }
 
 async function callAniListUser(query, variables, accessToken) {
+  if (Date.now() < circuitOpenUntil) throw rateLimitError(circuitOpenUntil - Date.now());
   return anilistLimiter.schedule(async () => {
     try {
       const r = await post(query, variables, { Authorization: `Bearer ${accessToken}` });
+      backoffMs = 0;
       return r.data;
     } catch (err) {
       if (!err.response) throw err;

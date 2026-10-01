@@ -23,6 +23,12 @@ const helpers = require('./utils/helpers');
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
+// libvips defaults to one worker thread per CPU and keeps a 50MB decoded-image
+// cache. Combined with the per-request Buffer copies in /api/proxy-image that
+// blows up RSS on a small container, so both are pinned to a fixed budget.
+sharp.concurrency(2);
+sharp.cache({ memory: 32, files: 0, items: 16 });
+
 const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
 const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
 const PROXY_LIST = process.env.SCRAPER_PROXY_LIST ? JSON.parse(process.env.SCRAPER_PROXY_LIST) : [];
@@ -52,7 +58,14 @@ const {
 } = require('./extractors/universalExtractor');
 
 const extractionWorker = new Piscina({
-  filename: path.resolve(__dirname, 'extractors/worker.js')
+  filename: path.resolve(__dirname, 'extractors/worker.js'),
+  // Piscina defaults maxQueue to Infinity, so a burst of chapter requests used
+  // to enqueue unbounded fallback extractions. Cap the threads and the backlog,
+  // and let workers retire so an idle server doesn't hold CPU forever.
+  maxThreads: parseInt(process.env.WORKER_THREADS || '2', 10),
+  minThreads: 1,
+  maxQueue: 20,
+  idleTimeout: 30000,
 });
 
 const db = require('./db');
@@ -177,7 +190,8 @@ async function getCached(key) {
   }
   return memCache.get(key) || null;
 }
-async function setCached(key, data, ttlMs = 86400000) {
+async function setCached(key, data, ttlSeconds = 86400) {
+  const ttlMs = ttlSeconds * 1000;
   const rc = getRedisClient();
   if (rc && rc.status === 'ready') {
     try {
@@ -520,7 +534,7 @@ app.get('/api/home', rateLimit(60000, 30), async (req, res) => {
     } catch (err) { return { sourceId: s.id, items: [], error: err.message }; }
   }));
   const sections = results.map(r => r.status === 'fulfilled' ? r.value : { items: [], error: r.reason?.message });
-  await setCached('home', sections, 600000);
+  await setCached('home', sections, 600);
   await cache.set('scraper_search', 'home', sections, 600);
   res.json({ data: sections, cached: false });
 });
@@ -567,7 +581,7 @@ app.post('/api/admin/home/sections/:key', requireAdmin, async (req, res) => {
        ON CONFLICT (section_key) DO UPDATE SET media = EXCLUDED.media, updated_at = EXCLUDED.updated_at`,
       [key, JSON.stringify(media)]
     );
-    await setCached(`home_section:${key}`, media, 86400000);
+    await setCached(`home_section:${key}`, media, 86400);
     res.json({ success: true, section_key: key, count: media.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -832,7 +846,7 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
       [key, JSON.stringify(media)]
     );
     await cache.set(namespace, `home_section:${key}`, media, sectionTTL);
-    await setCached(`home_section:${key}`, media, sectionTTL * 1000);
+    await setCached(`home_section:${key}`, media, sectionTTL);
     await cache.del('home');
     await cache.del('scraper_search', `home`);
     res.json({ success: true, section_key: key, count: media.length, source: 'anilist', cached_for: isPermanentSection ? '10 years' : '1 hour' });
@@ -930,13 +944,19 @@ async function fetchAndCacheChapterImages(url, sid, ck) {
 
   // Fallback: Puppeteer-based extraction (only when the source scraper threw)
   if (!result) {
+    // The 5s race used to abandon the Piscina task while it kept running, so
+    // every timeout left a queued/running job behind. Abort it instead.
+    const ac = new AbortController();
+    const abortTimer = setTimeout(() => ac.abort(), 5000);
     try {
-      const imgs = await Promise.race([
-        extractionWorker.run({ url }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Worker timeout')), 5000)),
-      ]);
+      const imgs = await extractionWorker.run({ url }, { signal: ac.signal });
       if (imgs && imgs.length > 0) { result = { images: imgs, source: 'fallback' }; usedSrc = 'fallback'; }
-    } catch (err) { console.warn('[fallback] Failed:', err.message); }
+    } catch (err) {
+      if (ac.signal.aborted) console.warn('[fallback] Worker timeout:', url);
+      else console.warn('[fallback] Failed:', err.message);
+    } finally {
+      clearTimeout(abortTimer);
+    }
   }
 
   if (!result?.images?.length) throw new Error('No images found');
@@ -960,8 +980,80 @@ function isPrivateIP(hostname) {
   return false;
 }
 
-const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 500 });
-const IMAGE_CACHE_MAX = 500;
+// Image Buffers are large and this cache lives in-process only, so it is
+// bounded by total bytes rather than entry count: 500 entries of ~150KB-2MB
+// each could retain close to 1GB against a 512MB heap cap.
+const IMAGE_CACHE_MAX_BYTES = parseInt(process.env.IMAGE_CACHE_MAX_BYTES || String(64 * 1024 * 1024), 10);
+const imageCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 300 });
+// Tracked separately from the cache because NodeCache silently drops entries
+// on its own maxKeys/checkperiod eviction, which would leave a byte counter
+// permanently over-stating usage and thrash the cache.
+const imageCacheSizes = new Map();
+
+function pruneImageCache() {
+  for (const k of imageCache.keys()) {
+    if (!imageCacheSizes.has(k)) continue;
+    const entry = imageCache.get(k);
+    if (!entry) { imageCacheSizes.delete(k); continue; }
+    imageCacheSizes.set(k, entry.buf.length);
+  }
+  let total = 0;
+  for (const size of imageCacheSizes.values()) total += size;
+  if (total <= IMAGE_CACHE_MAX_BYTES) return total;
+  for (const k of imageCache.keys()) {
+    if (total <= IMAGE_CACHE_MAX_BYTES) break;
+    const size = imageCacheSizes.get(k);
+    imageCache.del(k);
+    imageCacheSizes.delete(k);
+    total -= size || 0;
+  }
+  return Math.max(0, total);
+}
+
+function imageCacheSet(key, entry) {
+  imageCache.set(key, entry, cache.TTL.image_proxy);
+  imageCacheSizes.set(key, entry.buf.length);
+  pruneImageCache();
+}
+
+// Concurrency gate. Each in-flight image costs 3-4 copies of the source Buffer
+// (axios → sharp input → sharp output), so without this a chapter page firing
+// ~20 parallel <img> requests was enough to exhaust the heap.
+const IMAGE_CONCURRENCY = parseInt(process.env.IMAGE_CONCURRENCY || '6', 10);
+const MAX_SOURCE_BYTES = parseInt(process.env.IMAGE_MAX_SOURCE_BYTES || String(15 * 1024 * 1024), 10);
+let imageBusy = 0;
+const imageQueue = [];
+
+function acquireImageSlot() {
+  if (imageBusy < IMAGE_CONCURRENCY) {
+    imageBusy++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const waiter = { resolve, reject, timer: null };
+    // Reject rather than let a queued request hold its response open forever.
+    waiter.timer = setTimeout(() => {
+      const idx = imageQueue.indexOf(waiter);
+      if (idx !== -1) imageQueue.splice(idx, 1);
+      reject(Object.assign(new Error('Image proxy busy'), { _busy: true }));
+    }, 20000);
+    imageQueue.push(waiter);
+  });
+}
+function releaseImageSlot() {
+  imageBusy--;
+  if (imageBusy < 0) imageBusy = 0;
+  const next = imageQueue.shift();
+  if (next) {
+    clearTimeout(next.timer);
+    imageBusy++;
+    next.resolve();
+  }
+}
+
+// Coalesce concurrent misses for the same image so N parallel requests for one
+// URL produce one upstream fetch and one sharp pipeline.
+const imageInFlight = new Map();
 
 app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
   const { url, w, q } = req.query;
@@ -984,12 +1076,73 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
     return res.send(memCached.buf);
   }
+
+  const pending = imageInFlight.get(cacheKey);
+  if (pending) {
+    try {
+      const { buf, ct, noStore } = await pending;
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', noStore ? 'no-store' : 'public, max-age=31536000, immutable');
+      return res.send(buf);
+    } catch (err) {
+      return sendImageError(res, err);
+    }
+  }
+
+  const job = (async () => {
+    try {
+      await acquireImageSlot();
+    } catch (err) {
+      // Never acquired a slot, so only the in-flight entry needs clearing.
+      imageInFlight.delete(cacheKey);
+      throw err;
+    }
+    try {
+      return await proxyImage(url, w, q, cacheKey);
+    } finally {
+      releaseImageSlot();
+      imageInFlight.delete(cacheKey);
+    }
+  })();
+  imageInFlight.set(cacheKey, job);
+
+  try {
+    const { buf, ct, noStore } = await job;
+    if (res.headersSent) return;
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', noStore ? 'no-store' : 'public, max-age=31536000, immutable');
+    res.send(buf);
+  } catch (err) {
+    sendImageError(res, err);
+  }
+});
+
+function sendImageError(res, err) {
+  if (res.headersSent || res.writableEnded || res.destroyed) return;
+  if (err._busy) {
+    res.setHeader('Retry-After', '2');
+    return res.status(503).send('Busy');
+  }
+  if (err._status) {
+    if (err._noStore) res.setHeader('Cache-Control', 'no-store');
+    return res.status(err._status).send(err.message);
+  }
+  res.status(502).send('Error proxying image');
+}
+
+// Fetches, transforms and caches a single image. Split out of the route so the
+// concurrency slot and in-flight dedup wrap only the expensive work, not the
+// cache lookups.
+async function proxyImage(url, w, q, cacheKey) {
+  function fail(code, message) {
+    return Object.assign(new Error(message), { _status: code, _noStore: true });
+  }
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== 'https:') return res.status(400).send('Only HTTPS URLs allowed');
-    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1') return res.status(400).send('URL not allowed');
-    if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) return res.status(400).send('URL not allowed');
-    if (helpers.isPrivateIP(parsed.hostname)) return res.status(400).send('URL not allowed');
+    if (parsed.protocol !== 'https:') throw fail(400, 'Only HTTPS URLs allowed');
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1') throw fail(400, 'URL not allowed');
+    if (parsed.hostname.endsWith('.internal') || parsed.hostname.endsWith('.local')) throw fail(400, 'URL not allowed');
+    if (helpers.isPrivateIP(parsed.hostname)) throw fail(400, 'URL not allowed');
 
     // ponytail: substring-based SSRF allowlist — future-proof against CDN subdomain rotation.
     // New subdomains like i2.mangakatana.com or newnode.mdrproxy.net match automatically.
@@ -1001,7 +1154,7 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
     ];
     const h = parsed.hostname;
     if (!ALLOWED_PATTERNS.some(p => h.includes(p))) {
-      return res.status(403).send('Forbidden: Domain not in allowlist');
+      throw fail(403, 'Forbidden: Domain not in allowlist');
     }
 
     // ponytail: referer detection by substring — no map to maintain.
@@ -1024,57 +1177,66 @@ app.get('/api/proxy-image', rateLimit(60000, 300), async (req, res) => {
             Referer: referer,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
-          }, timeout: 8000
+          }, timeout: 8000,
+          // Without this axios buffers an arbitrarily large body into the heap;
+          // a single oversized CDN response was enough to OOM the process.
+          maxContentLength: MAX_SOURCE_BYTES,
+          maxBodyLength: MAX_SOURCE_BYTES,
         });
         if (r.status !== 200) {
           const expired = r.status === 403 || r.status === 401;
-          res.setHeader('Cache-Control', 'no-store');
-          return res.status(expired ? 403 : 502).send(expired ? 'Image token expired' : 'Error proxying image');
+          throw fail(expired ? 403 : 502, expired ? 'Image token expired' : 'Error proxying image');
         }
         break;
       } catch (fetchErr) {
         const status = fetchErr.response?.status;
+        if (fetchErr._status) throw fetchErr;
         if (status === 403 || status === 401) {
           console.warn(`[proxy-image] token expired (${status}), not retrying:`, url);
-          res.setHeader('Cache-Control', 'no-store');
-          return res.status(403).send('Image token expired');
+          throw fail(403, 'Image token expired');
         }
         if (attempt === 0) { await new Promise(rs => setTimeout(rs, 500)); continue; }
         throw fetchErr;
       }
     }
+    const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
+    const wi = parseInt(w);
+    const resize = !isNaN(wi) && wi > 0 && wi <= 2000 ? { width: wi, withoutEnlargement: true } : null;
+
+    // sharp pipelines are single-use, so build a fresh one per attempt instead
+    // of reusing the instance after a failed encode.
+    const encode = async (fmt) => {
+      let p = sharp(r.data);
+      if (resize) p = p.resize(resize);
+      return fmt === 'webp' ? p.webp({ quality }).toBuffer() : p.jpeg({ quality, progressive: true }).toBuffer();
+    };
+
     let buf, ct = 'image/webp';
     try {
-      const p = sharp(Buffer.from(r.data));
-      if (w) { const wi = parseInt(w); if (!isNaN(wi) && wi > 0 && wi <= 2000) p.resize({ width: wi, withoutEnlargement: true }); }
-      const quality = Math.max(1, Math.min(100, parseInt(q) || 35));
-      try {
-        buf = await p.webp({ quality }).toBuffer();
-      } catch {
-        buf = await p.jpeg({ quality, progressive: true }).toBuffer();
-        ct = 'image/jpeg';
-      }
+      buf = await encode('webp');
     } catch {
-      buf = Buffer.from(r.data);
-      ct = r.headers['content-type'] || 'image/jpeg';
+      try {
+        buf = await encode('jpeg');
+        ct = 'image/jpeg';
+      } catch {
+        // Serve the original bytes, but only with a short cache lifetime — the
+        // previous code cached a failed transform for a year as immutable.
+        buf = Buffer.from(r.data);
+        ct = r.headers['content-type'] || 'image/jpeg';
+        imageCacheSet(cacheKey, { buf, ct });
+        return { buf, ct, noStore: true };
+      }
     }
 
     // Cache processed image — in-memory only (images are large; Redis storage
-    // of base64 buffers causes memory pressure). NodeCache evicts oldest at IMAGE_CACHE_MAX.
-    if (imageCache.keys().length >= IMAGE_CACHE_MAX) {
-      const keys = imageCache.keys();
-      imageCache.del(keys[0]);
-    }
-    imageCache.set(cacheKey, { buf, ct }, cache.TTL.image_proxy);
-
-    res.setHeader('Content-Type', ct); res.removeHeader('Content-Disposition');
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    res.send(buf);
+    // of base64 buffers causes memory pressure). Bounded by total bytes.
+    imageCacheSet(cacheKey, { buf, ct });
+    return { buf, ct };
   } catch (err) {
-    console.warn('[proxy-image] Failed:', url, err.message);
-    res.status(502).send('Error proxying image');
+    if (!err._status) console.warn('[proxy-image] Failed:', url, err.message);
+    throw err;
   }
-});
+}
 
 // ── BLOG API ──────────────────────────────────────────────────────────────────
 app.get('/api/blog', async (req, res) => {
@@ -1404,8 +1566,14 @@ app.get('/health/detailed', async (req, res) => {
   }
 });
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+// Client aborts (browser navigating away, crawler walking off) surface here as
+// ECONNABORTED/"request aborted". They are noise, not failures — and writing a
+// response to the already-dead socket used to raise a second uncaught error.
 app.use((err, req, res, next) => {
-  console.error('[Error]', err.message);
+  const aborted = err.type === 'ECONNABORTED' || err.code === 'ECONNRESET' ||
+    req.aborted || res.writableEnded || /aborted/i.test(err.message || '');
+  if (!aborted) console.error('[Error]', err.stack || err.message);
+  if (res.headersSent || res.writableEnded || res.destroyed) return;
   const origin = req.headers.origin;
   if (origin && isOriginAllowed(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -1414,13 +1582,53 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal error' });
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Manga Reader API on http://localhost:${PORT}`);
   console.log(`📚 Sources: ${Object.keys(SOURCE_SCRAPERS).join(', ')}`);
 });
 
-process.on('unhandledRejection', (r) => console.error('[UnhandledRejection]', r?.message || r));
-process.on('uncaughtException', (e) => console.error('[UncaughtException]', e.message));
+// A bind failure must be loud and fatal. Without this the error surfaced as an
+// uncaughtException that was merely logged: the process stayed alive, never
+// listened, failed its health check, and got restarted in a loop with no clue
+// why in the logs.
+server.on('error', (err) => {
+  console.error('[FATAL] HTTP server error:', err && (err.stack || err.message));
+  process.exit(1);
+});
+
+// Log the stack, not just the message — the message-only handler made every
+// crash cause indistinguishable in production logs.
+process.on('unhandledRejection', (r) => {
+  console.error('[UnhandledRejection]', (r && (r.stack || r.message)) || r);
+});
+process.on('uncaughtException', (e) => {
+  console.error('[UncaughtException]', (e && (e.stack || e.message)) || e);
+  // Staying alive after an uncaught exception leaves sockets and in-memory
+  // state in an undefined condition; fail fast and let the platform restart.
+  process.exit(1);
+});
+
+// ── GRACEFUL SHUTDOWN ──────────────────────────────────────────────────────────
+// Without this, SIGTERM kills the process mid-request and leaves the Piscina
+// threads and Chrome children orphaned.
+let shuttingDown = false;
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${signal} received, closing server...`);
+    const force = setTimeout(() => { console.error('[shutdown] timed out, forcing exit'); process.exit(1); }, 10000);
+    force.unref();
+    server.close(async () => {
+      try { await extractionWorker.destroy(); } catch (_) { }
+      try { const rc = getRedisClient(); if (rc) rc.disconnect(); } catch (_) { }
+      try { await db.close(); } catch (_) { }
+      clearTimeout(force);
+      process.exit(0);
+    });
+  });
+}
+
 module.exports = app;
 module.exports.performSearch = performSearch;
 

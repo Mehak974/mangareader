@@ -1,17 +1,37 @@
 require('dotenv').config({ override: false });
 const { Pool } = require('pg');
 
-const pool = new Pool(
-  process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
-    : {
-        host: process.env.PGHOST || 'localhost',
-        user: process.env.PGUSER || 'postgres',
-        password: process.env.PGPASSWORD || 'postgres',
-        database: process.env.PGDATABASE || 'manga',
-        port: parseInt(process.env.PGPORT || '5432'),
-      }
-);
+// Defaults are dangerous for a hosted pooler: pg's default max is 10 with no
+// connect timeout, so a stalled host leaves queries hanging and the pool
+// exhausted until the process is recycled.
+const poolOpts = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      max: parseInt(process.env.PGPOOL_MAX || '5', 10),
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      statement_timeout: 15000,
+    }
+  : {
+      host: process.env.PGHOST || 'localhost',
+      user: process.env.PGUSER || 'postgres',
+      password: process.env.PGPASSWORD || 'postgres',
+      database: process.env.PGDATABASE || 'manga',
+      port: parseInt(process.env.PGPORT || '5432'),
+      max: parseInt(process.env.PGPOOL_MAX || '5', 10),
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      statement_timeout: 15000,
+    };
+
+const pool = new Pool(poolOpts);
+
+// pg emits 'error' on idle clients (e.g. the server dropped a connection). With
+// no listener this is an uncaught exception, which the old handler silently
+// swallowed while leaving the process half-alive.
+pool.on('error', (err) => {
+  console.warn('[DB] idle client error:', err.message);
+});
 
 // Graceful connection check & database structure initialization
 async function initDB() {
@@ -294,6 +314,7 @@ module.exports = {
   pool,
   query: (text, params) => pool.query(text, params),
   ensureConnection,
+  close: () => pool.end(),
 };
 
 // ── Neon cold-start keep-warm ping ────────────────────────────────────────────
@@ -312,9 +333,10 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')) 
         console.warn('[DB] Keep-warm ping failed:', err.message);
       }
     };
-    // Initial ping after 2 s, then every 4 min
-    setTimeout(ping, 2000);
-    setInterval(ping, 4 * 60 * 1000);
+    // Initial ping after 2 s, then every 4 min. unref'd so the keep-warm timer
+    // never by itself holds the event loop open during shutdown.
+    setTimeout(ping, 2000).unref();
+    setInterval(ping, 4 * 60 * 1000).unref();
     console.log('[DB] Neon keep-warm ping enabled (every 4 min)');
   }
 }

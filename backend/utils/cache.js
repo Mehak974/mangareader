@@ -30,14 +30,17 @@ let redis;
 setTimeout(() => {
   const rl = getRedisClient();
   if (rl && rl.status === 'ready') redis = rl;
-}, 2000);
+}, 2000).unref();
 
 setInterval(() => {
   const rl = getRedisClient();
   if (rl && rl.status === 'ready' && !redis) redis = rl;
-}, 5000);
+}, 5000).unref();
 
 const inFlight = new Map();
+// /api/anilist derives its key from an arbitrary request body, so distinct
+// bodies produce distinct keys. Unbounded, that map is a slow leak under load.
+const MAX_INFLIGHT = 500;
 
 function key(ns, id) {
   return `${ns}:${id}`;
@@ -92,6 +95,11 @@ async function getOrFetch(ns, id, ttl, fetchFn) {
 
   if (inFlight.has(k)) {
     return { data: await inFlight.get(k), cached: false };
+  }
+
+  // Shed rather than grow without bound; the caller falls back to a live fetch.
+  if (inFlight.size >= MAX_INFLIGHT) {
+    return { data: await fetchFn(), cached: false };
   }
 
   const promise = (async () => {
