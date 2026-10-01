@@ -21,8 +21,12 @@ const MEM = new Map();
 const MEM_MAX = 300;
 
 // Per-IP rate limiting (module-level, survives within an isolate instance)
+// A single manga chapter is 20-50 images and they all arrive from the SAME
+// reader IP, so this must be well above one chapter's worth or readers get
+// broken images mid-chapter. The previous 60/min was exceeded by opening ~2
+// chapters a minute, which surfaced to users as a proxy/429 error.
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 60;               // 60 req/min per IP
+const RATE_LIMIT_MAX = 600;              // 600 req/min per IP (≈12 chapters)
 const rateMap = new Map();
 
 // Request coalescing — 100 concurrent users hitting the same cold cache key
@@ -222,8 +226,11 @@ async function imgProxy(req, ctx, origin) {
     if (result.type === 'error') {
       return new Response(result.body, { status: result.status, headers: { ...result.headers, 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) } });
     }
+    // Build headers fresh for THIS request. The shared result carries no
+    // CORS headers, so a waiting visitor never inherits the first
+    // requester's Access-Control-Allow-Origin.
     return new Response(result.buf, {
-      headers: { ...result.hdrs, 'X-Cache': 'HIT-INFLIGHT' },
+      headers: { 'Content-Type': result.ct, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) },
       cf: { cacheEverything: true, cacheTtl: 31536000 },
     });
   }
@@ -257,8 +264,15 @@ async function imgProxy(req, ctx, origin) {
             lastError = `Source rate limited (429)`;
             errorStatus = 429;
           } else if (originFetch.status < 500) {
-            const text = await originFetch.text();
-            return { type: 'error', status: originFetch.status, body: text, headers: corsHeaders(origin) };
+            // Do NOT relay the origin's body to the client — it can contain
+            // upstream HTML/error pages and it bypasses our own CORS allowlist.
+            // Surface the status with a generic message instead.
+            return {
+              type: 'error',
+              status: originFetch.status,
+              body: `Origin error ${originFetch.status}`,
+              headers: { 'Cache-Control': 'public, max-age=15', ...corsHeaders(origin) },
+            };
           }
 
           // 5xx — record and retry
@@ -281,20 +295,23 @@ async function imgProxy(req, ctx, origin) {
       const ct = originFetch.headers.get('content-type') || 'image/jpeg';
       const buf = await originFetch.arrayBuffer();
 
-      // Populate CDN cache (non-blocking)
+      // Populate CDN cache (non-blocking).
+      // Store origin-AGNOST headers only. Baking Access-Control-Allow-Origin
+      // into the cached object leaks one visitor's origin to every other
+      // visitor and, on re-merge, produces an invalid comma-joined value.
+      // CORS is re-derived per request at serve time instead.
       const cacheResp = new Response(buf, {
         headers: {
           'Content-Type':  ct,
           'Cache-Control': 'public, max-age=31536000, immutable',
           'X-Cache':       'MISS',
-          ...corsHeaders(origin),
         },
         cf: { cacheEverything: true, cacheTtl: 31536000 },
       });
       ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
 
       // Return buffer + content-type so concurrent waiters each build their own Response
-      return { type: 'image', buf, ct, hdrs: { 'Content-Type': ct, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'MISS', ...corsHeaders(origin) } };
+      return { type: 'image', buf, ct };
     } finally {
       IN_FLIGHT.delete(imgKey);
     }
@@ -303,9 +320,17 @@ async function imgProxy(req, ctx, origin) {
   IN_FLIGHT.set(imgKey, promise);
   const result = await promise;
   if (result.type === 'error') {
-    return new Response(result.body, { status: result.status, headers: result.headers });
+    return new Response(result.body, { status: result.status, headers: { ...result.headers, ...corsHeaders(origin) } });
   }
-  return new Response(result.buf, { headers: result.hdrs, cf: { cacheEverything: true, cacheTtl: 31536000 } });
+  return new Response(result.buf, {
+    headers: {
+      'Content-Type': result.ct,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Cache': 'MISS',
+      ...corsHeaders(origin),
+    },
+    cf: { cacheEverything: true, cacheTtl: 31536000 },
+  });
 }
 
 // ─── AniList ──────────────────────────────────────────────────────────────────
