@@ -13,6 +13,11 @@ const HILLTOP_SRC = '//purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTO
 // on every pathname change, injected a new script each time, and only cleaned
 // up the wrapper — leaving N copies of the purple-text.com script and their
 // listeners in the DOM after N navigations.
+//
+// The guard prevents re-injection. The cleanup does NOT remove the ad
+// scripts — they are meant to persist across client-side navigations
+// (that's the whole point of a popunder ad). Removing them on every route
+// change killed the popunder after the first navigation.
 let hilltopInjected = false;
 
 export default function AdScriptLoader() {
@@ -43,17 +48,11 @@ export default function AdScriptLoader() {
     `;
     document.body.appendChild(script);
 
-    // Track the injected purple-text.com script so we can remove it on
-    // cleanup. Without this, only the wrapper is removed and the real ad
-    // script leaks across navigations.
-    const injectedScript = document.querySelector(`script[src="${HILLTOP_SRC}"]`);
-
-    return () => {
-      script.remove();
-      if (injectedScript) injectedScript.remove();
-      // Do NOT reset hilltopInjected here. The effect now runs once per
-      // page load; resetting the flag would re-inject on every navigation.
-    };
+    // Intentionally no cleanup. The Hilltop popunder is meant to persist
+    // across client-side navigations. Removing the scripts on every route
+    // change (which is what the old cleanup did) killed the popunder after
+    // the first navigation, while the module-level guard prevented
+    // re-injection — a net loss of the ad entirely.
   }, [pathname]);
 
   return null;
