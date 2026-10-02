@@ -898,7 +898,8 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
-      'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
+      'manganato.com', 'manganato.gg', 'mangakakalot.com', 'mangakakalot.gg',
+      '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
     if (!ALLOWED_PATTERNS.some(p => parsed.hostname === p || parsed.hostname.endsWith('.' + p))) {
@@ -1206,7 +1207,8 @@ async function proxyImage(url, w, q, cacheKey) {
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
-      'manganato', 'mangakakalot', '2xstorage.com', 'media.mangaka.com',
+      'manganato.com', 'manganato.gg', 'mangakakalot.com', 'mangakakalot.gg',
+      '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
     if (!ALLOWED_PATTERNS.some(p => h === p || h.endsWith('.' + p))) {
