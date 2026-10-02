@@ -93,6 +93,52 @@ async function cachePut(ctx, key, data, ttlSec) {
   );
 }
 
+// ─── L2b: Negative cache ─────────────────────────────────────────────────────
+// A failing origin must not be retried by every visitor, but the TTL has to
+// match the failure. 2xstorage rate-limits (429) Cloudflare's egress IPs on a
+// scale of seconds, so a long negative TTL there would poison an image far
+// longer than the rate limit lasts and defeat the client's own retries.
+const NEG_TTL_SEC = 60;      // 5xx / network — origin is down, back off hard
+const NEG_TTL_429 = 8;       // 429 — transient throttle, only suppress a burst
+
+async function negGet(key) {
+  const m = memGet(`neg:${key}`);
+  if (m) return m;
+  const c = await cacheGet(`neg:${key}`);
+  return c || null;
+}
+function negSet(ctx, key, val, ttlSec = NEG_TTL_SEC) {
+  memSet(`neg:${key}`, val, ttlSec);
+  cachePut(ctx, `neg:${key}`, val, ttlSec);
+}
+
+// ─── L3b: Per-host circuit breaker ───────────────────────────────────────────
+// When an image CDN is down, the retry loop turns every viewer request into 3
+// dead origin fetches. 50 images on a chapter page = 150 subrequests, which
+// burns the Worker subrequest budget and can escalate to a platform error.
+// After BREAKER_FAILS consecutive failures the host is skipped entirely for
+// BREAKER_COOLDOWN_MS so the isolate stops hammering a dead origin.
+const HOST_FAIL = new Map();
+const BREAKER_FAILS = 5;
+const BREAKER_COOLDOWN_MS = 60 * 1000;
+
+function breakerOpen(host) {
+  const e = HOST_FAIL.get(host);
+  if (!e) return false;
+  if (Date.now() >= e.openUntil) { HOST_FAIL.delete(host); return false; }
+  return true;
+}
+function breakerFail(host) {
+  const e = HOST_FAIL.get(host) || { fails: 0, openUntil: 0 };
+  e.fails += 1;
+  if (e.fails >= BREAKER_FAILS) {
+    e.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+    e.fails = 0;
+  }
+  HOST_FAIL.set(host, e);
+}
+function breakerOk(host) { HOST_FAIL.delete(host); }
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const ALLOWED_WORKER_ORIGINS = [
   'https://mangareader.pro',
@@ -140,6 +186,18 @@ function json(data, status = 200, extra = {}, origin = null) {
   return new Response(JSON.stringify(data), init);
 }
 
+function errResponse(origin, status, body, extra = {}) {
+  return new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=15',
+      ...extra,
+      ...corsHeaders(origin),
+    },
+  });
+}
+
 const UAS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -152,6 +210,10 @@ const ua = () => UAS[Math.floor(Math.random() * UAS.length)];
 const REFERERS = {
   'mangakatana':         'https://mangakatana.com/',
   'mkklcdnv':            'https://mangakatana.com/',
+  // .gg domains must precede the bare 'manganato'/'mangakakalot' patterns,
+  // which would otherwise claim them and send the wrong Referer.
+  'manganato.gg':        'https://www.manganato.gg/',
+  'mangakakalot.gg':     'https://www.mangakakalot.gg/',
   'manganato':           'https://mangakakalot.com/',
   'mangakakalot':        'https://mangakakalot.com/',
   'chapmanganato':       'https://chapmanganato.to/',
@@ -166,7 +228,7 @@ function referer(url) {
 }
 
 const ALLOWED = [
-  'manganato.com','mangakakalot.com','chapmanganato.to',
+  'manganato.gg','manganato.com','mangakakalot.gg','mangakakalot.com','chapmanganato.to',
   'mangakatana.com','mkklcdnv','mangaread.org',
   '2xstorage.com','waitst.com',
   'media.mangaka.com','anilist.co','imgur.com',
@@ -209,11 +271,14 @@ export default {
 // KV is never touched here.
 async function imgProxy(req, ctx, origin) {
   const target = new URL(req.url).searchParams.get('url');
-  if (!target)         return new Response('Missing ?url=', { status: 400, headers: corsHeaders(origin) });
-  if (!allowed(target)) return new Response('Domain not allowed', { status: 403, headers: corsHeaders(origin) });
+  if (!target)         return errResponse(origin, 400, 'Missing ?url=');
+  if (!allowed(target)) return errResponse(origin, 403, 'Domain not allowed');
+
+  const imgKey = await ckFor('img', target);
+  const host = new URL(target).hostname;
 
   // L2: check Cloudflare CDN cache (free, no limits)
-  const cacheKey = new Request(`https://img.internal/${await sha1Key('img', target)}`);
+  const cacheKey = new Request(`https://img.internal/${imgKey}`);
   const hit = await caches.default.match(cacheKey);
   if (hit) {
     return new Response(hit.body, {
@@ -222,12 +287,27 @@ async function imgProxy(req, ctx, origin) {
     });
   }
 
+  // Recent origin failure for this exact image — serve it instantly instead of
+  // repeating 3 dead fetches per visitor.
+  const neg = await negGet(imgKey);
+  if (neg) {
+    return errResponse(origin, 502, neg.msg, { 'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status) });
+  }
+
+  // Origin host is in cooldown — skip the fetch entirely.
+  if (breakerOpen(host)) {
+    return errResponse(origin, 502, `Origin ${host} temporarily unavailable`, {
+      'X-Cache': 'BREAKER', 'X-Origin-Status': '503', 'Retry-After': '30',
+    });
+  }
+
   // Request coalescing: if another request is already fetching this image, await it
-  const imgKey = await sha1Key('img', target);
   if (IN_FLIGHT.has(imgKey)) {
     const result = await IN_FLIGHT.get(imgKey);
     if (result.type === 'error') {
-      return new Response(result.body, { status: result.status, headers: { ...result.headers, 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) } });
+      return errResponse(origin, result.status, result.body, {
+        'X-Cache': 'HIT-INFLIGHT', 'X-Origin-Status': String(result.status),
+      });
     }
     // Build headers fresh for THIS request. The shared result carries no
     // CORS headers, so a waiting visitor never inherits the first
@@ -256,26 +336,26 @@ async function imgProxy(req, ctx, origin) {
       let originFetch = null;
       let lastError = 'Failed to fetch image';
       let errorStatus = 502;
+      let throttled = false;
 
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           originFetch = await fetch(target, { headers: fetchHeaders, cf: { cacheTtl: 0 } });
           if (originFetch.ok) break;
 
+          // Release the connection — the error body is never read.
+          try { originFetch.body?.cancel().catch(() => {}); } catch { /* already consumed */ }
+
           // 429 - rate limited, retry with backoff; other 4xx pass through
           if (originFetch.status === 429) {
             lastError = `Source rate limited (429)`;
             errorStatus = 429;
+            throttled = true;
           } else if (originFetch.status < 500) {
             // Do NOT relay the origin's body to the client — it can contain
             // upstream HTML/error pages and it bypasses our own CORS allowlist.
             // Surface the status with a generic message instead.
-            return {
-              type: 'error',
-              status: originFetch.status,
-              body: `Origin error ${originFetch.status}`,
-              headers: { 'Cache-Control': 'public, max-age=15', ...corsHeaders(origin) },
-            };
+            return { type: 'error', status: originFetch.status, body: `Origin error ${originFetch.status}` };
           }
 
           // 5xx — record and retry
@@ -285,15 +365,24 @@ async function imgProxy(req, ctx, origin) {
           lastError = err.message;
         }
 
-        // Brief backoff before retry (only for 5xx and network errors)
+        // Backoff before retry. 429 gets a much longer, jittered wait — the CDN
+        // is shedding load, and retrying fast just re-enters the rate limiter.
         if (attempt < 2) {
-          await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+          const base = throttled ? 1200 : 400;
+          const wait = base * (attempt + 1) + Math.floor(Math.random() * 400);
+          await new Promise(r => setTimeout(r, wait));
         }
       }
 
       if (!originFetch || !originFetch.ok) {
-        return { type: 'error', status: errorStatus, body: lastError, headers: { 'Cache-Control': 'public, max-age=15', ...corsHeaders(origin) } };
+        // A throttled host is not a broken host: do NOT trip the breaker for
+        // 429, and keep the negative TTL short so the client's retry can win.
+        if (!throttled) breakerFail(host);
+        negSet(ctx, imgKey, { status: errorStatus, msg: lastError }, throttled ? NEG_TTL_429 : NEG_TTL_SEC);
+        return { type: 'error', status: 502, body: lastError };
       }
+
+      breakerOk(host);
 
       const ct = originFetch.headers.get('content-type') || 'image/jpeg';
       const buf = await originFetch.arrayBuffer();
@@ -323,7 +412,9 @@ async function imgProxy(req, ctx, origin) {
   IN_FLIGHT.set(imgKey, promise);
   const result = await promise;
   if (result.type === 'error') {
-    return new Response(result.body, { status: result.status, headers: { ...result.headers, ...corsHeaders(origin) } });
+    return errResponse(origin, result.status, result.body, {
+      'X-Cache': 'MISS', 'X-Origin-Status': String(result.status),
+    });
   }
   return new Response(result.buf, {
     headers: {
@@ -341,7 +432,7 @@ async function imgProxy(req, ctx, origin) {
 // L1 memory → L2 Cache API → origin. KV: never touched.
 async function anilist(req, ctx, origin) {
   const body = await req.json();
-  const ck = await sha1Key('al', JSON.stringify(body));
+  const ck = await ckFor('al', JSON.stringify(body));
 
   // L1 memory check (instant, zero cost)
   const mem = memGet(ck);
@@ -387,6 +478,24 @@ async function anilist(req, ctx, origin) {
   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
 }
 
+// ─── Cache epochs (manual purge) ─────────────────────────────────────────────
+// caches.default has NO delete API, so a "dump the cache" is done by salting
+// the cache key. Change the version below, deploy, and every old entry becomes
+// unreachable and is reclaimed when its TTL expires. Zero API calls, zero cost.
+//
+//   SCRAPED_EPOCH          → bumps every source (manganato, mangakatana, …)
+//   SCRAPED_EPOCH.manganato → bumps one source only
+const SCRAPED_EPOCH = 'v1';
+const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v2' };
+const IMG_EPOCH = 'v1';
+const ANILIST_EPOCH = 'v1';
+function ckFor(source, str) {
+  const epoch = source === 'img' ? IMG_EPOCH
+    : source === 'al' ? ANILIST_EPOCH
+    : SCRAPED_EPOCH_BY_SOURCE[source] ?? SCRAPED_EPOCH;
+  return sha1Key(`${source}:${epoch}`, str);
+}
+
 // ─── Generic scraper (Manganato, MangaKatana, MangaRead) ─────────────────────
 async function scraped(req, ctx, source, siteReferer, origin) {
   const target = new URL(req.url).searchParams.get('url');
@@ -396,7 +505,7 @@ async function scraped(req, ctx, source, siteReferer, origin) {
   // Worker an open HTML proxy for any URL. Add the same allowlist.
   if (!allowed(target)) return json({ error: 'Domain not allowed' }, 403, {}, origin);
 
-  const ck = await sha1Key(source, target);
+  const ck = await ckFor(source, target);
 
   const mem = memGet(ck);
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } }, origin);
