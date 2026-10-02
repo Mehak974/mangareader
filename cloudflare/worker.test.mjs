@@ -1,5 +1,5 @@
 /**
- * Local behaviour tests for worker.js — run BEFORE deploying.
+ * Local behaviour tests for worker.js â€” run BEFORE deploying.
  *
  *   node cloudflare/worker.test.mjs
  *
@@ -16,7 +16,7 @@ const { default: worker } = await import(
   'data:text/javascript;base64,' + Buffer.from(src).toString('base64')
 );
 
-// ── Stubs ────────────────────────────────────────────────────────────────────
+// â”€â”€ Stubs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const cacheStore = new Map();
 globalThis.caches = {
   default: {
@@ -51,21 +51,21 @@ function check(name, cond, detail = '') {
   else { fail++; console.log(`  FAIL ${name} ${detail}`); }
 }
 
-// ── 1. SSRF guard ────────────────────────────────────────────────────────────
+// â”€â”€ 1. SSRF guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nSSRF guard');
 {
   const r = await worker.fetch(new Request('https://w.test/img-proxy?url=https%3A%2F%2Fevil.com%2Fa.png'), {}, ctx());
   check('rejects unlisted domain', r.status === 403, `got ${r.status}`);
 }
 
-// ── 2. Missing url ───────────────────────────────────────────────────────────
+// â”€â”€ 2. Missing url â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nMissing url');
 {
   const r = await worker.fetch(new Request('https://w.test/img-proxy'), {}, ctx());
   check('returns 400', r.status === 400, `got ${r.status}`);
 }
 
-// ── 3. Dead primary host falls back to the mirror ────────────────────────────
+// â”€â”€ 3. Dead primary host falls back to the mirror â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nMirror fallback');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -79,7 +79,7 @@ console.log('\nMirror fallback');
   check('then the mirror', originCalls[1]?.includes('img-r1') === true, originCalls[1]);
 }
 
-// ── 4. Successful image is cached and replayed ───────────────────────────────
+// â”€â”€ 4. Successful image is cached and replayed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nCache write-through');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -95,7 +95,7 @@ console.log('\nCache write-through');
   check('origin fetched once', originCalls.length === 1, `origin calls: ${originCalls.length}`);
 }
 
-// ── 5. All hosts dead -> 502, and the breaker trips ──────────────────────────
+// â”€â”€ 5. All hosts dead -> 502, and the breaker trips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nCircuit breaker');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -112,7 +112,7 @@ console.log('\nCircuit breaker');
   check('origin calls stop once breaker opens', originCalls.length <= 12, `origin calls: ${originCalls.length}`);
 }
 
-// ── 6. 429 does NOT trip the breaker and caches briefly ──────────────────────
+// â”€â”€ 6. 429 does NOT trip the breaker and caches briefly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Uses imgur.com so breaker state from the previous block cannot leak in.
 console.log('\nThrottling (429)');
 {
@@ -132,7 +132,7 @@ console.log('\nThrottling (429)');
   check('breaker NOT tripped by 429', !String(r3.headers.get('X-Cache')).includes('BREAKER'), r3.headers.get('X-Cache'));
 }
 
-// ── 7. Error responses carry per-request CORS ────────────────────────────────
+// â”€â”€ 7. Error responses carry per-request CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nCORS on errors');
 {
   cacheStore.clear(); originRoutes = new Map();
@@ -142,7 +142,7 @@ console.log('\nCORS on errors');
     r.headers.get('Access-Control-Allow-Origin'));
 }
 
-// ── 8. Scraped HTML endpoint ────────────────────────────────────────────────
+// â”€â”€ 8. Scraped HTML endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nScraper endpoint');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -159,7 +159,7 @@ console.log('\nScraper endpoint');
   check('returns upstream html', body.html === '<html>chapter</html>');
 }
 
-// ── 8b. Scraper origin failure (e.g. Cloudflare 530) returns clean 502 JSON ──
+// â”€â”€ 8b. Scraper origin failure (e.g. Cloudflare 530) returns clean 502 JSON â”€â”€
 console.log('\nScraper origin 530');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -174,7 +174,7 @@ console.log('\nScraper origin 530');
   check('failure not cached as html', !body.html);
 }
 
-// ── 8c. Dead mirror fails over to a live one ─────────────────────────────────
+// â”€â”€ 8c. Dead mirror fails over to a live one â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nScraper mirror failover');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -188,7 +188,7 @@ console.log('\nScraper mirror failover');
   check('falls over to live mirror', r.status === 200 && body.html === '<html>ok</html>', `got ${r.status}`);
 }
 
-// ── 9. 404 from origin passes through, body is not relayed ───────────────────
+// â”€â”€ 9. 404 from origin passes through, body is not relayed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nOrigin 404');
 {
   cacheStore.clear(); originRoutes = new Map();
@@ -199,7 +199,7 @@ console.log('\nOrigin 404');
   check('upstream body NOT relayed', !text.includes('secret upstream page'), text);
 }
 
-// ── 7. A throttle that clears mid-retry is recovered, not surfaced ──────────
+// â”€â”€ 7. A throttle that clears mid-retry is recovered, not surfaced â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nThrottle recovery');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -215,7 +215,7 @@ console.log('\nThrottle recovery');
   check('origin image served', (await r.arrayBuffer()).byteLength === IMG.byteLength);
 }
 
-// ── 8. Persistent throttle gives up instead of hammering forever ─────────────
+// â”€â”€ 8. Persistent throttle gives up instead of hammering forever â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nPersistent throttle');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -227,7 +227,7 @@ console.log('\nPersistent throttle');
   check('breaker not tripped by 429', !String(r.headers.get('X-Cache')).includes('BREAKER'), r.headers.get('X-Cache'));
 }
 
-// ── 10. R2 ───────────────────────────────────────────────────────────────────
+// â”€â”€ 10. R2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function makeBucket() {
   const m = new Map();
   return {
@@ -308,7 +308,7 @@ console.log('\nPurge endpoint');
   check('object deleted from R2', bucket.m.size === 0);
 }
 
-// ── 11. Backend fallback for throttled / dead image hosts ────────────────────
+// â”€â”€ 11. Backend fallback for throttled / dead image hosts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nBackend fallback');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -335,7 +335,7 @@ console.log('\nBackend fallback');
   check('no BACKEND_URL = old behaviour', r.status === 502 && !originCalls.some(u => u.includes('backend')));
 }
 
-// ── 12. WebP conversion ──────────────────────────────────────────────────────
+// â”€â”€ 12. WebP conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function makeImages(fn) {
   const calls = [];
   return {
@@ -416,7 +416,7 @@ console.log('\nWebP conversion');
   check('only one transform ever billed', images.calls.length === 1, `calls: ${images.calls.length}`);
 }
 
-// ── 13. Errors and bad answers are never cached long-term ────────────────────
+// â”€â”€ 13. Errors and bad answers are never cached long-term â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 console.log('\nError caching');
 {
   cacheStore.clear(); originRoutes = new Map(); originCalls = [];
@@ -442,7 +442,7 @@ console.log('\nError caching');
   check('HTML-200 response is no-store', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
 }
 
-// ── 14. Diagnostics: X-Origin-Host + top-level status normalisation ───────────
+// â”€â”€ 14. Diagnostics: X-Origin-Host + top-level status normalisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // These headers are the only signal that a reader-facing image failure came
 // from a specific origin host, so they must survive every error path.
 console.log('\nDiagnostics headers');
@@ -492,10 +492,10 @@ console.log('\nTop-level error normalisation');
   check('scraper reports originStatus', body.originStatus === 403, String(body.originStatus));
 }
 
-// ── 15. AniList ──────────────────────────────────────────────────────────────
+// â”€â”€ 15. AniList â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // NOTE: cacheStore.clear() only empties the CDN stub. The Worker's module-level
 // MEM map survives, and every block below shares one isolate, so each block uses
-// a DISTINCT query — otherwise a block silently reads the previous block's
+// a DISTINCT query â€” otherwise a block silently reads the previous block's
 // memory entry and never reaches the origin (which is exactly the bug some of
 // these tests exist to catch).
 const alReq = (query, variables = {}) =>
@@ -620,6 +620,66 @@ console.log('\nAniList: 429 stays retryable');
   const r = await worker.fetch(alReq('query Q_429 { Media(id: 6) { id } }'), {}, ctx());
   check('429 relayed as 429', r.status === 429, `got ${r.status}`);
   check('429 not cached', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
+}
+
+// â”€â”€ 16. Hotlink protection + R2 kill switch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function countingBucket() {
+  const m = new Map();
+  const ops = { get: 0, put: 0, delete: 0 };
+  return {
+    m, ops,
+    async get(k) { ops.get++; const o = m.get(k); return o ? { body: new Response(o.buf).body, httpMetadata: o.opts.httpMetadata } : null; },
+    async put(k, buf, opts) { ops.put++; m.set(k, { buf, opts }); },
+    async delete(k) { ops.delete++; m.delete(k); },
+  };
+}
+
+console.log('\nHotlink protection');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('mangakakalot.gg', okImage);
+  const bucket = countingBucket();
+  const hp = (ref) => new Request('https://w.test/img-proxy?url=' + encodeURIComponent('https://mangakakalot.gg/hp/1.webp'),
+    ref ? { headers: { referer: ref } } : {});
+
+  const blocked = await worker.fetch(hp('https://some-scraper.example/page'), { IMG_BUCKET: bucket }, ctx());
+  check('foreign referer blocked', blocked.status === 403, `got ${blocked.status}`);
+  check('blocked hotlink costs 0 R2 ops', bucket.ops.get === 0 && bucket.ops.put === 0, JSON.stringify(bucket.ops));
+  check('blocked hotlink costs 0 origin calls', originCalls.length === 0, `calls: ${originCalls.length}`);
+
+  const own = await worker.fetch(hp('https://www.mangareader.pro/reader/1'), { IMG_BUCKET: bucket }, ctx());
+  check('own-site referer allowed', own.status === 200, `got ${own.status}`);
+
+  const sub = await worker.fetch(hp('https://mangareader.pro/reader/1'), { IMG_BUCKET: bucket }, ctx());
+  check('bare-domain referer allowed', sub.status === 200, `got ${sub.status}`);
+
+  // "no-referrer" pages and privacy extensions strip Referer entirely.
+  const none = await worker.fetch(hp(null), { IMG_BUCKET: bucket }, ctx());
+  check('empty referer allowed (no-referrer pages)', none.status === 200, `got ${none.status}`);
+
+  const off = await worker.fetch(hp('https://some-scraper.example/page'), { IMG_BUCKET: bucket, HOTLINK_PROTECT: 'off' }, ctx());
+  check('kill switch disables hotlink protection', off.status === 200, `got ${off.status}`);
+}
+
+console.log('\nR2 kill switch');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('mangakakalot.gg', okImage);
+  const bucket = countingBucket();
+  const r = await worker.fetch(imgReq('https://mangakakalot.gg/ks/1.webp'), { IMG_BUCKET: bucket, R2_CACHE: 'off' }, ctx());
+  await flush();
+  check('image still served with R2 off', r.status === 200, `got ${r.status}`);
+  check('R2_CACHE=off -> zero R2 operations', bucket.ops.get === 0 && bucket.ops.put === 0, JSON.stringify(bucket.ops));
+}
+{
+  // The point of the switch: without it the read is still recorded, so this
+  // guards against the switch being wired to only the write side.
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('mangakakalot.gg', okImage);
+  const bucket = countingBucket();
+  await worker.fetch(imgReq('https://mangakakalot.gg/ks/2.webp'), { IMG_BUCKET: bucket }, ctx());
+  await flush();
+  check('R2 used when switch is on', bucket.ops.get === 1 && bucket.ops.put === 1, JSON.stringify(bucket.ops));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

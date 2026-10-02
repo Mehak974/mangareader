@@ -365,6 +365,32 @@ async function purgeImage(req, env, origin) {
   return json({ purged: true, r2Key }, 200, {}, origin);
 }
 
+// ─── Hotlink protection ───────────────────────────────────────────────────────
+// True when a request names a Referer/Origin that is not one of our sites.
+// An empty Referer is allowed: browsers omit it under referrerPolicy
+// "no-referrer", and a privacy extension can strip it, so treating that as
+// foreign would break real readers. This only stops other websites from
+// hot-linking the proxy and spending our R2 and origin quota.
+//
+// Kill switch: HOTLINK_PROTECT = "off".
+//
+// Known trade-off: Vercel preview deployments (*.vercel.app) are not in
+// ALLOWED_WORKER_ORIGINS, so images 403 on preview builds. Set
+// HOTLINK_PROTECT = "off" while testing a preview, or add the hostname to
+// ALLOWED_WORKER_ORIGINS.
+function isForeignReferer(req, env) {
+  if (env && env.HOTLINK_PROTECT === 'off') return false;
+  const src = req.headers.get('origin') || req.headers.get('referer');
+  if (!src) return false;
+  let host;
+  try { host = new URL(src).hostname; } catch { return true; }
+  return !ALLOWED_WORKER_ORIGINS.some(o => {
+    let allowedHost;
+    try { allowedHost = new URL(o).hostname; } catch { allowedHost = o; }
+    return host === allowedHost || host.endsWith('.' + allowedHost);
+  });
+}
+
 // ─── Image proxy ──────────────────────────────────────────────────────────────
 // Uses caches.default for images — ALREADY FREE AND UNLIMITED.
 // KV is never touched here.
@@ -372,6 +398,7 @@ async function imgProxy(req, ctx, origin, env) {
   const target = new URL(req.url).searchParams.get('url');
   if (!target)         return errResponse(origin, 400, 'Missing ?url=');
   if (!allowed(target)) return errResponse(origin, 403, 'Domain not allowed');
+  if (isForeignReferer(req, env)) return errResponse(origin, 403, 'Hotlinking not allowed');
 
   const imgKey = await ckFor('img', target);
   const host = new URL(target).hostname;
@@ -391,8 +418,10 @@ async function imgProxy(req, ctx, origin, env) {
     });
   }
 
-  // L2b: R2. Only reached on an edge-cache miss, so reads stay far below quota.
-  const bucket = env && env.IMG_BUCKET;
+  // L2b: R2. Only reached on an edge-cache miss. Kill switch: R2_CACHE = "off"
+  // drops R2 to zero operations (no get, no put) without touching the binding,
+  // so the edge cache still serves everything.
+  const bucket = env && env.R2_CACHE !== 'off' ? env.IMG_BUCKET : null;
   const r2Key = r2KeyFor(imgKey);
   if (bucket) {
     try {
