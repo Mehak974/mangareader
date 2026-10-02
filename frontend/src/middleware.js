@@ -56,16 +56,26 @@ export function middleware(request) {
     return NextResponse.redirect(new URL("/browse", request.url), { status: 301 });
   }
 
-  // Ad script origins. The Hilltop popunder is a two-stage loader: the inline
+  // Ad script origins. The Hilltop popunder is a three-stage loader: the inline
   // snippet in components/AdScriptLoader.tsx passes CSP via 'unsafe-inline',
-  // then inserts a <script src> pointing at purple-text.com, which in turn
-  // inserts another one at www.quizzical-topic.com. 'unsafe-inline' allows
-  // inline code only — external script origins still need listing here, and
-  // script-src-elem falls back to script-src when unset.
+  // then inserts a <script src> pointing at purple-text.com (the hub), which in
+  // turn inserts the real payload script. That payload host is NOT stable — the
+  // zone config advertises it in its "script" setting, and it rotates (it was
+  // www.quizzical-topic.com, now www.untimely-promotion.com). 'unsafe-inline'
+  // allows inline code only — external script origins still need listing here,
+  // and script-src-elem falls back to script-src when unset. When Hilltop
+  // rotates again, find the current payload host with:
+  //   curl -s 'https://purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTOXS/0B3SMNzDIAw-NxTgMszu' | grep -oP '"script":"[^"]*"'
+  // then add the hostname from that URL to adScriptOrigins below, or the payload is blocked and no popunder
+  // ever fires.
   //
   // A-ADS is absent on purpose: it renders inside an iframe, so it is covered
   // by frame-src rather than script-src.
-  const adScriptOrigins = ['https://purple-text.com', 'https://www.quizzical-topic.com'];
+  const adScriptOrigins = [
+    'https://purple-text.com',
+    'https://www.untimely-promotion.com',
+    'https://www.quizzical-topic.com',
+  ];
 
   const cspHeader = `
     default-src 'self';
