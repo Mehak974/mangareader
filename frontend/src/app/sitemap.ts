@@ -34,6 +34,11 @@ const STATIC_ROUTES: Array<{
   { path: '/dmca',    changeFrequency: 'yearly',  priority: 0.3, lastModified: '2026-09-01' },
 ];
 
+// Top 10 most-opened discovered manga. Ranking is purely cumulative opens —
+  // no recency weighting and no activity window, so a title's rank reflects how
+  // often readers actually open it.
+const SITEMAP_TOP_MANGA = 10;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static routes
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(r => ({
@@ -59,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch { /* DB unavailable during build — skip */ }
 
-  // Discovered manga pages (most recently viewed first, capped at 5 000)
+  // Top-ranked discovered manga — the 10 most-opened titles.
   let mangaEntries: MetadataRoute.Sitemap = [];
   try {
     const discovered = await prisma.$queryRaw<
@@ -67,15 +72,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     >`
       SELECT slug, last_viewed_at AS "lastViewedAt", view_count AS "viewCount"
       FROM discovered_manga
-      ORDER BY last_viewed_at DESC
-      LIMIT 5000
+      ORDER BY view_count DESC, last_viewed_at DESC
+      LIMIT ${SITEMAP_TOP_MANGA}
     `;
-    mangaEntries = discovered.map(m => ({
+    const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
+    mangaEntries = discovered.map((m, i) => ({
       url:             `${SITE_URL}/manga/${m.slug}`,
       lastModified:    m.lastViewedAt,
       changeFrequency: 'weekly' as const,
-      // Boost popular titles toward 0.9; base floor at 0.5
-      priority:        Math.min(0.9, 0.5 + Math.min((m.viewCount ?? 0) / 100, 0.4)),
+      // Rank 1 gets 0.9, decaying to 0.5 by rank 10.
+      priority:        Number((0.9 - i * step).toFixed(2)),
     }));
   } catch { /* DB unavailable */ }
 
