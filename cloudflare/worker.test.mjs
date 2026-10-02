@@ -492,5 +492,135 @@ console.log('\nTop-level error normalisation');
   check('scraper reports originStatus', body.originStatus === 403, String(body.originStatus));
 }
 
+// ── 15. AniList ──────────────────────────────────────────────────────────────
+// NOTE: cacheStore.clear() only empties the CDN stub. The Worker's module-level
+// MEM map survives, and every block below shares one isolate, so each block uses
+// a DISTINCT query — otherwise a block silently reads the previous block's
+// memory entry and never reaches the origin (which is exactly the bug some of
+// these tests exist to catch).
+const alReq = (query, variables = {}) =>
+  new Request('https://w.test/api/anilist', {
+    method: 'POST',
+    headers: { origin: 'https://mangareader.pro', 'content-type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+const anilistOk = () => new Response(JSON.stringify({ data: { Media: { id: 30002 } } }), {
+  status: 200, headers: { 'Content-Type': 'application/json' },
+});
+// The exact payload AniList returns when it blocks Cloudflare's egress IPs.
+const anilistBlocked = () => new Response(JSON.stringify({
+  errors: [{ message: 'You have been manually blocked. Please come to the principal\'s office.', status: 403 }],
+  data: null,
+}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+console.log('\nAniList: blocked origin is not cached');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('graphql.anilist.co', anilistBlocked);
+  const q1 = 'query Q_Blocked { Media(id: 1) { id } }';
+
+  const r = await worker.fetch(alReq(q1), {}, ctx());
+  const body = await r.json();
+  check('blocked origin does not return 200', r.status !== 200, `got ${r.status}`);
+  check('reports the real upstream status', r.status === 403, `got ${r.status}`);
+  check('error text names the cause', /manually blocked/i.test(body.error || ''), JSON.stringify(body));
+  check('response is no-store', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
+
+  // The regression: this used to be cached for 24h and replayed to every reader.
+  const cdn = [...cacheStore.keys()].filter(k => k.includes('/al:v2'));
+  check('nothing written to CDN cache', cdn.length === 0, String(cdn));
+  check('no negative-cache entry either', ![...cacheStore.keys()].some(k => k.includes('/neg:al:v2')));
+
+  // A repeat must hit the origin again, not a poisoned cache entry.
+  const before = originCalls.length;
+  await worker.fetch(alReq(q1), {}, ctx());
+  check('repeat refetches upstream', originCalls.length > before, `${before} -> ${originCalls.length}`);
+}
+
+console.log('\nAniList: real payload is cached');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('graphql.anilist.co', anilistOk);
+  const q2 = 'query Q_Ok { Media(id: 2) { id } }';
+
+  const r1 = await worker.fetch(alReq(q2), {}, ctx());
+  await flush();
+  check('returns data', r1.status === 200 && (await r1.json()).data.Media.id === 30002);
+  check('MISS on first fetch', r1.headers.get('X-Cache') === 'MISS', r1.headers.get('X-Cache'));
+  const r2 = await worker.fetch(alReq(q2), {}, ctx());
+  check('second fetch served from cache', r2.headers.get('X-Cache') === 'MEM', r2.headers.get('X-Cache'));
+  check('origin called exactly once', originCalls.length === 1, `calls: ${originCalls.length}`);
+}
+
+console.log('\nAniList: sends a User-Agent');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  let seenUa = null;
+  originRoutes.set('graphql.anilist.co', (url, opts) => {
+    seenUa = opts?.headers?.['User-Agent'];
+    return anilistOk();
+  });
+  await worker.fetch(alReq('query Q_UA { Media(id: 3) { id } }'), {}, ctx());
+  check('identifies itself to AniList', /mangareader/i.test(String(seenUa)), String(seenUa));
+}
+
+console.log('\nAniList: backend fallback');
+{
+  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
+  originRoutes.set('graphql.anilist.co', anilistBlocked);
+  originRoutes.set('backend.test', anilistOk);
+  const q4 = 'query Q_Fallback { Media(id: 4) { id } }';
+
+  const r = await worker.fetch(alReq(q4), { BACKEND_URL: 'https://backend.test' }, ctx());
+  const body = await r.json();
+  check('served via backend', r.status === 200 && body.data?.Media?.id === 30002, `${r.status} ${JSON.stringify(body)}`);
+  check('backend called once', originCalls.filter(u => u.includes('backend.test')).length === 1, String(originCalls));
+  check('direct origin still tried first', originCalls[0]?.includes('graphql.anilist.co') === true, originCalls[0]);
+}
+{
+  // Backend also blocked -> the backend's answer is authoritative, and it names
+  // the same block, so the client still gets an honest diagnosis.
+  cacheStore.clear(); originRoutes = new Map();
+  originRoutes.set('graphql.anilist.co', anilistBlocked);
+  originRoutes.set('backend.test', anilistBlocked);
+  const r = await worker.fetch(alReq('query Q_BothBlocked { Media(id: 5) { id } }'), { BACKEND_URL: 'https://backend.test' }, ctx());
+  const body = await r.json();
+  check('surfaces original failure', /manually blocked/i.test(body.error || ''), JSON.stringify(body));
+}
+{
+  // An ordinary upstream error must NOT be misreported as the direct-path IP ban.
+  // Regression: an unknown id is a 404, not a block.
+  cacheStore.clear(); originRoutes = new Map();
+  originRoutes.set('graphql.anilist.co', anilistBlocked);
+  originRoutes.set('backend.test', () => new Response(JSON.stringify({
+    errors: [{ message: 'Not Found.', status: 404 }], data: { Media: null },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+  const r = await worker.fetch(alReq('query Q_NotFound { Media(id: 999999) { id } }'), { BACKEND_URL: 'https://backend.test' }, ctx());
+  const body = await r.json();
+  check('unknown id reported as 404', r.status === 404, `got ${r.status}`);
+  check('not misreported as a block', !/manually blocked/i.test(body.error || ''), JSON.stringify(body));
+}
+{
+  // Backend unreachable (not merely erroring) -> fall back to the direct
+  // diagnosis, which names the real cause.
+  cacheStore.clear(); originRoutes = new Map();
+  originRoutes.set('graphql.anilist.co', anilistBlocked);
+  originRoutes.set('backend.test', () => { throw new Error('ECONNREFUSED'); });
+
+  const r = await worker.fetch(alReq('query Q_Down { Media(id: 7) { id } }'), { BACKEND_URL: 'https://backend.test' }, ctx());
+  const body = await r.json();
+  check('unreachable backend -> direct diagnosis', /manually blocked/i.test(body.error || ''), JSON.stringify(body));
+}
+
+console.log('\nAniList: 429 stays retryable');
+{
+  cacheStore.clear(); originRoutes = new Map();
+  originRoutes.set('graphql.anilist.co', () => new Response('slow down', { status: 429 }));
+  const r = await worker.fetch(alReq('query Q_429 { Media(id: 6) { id } }'), {}, ctx());
+  check('429 relayed as 429', r.status === 429, `got ${r.status}`);
+  check('429 not cached', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

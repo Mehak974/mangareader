@@ -265,7 +265,7 @@ export default {
       // platform-level 500 instead of our JSON error.
       if (path === '/admin/img-purge')         return await purgeImage(req, env, origin);
       if (path.startsWith('/img-proxy'))       return await imgProxy(req, ctx, origin, env);
-      if (path.startsWith('/api/anilist'))     return await anilist(req, ctx, origin);
+      if (path.startsWith('/api/anilist'))     return await anilist(req, ctx, origin, env);
       if (path.startsWith('/api/manganato'))   return await scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
       if (path.startsWith('/api/mangakatana')) return await scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
       if (path.startsWith('/api/mangaread'))   return await scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
@@ -633,7 +633,117 @@ async function imgProxy(req, ctx, origin, env) {
 // ─── AniList ──────────────────────────────────────────────────────────────────
 // Cache key = hash of query+variables. Stored in caches.default (free).
 // L1 memory → L2 Cache API → origin. KV: never touched.
-async function anilist(req, ctx, origin) {
+//
+// Two things went wrong here in production:
+//
+//  1. AniList blocks Cloudflare's shared egress IPs and answers with
+//     {"errors":[{"status":403,"message":"You have been manually blocked"}]}.
+//     The old handler called r.json() unconditionally and cached whatever came
+//     back for 24h, so a single blocked request poisoned the cache and every
+//     reader got the block message until the TTL expired. Errors are now
+//     detected and never cached.
+//  2. The Worker sent no User-Agent at all. AniList's API terms require clients
+//     to identify themselves and reject anonymous traffic; the backend already
+//     sends `Mangareader.pro (+https://www.mangareader.pro)`, so the Worker
+//     does too. If Cloudflare's range is still blocked, BACKEND_URL provides a
+//     second path from a different network (Railway), same as for images.
+const ANILIST_UA = 'Mangareader.pro (+https://www.mangareader.pro)';
+
+/**
+ * AniList reports failures in a 200 envelope, so HTTP status alone is not
+ * enough: `{"errors":[...],"data":null}` is a failure and must never be cached
+ * or handed back as a result. Returns null when the payload is genuinely good.
+ */
+function anilistFailure(data, httpStatus) {
+  const hasErrors = Array.isArray(data?.errors) && data.errors.length > 0;
+  if (!hasErrors && httpStatus < 400) return null;
+  const first = hasErrors ? data.errors[0] : null;
+  const upStatus = Number(first?.status) || httpStatus;
+  const err = new Error(first?.message || `AniList origin error ${httpStatus}`);
+  // Keep a genuine 4xx diagnosable (403 block, 404 bad id, 429 throttle) but
+  // normalise everything else — including 5xx and 1xxx — to 502.
+  err.status = Number.isInteger(upStatus) && upStatus >= 400 && upStatus < 600
+    ? upStatus
+    : 502;
+  return err;
+}
+
+/**
+ * One upstream attempt. Throws on any failure so the caller can fall back
+ * rather than cache it.
+ */
+async function anilistOnce(body) {
+  const r = await fetch('https://graphql.anilist.co', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': ANILIST_UA,
+    },
+    body: JSON.stringify(body),
+  });
+  let data;
+  try {
+    data = await r.json();
+  } catch {
+    const err = new Error(`AniList returned non-JSON (${r.status})`);
+    err.status = r.status >= 400 ? r.status : 502;
+    throw err;
+  }
+  const failure = anilistFailure(data, r.status);
+  if (failure) throw failure;
+  return data;
+}
+
+/** Direct, then the backend as a fallback when the direct path is blocked. */
+async function anilistUpstream(body, env) {
+  try {
+    return await anilistOnce(body);
+  } catch (directErr) {
+    const backend = env && env.BACKEND_URL;
+    if (!backend) throw directErr;
+    console.warn(`[anilist] direct fetch failed (${directErr.message}), trying backend`);
+    // Set when the backend produced a real AniList answer that was itself an
+    // error. That answer is authoritative and must be reported, otherwise a
+    // perfectly ordinary "404 Not Found" for an unknown id gets misreported as
+    // the direct-path IP ban.
+    let backendFailure = null;
+    try {
+      const br = await fetch(
+        `${String(backend).replace(/\/$/, '')}/api/anilist`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(12000),
+          cf: { cacheTtl: 0 },
+        }
+      );
+      let data;
+      try {
+        data = await br.json();
+      } catch {
+        throw new Error(`backend ${br.status}: non-JSON response`);
+      }
+      // The backend can answer 200 with AniList's own error envelope (its
+      // anilistClient relays upstream errors), so validate here too — accepting
+      // it blindly is how a block gets cached as a result in the first place.
+      const failure = anilistFailure(data, br.status);
+      if (failure) {
+        backendFailure = failure;
+        throw failure;
+      }
+      return data;
+    } catch (err) {
+      // AniList answered through the backend -> report its answer. The backend
+      // was unreachable or returned junk -> the direct error is the better
+      // diagnosis, because it names the real cause.
+      throw backendFailure || directErr;
+    }
+  }
+}
+
+async function anilist(req, ctx, origin, env) {
   const body = await req.json();
   const ck = await ckFor('al', JSON.stringify(body));
 
@@ -642,7 +752,7 @@ async function anilist(req, ctx, origin) {
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 3600 } }, origin);
 
   // L2 Cache API check (free CDN)
-  const cacheHit = await cacheGet(ck);
+  const cacheHit = cacheGet ? await cacheGet(ck) : null;
   if (cacheHit) {
     memSet(ck, cacheHit, 300); // backfill memory for next requests
     return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 86400 } }, origin);
@@ -651,19 +761,7 @@ async function anilist(req, ctx, origin) {
   // Coalesced origin fetch — 100 concurrent users = 1 upstream call
   let promise = IN_FLIGHT.get(ck);
   if (!promise) {
-    promise = (async () => {
-      const r = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (r.status === 429) {
-        const err = new Error('AniList rate limited — retry');
-        err.status = 429;
-        throw err;
-      }
-      return r.json();
-    })().finally(() => IN_FLIGHT.delete(ck));
+    promise = anilistUpstream(body, env).finally(() => IN_FLIGHT.delete(ck));
     IN_FLIGHT.set(ck, promise);
   }
 
@@ -671,8 +769,11 @@ async function anilist(req, ctx, origin) {
   try {
     data = await promise;
   } catch (e) {
-    if (e.status === 429) return json({ error: 'AniList rate limited — retry' }, 429, {}, origin);
-    throw e;
+    const s = e && e.status;
+    const status = Number.isInteger(s) && s >= 400 && s < 600 ? s : 502;
+    // 429 stays 429 so the client's retry ladder engages. Everything else is
+    // reported honestly but is never written to either cache.
+    return json({ error: e.message, originStatus: s ?? null }, status, { 'Cache-Control': 'no-store' }, origin);
   }
 
   const ttl = 86400; // 24h — AniList data barely changes
@@ -691,7 +792,10 @@ async function anilist(req, ctx, origin) {
 const SCRAPED_EPOCH = 'v1';
 const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v3' };  // bumped: drop cached failures
 const IMG_EPOCH = 'v1';
-const ANILIST_EPOCH = 'v1';
+// bumped v1 -> v2: every v1 entry is a cached copy of AniList's "you have been
+// manually blocked" response, stored for 24h as if it were data. Bumping the
+// epoch makes them unreachable so they expire naturally.
+const ANILIST_EPOCH = 'v2';
 function ckFor(source, str) {
   const epoch = source === 'img' ? IMG_EPOCH
     : source === 'al' ? ANILIST_EPOCH

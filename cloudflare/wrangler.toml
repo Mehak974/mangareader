@@ -34,11 +34,17 @@ bucket_name = "mangareader-images"
 [images]
 binding = "IMAGES"
 
-# Backend fallback for images the Worker can't fetch (CDN throttles Cloudflare
-# IPs). Set to your Railway backend, e.g. "https://api-mangareader.railway.app".
-# Empty string = fallback disabled.
+# Backend fallback, used for both images and AniList.
+#
+# AniList is REQUIRED here, not optional: it blocks Cloudflare's shared egress
+# IPs and answers {"errors":[{"status":403,"message":"You have been manually
+# blocked..."}]}. Cloudflare cannot route around that, so the Worker relays via
+# the Railway backend, whose IP is not blocked.
+#
+# Images use this too: the image CDNs throttle Cloudflare's IPs, and a different
+# network path often succeeds where every Worker retry fails.
 [vars]
-BACKEND_URL = ""
+BACKEND_URL = "https://api.mangareader.pro"
 
 [observability.logs]
 enabled = true
@@ -75,7 +81,7 @@ invocation_logs = true
 binding = "IMAGES"
 
 [env.production.vars]
-BACKEND_URL = ""
+BACKEND_URL = "https://api.mangareader.pro"
 
 [[env.production.r2_buckets]]
 binding     = "IMG_BUCKET"
