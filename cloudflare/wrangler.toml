@@ -13,10 +13,31 @@ workers_dev        = true
 # (Railway) rather than closest to the user, reducing cache-miss round-trip time.
 # Free, takes 2 minutes, no config here.
 
+# ── Custom domain ─────────────────────────────────────────────────────────────
+# cdn.mangareader.pro is the host the frontends should use as
+# NEXT_PUBLIC_WORKER_URL: a zone-backed hostname with a managed certificate, no
+# workers.dev branding, and zone-level WAF / rate-limiting rules attachable to
+# it. Cloudflare creates the DNS record and certificate automatically.
+#
+# NOTE on the original justification: it claimed the edge cache does not work on
+# *.workers.dev, so every image view there becomes an R2 read. Measured on
+# 2026-10-02 that was NOT the case — a second request returned X-Cache: HIT on
+# both workers.dev and this domain, because caches.default is scoped per data
+# center and is indifferent to the hostname. The migration is still worth doing
+# for the hostname and WAF reasons above, but not for a cache win. Verify your
+# own numbers before treating it as one.
+#
+# The api.* routes were REMOVED. They were attached but inert: api.mangareader.pro
+# resolves to the Railway backend (Server: railway-hikari), and a request to
+# /img-proxy there returns 404, not the Worker's 400 "Missing ?url=", so the
+# Worker never saw that traffic. Leaving them attached was a live hazard — if
+# DNS ever moved onto this zone, all backend traffic would hit the Worker and
+# 404. The backend is reached over BACKEND_URL instead.
+#
+# workers_dev stays true until all three frontends are redeployed with the cdn
+# URL; then set it false to close the old address.
 routes = [
-  { pattern = "api.mangareader.pro/*",   zone_name = "mangareader.pro"   },
-  { pattern = "api.mangaread.pro/*",     zone_name = "mangaread.pro"     },
-  { pattern = "api.manireader.online/*", zone_name = "manireader.online" },
+  { pattern = "cdn.mangareader.pro", custom_domain = true },
 ]
 
 # ── R2 image store ────────────────────────────────────────────────────────────
@@ -68,9 +89,7 @@ compatibility_date = "2024-01-15"
 workers_dev   = true
 
 routes = [
-  { pattern = "api.mangareader.pro/*",   zone_name = "mangareader.pro"   },
-  { pattern = "api.mangaread.pro/*",     zone_name = "mangaread.pro"     },
-  { pattern = "api.manireader.online/*", zone_name = "manireader.online" },
+  { pattern = "cdn.mangareader.pro", custom_domain = true },
 ]
 
 [env.production.observability.logs]
