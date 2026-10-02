@@ -4,8 +4,11 @@
  * CACHING ARCHITECTURE (zero KV reads for 99% of traffic):
  *
  *   L1 — Module-level Map    Free │ ~0ms   │ Lives per isolate instance (~mins)
- *   L2 — caches.default      Free │ ~5ms   │ Cloudflare CDN edge, UNLIMITED
+ *   L2 — caches.default      Free │ ~5ms   │ Per-data-center edge cache (NOT global)
+ *   L2b— R2 (IMG_BUCKET)     Free*│ ~30ms  │ Global, persistent, images only. Optional:
+ *                                           skipped entirely if the binding is absent.
  *   L3 — Origin fetch        Paid │ ~300ms │ Only on true cache miss
+ *                                           (converted to WebP here if env.IMAGES is bound)
  *
  * KV is NOT used here. caches.default replaces it completely for read-through
  * caching and has ZERO operation limits on the free plan.
@@ -18,7 +21,7 @@
 
 // ─── L1: Module-level memory cache ───────────────────────────────────────────
 const MEM = new Map();
-const MEM_MAX = 300;
+const MEM_MAX = 100;   // entries hold whole chapter HTML; 300 risked the 128MB isolate cap
 
 // Per-IP rate limiting (module-level, survives within an isolate instance)
 // A single manga chapter is 20-50 images and they all arrive from the SAME
@@ -257,14 +260,24 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
     const path = new URL(req.url).pathname;
     try {
-      if (path.startsWith('/img-proxy'))       return imgProxy(req, ctx, origin);
-      if (path.startsWith('/api/anilist'))     return anilist(req, ctx, origin);
-      if (path.startsWith('/api/manganato'))   return scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
-      if (path.startsWith('/api/mangakatana')) return scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
-      if (path.startsWith('/api/mangaread'))   return scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
+      // `return await` (not bare `return`): without it a rejected promise from
+      // the handler escapes this try/catch and surfaces as an unhandled
+      // platform-level 500 instead of our JSON error.
+      if (path === '/admin/img-purge')         return await purgeImage(req, env, origin);
+      if (path.startsWith('/img-proxy'))       return await imgProxy(req, ctx, origin, env);
+      if (path.startsWith('/api/anilist'))     return await anilist(req, ctx, origin);
+      if (path.startsWith('/api/manganato'))   return await scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
+      if (path.startsWith('/api/mangakatana')) return await scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
+      if (path.startsWith('/api/mangaread'))   return await scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
       return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
     } catch (e) {
-      return json({ error: e.message }, 500, {}, origin);
+      console.error(`[worker] ${path} failed:`, e && e.message);
+      // Relay a real 4xx (403/404) so it stays diagnosable, but normalise
+      // upstream 5xx and 429 to 502 — those are gateway failures from the
+      // client's point of view, and 5xx is what triggers the backend fallback.
+      const s = e && e.status;
+      const status = Number.isInteger(s) && s >= 400 && s < 500 && s !== 429 ? s : 502;
+      return json({ error: e.message, originStatus: s ?? null }, status, {}, origin);
     }
   },
 };
@@ -287,10 +300,75 @@ function candidatesFor(url) {
   return [url, ...mirrors.slice(0, 1)];
 }
 
+// ─── WebP conversion (Cloudflare Images binding: env.IMAGES) ─────────────────
+// Runs once per image on a cold origin fetch, BEFORE the R2 / edge-cache write,
+// so every later hit (and every coalesced waiter) gets the smaller WebP.
+// Fails safe: no binding, kill switch, error, quota exhausted, or a "smaller"
+// result that isn't actually smaller -> the original bytes are used untouched.
+const WEBP_QUALITY = 80;
+const WEBP_SKIP = ['image/webp', 'image/avif', 'image/gif', 'image/svg+xml'];  // already efficient / animated / vector
+
+async function toWebp(env, buf, ct) {
+  if (!env || !env.IMAGES || env.WEBP_CONVERT === 'off') return null;
+  const type = ct.toLowerCase().split(';')[0].trim();
+  if (!type.startsWith('image/') || WEBP_SKIP.includes(type)) return null;
+  if (buf.byteLength === 0 || buf.byteLength > R2_MAX_BYTES) return null;
+  try {
+    const result = await env.IMAGES.input(new Response(buf).body)
+      .output({ format: 'image/webp', quality: WEBP_QUALITY });
+    const out = result.response();
+    const outType = (out.headers.get('content-type') || '').toLowerCase();
+    const outBuf = await out.arrayBuffer();
+    if (!outType.startsWith('image/webp') || outBuf.byteLength === 0 || outBuf.byteLength >= buf.byteLength) return null;
+    return { buf: outBuf, ct: 'image/webp' };
+  } catch (e) {
+    console.warn(`[webp] conversion failed, using original: ${e.message}`);
+    return null;
+  }
+}
+
+// ─── R2 (persistent image store) ─────────────────────────────────────────────
+// Binding: IMG_BUCKET. Everything here degrades to a no-op when it is missing
+// or when R2 errors, so R2 can never take image serving down.
+const R2_MAX_BYTES = 10 * 1024 * 1024;   // never store anything bigger than 10MB
+const R2_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+// 'img:v1:<sha1>' -> 'img/v1/<sha1>' so a lifecycle rule can target the img/ prefix
+const r2KeyFor = (imgKey) => imgKey.split(':').join('/');
+
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+// POST /admin/img-purge  {"url": "<exact image url the frontend proxies>"}
+// Authorization: Bearer <ADMIN_TOKEN secret>. 404s when no secret is configured.
+async function purgeImage(req, env, origin) {
+  if (req.method !== 'POST' || !env || !env.ADMIN_TOKEN) {
+    return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
+  }
+  const auth = req.headers.get('authorization') || '';
+  if (!safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
+    return new Response('Unauthorized', { status: 401, headers: corsHeaders(origin) });
+  }
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400, {}, origin); }
+  if (!body.url || !allowed(body.url)) return json({ error: 'Missing or disallowed url' }, 400, {}, origin);
+
+  const imgKey = await ckFor('img', body.url);
+  const r2Key = r2KeyFor(imgKey);
+  if (env.IMG_BUCKET) await env.IMG_BUCKET.delete(r2Key);
+  // Only clears this data center's edge copy; the rest expire on their own, or
+  // bump IMG_EPOCH and redeploy to invalidate every edge copy at once.
+  await caches.default.delete(new Request(`https://img.internal/${imgKey}`));
+  return json({ purged: true, r2Key }, 200, {}, origin);
+}
+
 // ─── Image proxy ──────────────────────────────────────────────────────────────
 // Uses caches.default for images — ALREADY FREE AND UNLIMITED.
 // KV is never touched here.
-async function imgProxy(req, ctx, origin) {
+async function imgProxy(req, ctx, origin, env) {
   const target = new URL(req.url).searchParams.get('url');
   if (!target)         return errResponse(origin, 400, 'Missing ?url=');
   if (!allowed(target)) return errResponse(origin, 403, 'Domain not allowed');
@@ -313,20 +391,44 @@ async function imgProxy(req, ctx, origin) {
     });
   }
 
+  // L2b: R2. Only reached on an edge-cache miss, so reads stay far below quota.
+  const bucket = env && env.IMG_BUCKET;
+  const r2Key = r2KeyFor(imgKey);
+  if (bucket) {
+    try {
+      const obj = await bucket.get(r2Key);
+      if (obj) {
+        const ct = obj.httpMetadata?.contentType || 'image/jpeg';
+        const base = { 'Content-Type': ct, 'Cache-Control': R2_CACHE_CONTROL };
+        // Stream once, serve the user and backfill this data center's edge cache.
+        const [toClient, toEdge] = obj.body.tee();
+        ctx.waitUntil(
+          caches.default.put(cacheKey, new Response(toEdge, { headers: { ...base, 'X-Cache': 'MISS' } }))
+            .catch(() => {})
+        );
+        return new Response(toClient, { headers: { ...base, 'X-Cache': 'R2', ...corsHeaders(origin) } });
+      }
+    } catch (e) {
+      console.warn(`[r2] get failed for ${r2Key}: ${e.message}`);   // fall through to origin
+    }
+  }
+
   const candidates = candidatesFor(target);
 
   // Recent origin failure for this exact image — serve it instantly instead of
   // repeating dead fetches per visitor.
   const neg = await negGet(imgKey);
   if (neg) {
-    return errResponse(origin, 502, neg.msg, { 'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status) });
+    return errResponse(origin, 502, neg.msg, {
+      'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status), 'X-Origin-Host': host,
+    });
   }
 
   // Origin host is in cooldown. If a mirror is available the request still has
   // a chance, so only bail outright when there is nowhere left to try.
   if (breakerOpen(host) && candidates.length === 1) {
     return errResponse(origin, 502, `Origin ${host} temporarily unavailable`, {
-      'X-Cache': 'BREAKER', 'X-Origin-Status': '503', 'Retry-After': '30',
+      'X-Cache': 'BREAKER', 'X-Origin-Status': '503', 'X-Origin-Host': host, 'Retry-After': '30',
     });
   }
 
@@ -335,15 +437,15 @@ async function imgProxy(req, ctx, origin) {
     const result = await IN_FLIGHT.get(imgKey);
     if (result.type === 'error') {
       return errResponse(origin, result.status, result.body, {
-        'X-Cache': 'HIT-INFLIGHT', 'X-Origin-Status': String(result.originStatus ?? result.status),
+        'X-Cache': 'HIT-INFLIGHT', 'X-Origin-Status': String(result.originStatus ?? result.status), 'X-Origin-Host': host,
       });
     }
     // Build headers fresh for THIS request. The shared result carries no
     // CORS headers, so a waiting visitor never inherits the first
     // requester's Access-Control-Allow-Origin.
     return new Response(result.buf, {
-      headers: { 'Content-Type': result.ct, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) },
-      cf: { cacheEverything: true, cacheTtl: 31536000 },
+      headers: { 'Content-Type': result.ct, 'Cache-Control': result.cacheable ? 'public, max-age=31536000, immutable' : 'no-store', 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) },
+      ...(result.cacheable ? { cf: { cacheEverything: true, cacheTtl: 31536000 } } : {}),
     });
   }
 
@@ -368,6 +470,8 @@ async function imgProxy(req, ctx, origin) {
       let errorStatus = 502;
       let throttled = false;
       let clientStatus = null;   // a non-5xx origin status worth surfacing as-is
+      let triedBackend = false;
+      let viaBackend = false;
 
       for (let attempt = 0; attempt < MAX_429_ATTEMPTS; attempt++) {
         for (const cand of candidates) {
@@ -402,6 +506,25 @@ async function imgProxy(req, ctx, origin) {
         }
         if (originFetch) break;
 
+        // Last-resort fallback: ask the backend (Railway) to fetch it. The image
+        // CDN throttles Cloudflare's shared egress IPs, so a different network
+        // path often succeeds where every Worker retry fails. Tried once, right
+        // after the first failed round, so the reader doesn't wait out backoffs.
+        if (!triedBackend && env && env.BACKEND_URL) {
+          triedBackend = true;
+          try {
+            const br = await fetch(
+              `${String(env.BACKEND_URL).replace(/\/$/, '')}/api/proxy-image?url=${encodeURIComponent(target)}`,
+              { signal: AbortSignal.timeout(10000), cf: { cacheTtl: 0 } }
+            );
+            const bct = (br.headers.get('content-type') || '').toLowerCase();
+            if (br.ok && bct.startsWith('image/')) { originFetch = br; viaBackend = true; break; }
+            try { br.body?.cancel().catch(() => {}); } catch { /* ignore */ }
+          } catch (err) {
+            console.warn(`[img] backend fallback failed for ${target}: ${err.message}`);
+          }
+        }
+
         // A hard failure (5xx / network) is not worth many attempts — the
         // circuit breaker handles repetition. Only a throttle earns patience.
         if (!throttled && attempt >= MAX_5XX_ATTEMPTS - 1) break;
@@ -426,28 +549,64 @@ async function imgProxy(req, ctx, origin) {
         return { type: 'error', status: surfaced, body: lastError, originStatus: errorStatus };
       }
 
-      breakerOk(new URL(target).hostname);
+      if (!viaBackend) breakerOk(new URL(target).hostname);
 
-      const ct = originFetch.headers.get('content-type') || 'image/jpeg';
-      const buf = await originFetch.arrayBuffer();
+      let ct = originFetch.headers.get('content-type') || 'image/jpeg';
+      let buf;
+      try {
+        buf = await originFetch.arrayBuffer();
+      } catch (err) {
+        // Connection dropped while the body was streaming ("Network connection
+        // lost"). Previously this rejected the shared promise and became an
+        // uncaught 500 for every coalesced waiter.
+        breakerFail(new URL(target).hostname);
+        negSet(ctx, imgKey, { status: 502, msg: 'Origin connection lost' }, 10);
+        return { type: 'error', status: 502, body: 'Origin connection lost', originStatus: 502 };
+      }
+
+      // Convert to WebP once, here, so R2, the edge cache, the user and any
+      // coalesced waiters all share the same (smaller) bytes.
+      const origBytes = buf.byteLength;
+      const webp = await toWebp(env, buf, ct);
+      if (webp) { buf = webp.buf; ct = webp.ct; }
+
+      // Persist to R2 (non-blocking). Only real images: an origin that answers
+      // 200 with an HTML error/challenge page must never be stored for a year.
+      if (bucket && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
+        ctx.waitUntil(
+          bucket.put(r2Key, buf, {
+            httpMetadata: { contentType: ct, cacheControl: R2_CACHE_CONTROL },
+            customMetadata: {
+              src: host, cachedAt: String(Date.now()),
+              ...(webp ? { converted: 'webp', origBytes: String(origBytes) } : {}),
+            },
+          }).catch(e => console.warn(`[r2] put failed for ${r2Key}: ${e.message}`))
+        );
+      }
 
       // Populate CDN cache (non-blocking).
       // Store origin-AGNOST headers only. Baking Access-Control-Allow-Origin
       // into the cached object leaks one visitor's origin to every other
       // visitor and, on re-merge, produces an invalid comma-joined value.
       // CORS is re-derived per request at serve time instead.
-      const cacheResp = new Response(buf, {
-        headers: {
-          'Content-Type':  ct,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          'X-Cache':       'MISS',
-        },
-        cf: { cacheEverything: true, cacheTtl: 31536000 },
-      });
-      ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
+      // Only real images are cached for a year. An origin that answers 200 with
+      // an HTML challenge/error page is still relayed, but never cached, so a
+      // one-off bad answer can't stick for months.
+      const cacheable = ct.toLowerCase().startsWith('image/') && buf.byteLength > 0;
+      if (cacheable) {
+        const cacheResp = new Response(buf, {
+          headers: {
+            'Content-Type':  ct,
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'X-Cache':       'MISS',
+          },
+          cf: { cacheEverything: true, cacheTtl: 31536000 },
+        });
+        ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
+      }
 
       // Return buffer + content-type so concurrent waiters each build their own Response
-      return { type: 'image', buf, ct };
+      return { type: 'image', buf, ct, cacheable };
     } finally {
       IN_FLIGHT.delete(imgKey);
     }
@@ -457,17 +616,17 @@ async function imgProxy(req, ctx, origin) {
   const result = await promise;
   if (result.type === 'error') {
     return errResponse(origin, result.status, result.body, {
-      'X-Cache': 'MISS', 'X-Origin-Status': String(result.originStatus ?? result.status),
+      'X-Cache': 'MISS', 'X-Origin-Status': String(result.originStatus ?? result.status), 'X-Origin-Host': host,
     });
   }
   return new Response(result.buf, {
     headers: {
       'Content-Type': result.ct,
-      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cache-Control': result.cacheable ? 'public, max-age=31536000, immutable' : 'no-store',
       'X-Cache': 'MISS',
       ...corsHeaders(origin),
     },
-    cf: { cacheEverything: true, cacheTtl: 31536000 },
+    ...(result.cacheable ? { cf: { cacheEverything: true, cacheTtl: 31536000 } } : {}),
   });
 }
 
@@ -530,7 +689,7 @@ async function anilist(req, ctx, origin) {
 //   SCRAPED_EPOCH          → bumps every source (manganato, mangakatana, …)
 //   SCRAPED_EPOCH.manganato → bumps one source only
 const SCRAPED_EPOCH = 'v1';
-const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v2' };
+const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v3' };  // bumped: drop cached failures
 const IMG_EPOCH = 'v1';
 const ANILIST_EPOCH = 'v1';
 function ckFor(source, str) {
@@ -564,6 +723,7 @@ async function scraped(req, ctx, source, siteReferer, origin) {
   if (IN_FLIGHT.has(ck)) {
     try {
       const data = await IN_FLIGHT.get(ck);
+      if (data.failed) throw new Error('shared origin failure');
       memSet(ck, data, 300);
       return json(data, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
     } catch {
@@ -573,8 +733,25 @@ async function scraped(req, ctx, source, siteReferer, origin) {
 
   const promise = (async () => {
     try {
-      const targetOrigin = new URL(target).origin + '/';
-      const r = await fetch(target, {
+      // Manganato domains rotate and die independently (530 = Cloudflare can't
+      // reach the origin). Try the same path on each sibling mirror in turn.
+      const MIRRORS = ['www.manganato.gg', 'manganato.gg', 'www.manganato.com', 'manganato.com'];
+      const tu = new URL(target);
+      const hosts = MIRRORS.includes(tu.hostname)
+        ? [tu.hostname, ...MIRRORS.filter(h => h !== tu.hostname)] : [tu.hostname];
+      let r;
+      for (const h of hosts) {
+        const u = new URL(target); u.hostname = h;
+        try {
+          r = await doFetch(u.toString());
+          if (r.ok || (r.status < 500 && r.status !== 429)) break;
+          try { r.body?.cancel().catch(() => {}); } catch {}
+        } catch (e) { r = null; }
+      }
+      if (!r) throw new Error('all mirrors unreachable');
+      async function doFetch(url) {
+        const targetOrigin = new URL(url).origin + '/';
+        return fetch(url, {
         headers: {
           'User-Agent':      ua(),
           'Referer':         targetOrigin,
@@ -586,8 +763,15 @@ async function scraped(req, ctx, source, siteReferer, origin) {
           'Sec-Fetch-Site':  'same-origin',
           'Upgrade-Insecure-Requests': '1',
         },
-      });
-      if (!r.ok) throw new Error(`${source} ${r.status}`);
+        });
+      }
+      if (!r.ok) {
+        // 530 / 1xxx = Cloudflare refusing to reach a CF-fronted origin (dead
+        // domain, DNS error, edge ban). Log the target so it is diagnosable.
+        console.warn(`[scraped:${source}] origin ${r.status} for ${target}`);
+        try { r.body?.cancel().catch(() => {}); } catch { /* ignore */ }
+        return { failed: true, originStatus: r.status };
+      }
 
       const html = await r.text();
       const data = { html, status: r.status };
@@ -603,6 +787,17 @@ async function scraped(req, ctx, source, siteReferer, origin) {
 
   IN_FLIGHT.set(ck, promise);
 
-  const data = await promise;
+  let data;
+  try {
+    data = await promise;
+  } catch (e) {
+    console.warn(`[scraped:${source}] fetch threw for ${target}: ${e.message}`);
+    return json({ error: `${source} unreachable`, detail: e.message }, 502, { 'Cache-Control': 'no-store' }, origin);
+  }
+  if (data.failed) {
+    const status = data.originStatus >= 500 || data.originStatus === 429 ? 502 : data.originStatus;
+    return json({ error: `${source} origin returned ${data.originStatus}`, originStatus: data.originStatus },
+      status, { 'Cache-Control': 'no-store' }, origin);
+  }
   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
 }
