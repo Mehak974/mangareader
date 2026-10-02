@@ -5,7 +5,7 @@
 name               = "mangareader-proxy"
 main               = "worker.js"
 compatibility_date = "2024-01-15"
-workers_dev        = true
+workers_dev        = false
 
 # ── Smart Placement ────────────────────────────────────────────────────────────
 # Enable in the Cloudflare dashboard → Workers → your worker → Settings →
@@ -42,8 +42,10 @@ routes = [
 
 # ── R2 image store ────────────────────────────────────────────────────────────
 # 1) npx wrangler r2 bucket create mangareader-images
-# 2) Dashboard → R2 → mangareader-images → Settings → Object lifecycle rules:
-#    expire prefix "img/" after 14 days (keeps you inside the 10GB free tier).
+# 2) Expiry rule is APPLIED: rule "Lifetime", prefix img/, expire after 7 days.
+#    Manga chapters are immutable once cached, so a short TTL only costs a
+#    re-fetch of a chapter nobody is reading. Recreate with:
+#      npx wrangler r2 bucket lifecycle add mangareader-images Lifetime img/ --expire-days 7
 # 3) Optional purge endpoint:  npx wrangler secret put ADMIN_TOKEN
 [[r2_buckets]]
 binding     = "IMG_BUCKET"
@@ -51,7 +53,8 @@ bucket_name = "mangareader-images"
 
 # WebP conversion before caching. Billed as Cloudflare Images "unique
 # transformations": first 5,000/month free, then $0.50 per 1,000. Already-WebP
-# images are skipped. Remove this block (or set WEBP_CONVERT = "off") to disable.
+# images are skipped. Quality is WEBP_QUALITY in worker.js. Remove this block (or
+# set WEBP_CONVERT = "off") to disable.
 [images]
 binding = "IMAGES"
 

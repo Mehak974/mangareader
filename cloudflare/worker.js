@@ -305,7 +305,7 @@ function candidatesFor(url) {
 // so every later hit (and every coalesced waiter) gets the smaller WebP.
 // Fails safe: no binding, kill switch, error, quota exhausted, or a "smaller"
 // result that isn't actually smaller -> the original bytes are used untouched.
-const WEBP_QUALITY = 80;
+const WEBP_QUALITY = 70;
 const WEBP_SKIP = ['image/webp', 'image/avif', 'image/gif', 'image/svg+xml'];  // already efficient / animated / vector
 
 async function toWebp(env, buf, ct) {

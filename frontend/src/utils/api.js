@@ -9,10 +9,13 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001";
 
-export const WORKER_URL =
-  process.env.NEXT_PUBLIC_WORKER_URL ||
-  process.env.NEXT_PUBLIC_SCRAPER_URL ||
-  "";
+// Image/scraper host. Deliberately NOT falling back to NEXT_PUBLIC_SCRAPER_URL:
+// that is the Express backend, which serves /api/proxy-image and has no
+// /img-proxy at all. With the old fallback, an unset NEXT_PUBLIC_WORKER_URL
+// built `${BACKEND}/img-proxy?...`, which 404s every image on the site.
+// With no value here, proxyImage() drops through to the backend's
+// /api/proxy-image, which does exist.
+export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || "";
 
 const ANILIST_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
 
