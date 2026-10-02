@@ -125,8 +125,11 @@ const BREAKER_COOLDOWN_MS = 60 * 1000;
 function breakerOpen(host) {
   const e = HOST_FAIL.get(host);
   if (!e) return false;
-  if (Date.now() >= e.openUntil) { HOST_FAIL.delete(host); return false; }
-  return true;
+  // openUntil is 0 while the host is merely counting failures. Deleting on
+  // expiry must only apply to a breaker that actually opened, otherwise every
+  // status check resets the tally and the breaker can never trip.
+  if (e.openUntil && Date.now() >= e.openUntil) { HOST_FAIL.delete(host); return false; }
+  return e.openUntil > 0;
 }
 function breakerFail(host) {
   const e = HOST_FAIL.get(host) || { fails: 0, openUntil: 0 };
@@ -266,6 +269,24 @@ export default {
   },
 };
 
+// ─── Image mirrors ───────────────────────────────────────────────────────────
+// Manganato/MangaKakalot chapter HTML references several 2xstorage hosts, and
+// they rot independently: img-r1 serves, img-r2 answers 503, imgs-2 404s on
+// page images. The path layout is identical across hosts, so when the host in
+// the HTML is dead we replay the same path against a verified-good mirror.
+const MIRROR_HOSTS = ['img-r1.2xstorage.com'];
+const MAX_429_ATTEMPTS = 5;   // throttle clears in ~10s → 1+2+4+8s of backoff
+const MAX_5XX_ATTEMPTS = 2;   // hard failures give up early, breaker covers repeats
+
+function candidatesFor(url) {
+  const host = new URL(url).hostname;
+  if (!host.endsWith('2xstorage.com')) return [url];
+  const tail = url.slice(url.indexOf(host) + host.length);
+  const mirrors = MIRROR_HOSTS.filter(m => m !== host).map(m => `https://${m}${tail}`);
+  // Never fan out to more than the original host plus one mirror.
+  return [url, ...mirrors.slice(0, 1)];
+}
+
 // ─── Image proxy ──────────────────────────────────────────────────────────────
 // Uses caches.default for images — ALREADY FREE AND UNLIMITED.
 // KV is never touched here.
@@ -281,21 +302,29 @@ async function imgProxy(req, ctx, origin) {
   const cacheKey = new Request(`https://img.internal/${imgKey}`);
   const hit = await caches.default.match(cacheKey);
   if (hit) {
+    // Headers normalises casing, so spreading hit.headers and then adding
+    // 'X-Cache' appends instead of replacing — the client saw "MISS, HIT".
+    const cached = Object.fromEntries(hit.headers);
+    cached['x-cache'] = 'HIT';
+    delete cached['access-control-allow-origin'];
     return new Response(hit.body, {
-      headers: { ...Object.fromEntries(hit.headers), 'X-Cache': 'HIT', ...corsHeaders(origin) },
+      headers: { ...cached, ...corsHeaders(origin) },
       cf: { cacheEverything: true, cacheTtl: 31536000 },
     });
   }
 
+  const candidates = candidatesFor(target);
+
   // Recent origin failure for this exact image — serve it instantly instead of
-  // repeating 3 dead fetches per visitor.
+  // repeating dead fetches per visitor.
   const neg = await negGet(imgKey);
   if (neg) {
     return errResponse(origin, 502, neg.msg, { 'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status) });
   }
 
-  // Origin host is in cooldown — skip the fetch entirely.
-  if (breakerOpen(host)) {
+  // Origin host is in cooldown. If a mirror is available the request still has
+  // a chance, so only bail outright when there is nowhere left to try.
+  if (breakerOpen(host) && candidates.length === 1) {
     return errResponse(origin, 502, `Origin ${host} temporarily unavailable`, {
       'X-Cache': 'BREAKER', 'X-Origin-Status': '503', 'Retry-After': '30',
     });
@@ -306,7 +335,7 @@ async function imgProxy(req, ctx, origin) {
     const result = await IN_FLIGHT.get(imgKey);
     if (result.type === 'error') {
       return errResponse(origin, result.status, result.body, {
-        'X-Cache': 'HIT-INFLIGHT', 'X-Origin-Status': String(result.status),
+        'X-Cache': 'HIT-INFLIGHT', 'X-Origin-Status': String(result.originStatus ?? result.status),
       });
     }
     // Build headers fresh for THIS request. The shared result carries no
@@ -332,57 +361,72 @@ async function imgProxy(req, ctx, origin) {
       };
       if (ref) fetchHeaders['Referer'] = ref;
 
-      // Retry loop — transient 5xx from the origin CDN are common; retry 2x with backoff
+      // Retry budget. A 429 from the image CDN clears in roughly 10s, so throttled
+      // requests get an escalating retry; hard failures give up quickly.
       let originFetch = null;
       let lastError = 'Failed to fetch image';
       let errorStatus = 502;
       let throttled = false;
+      let clientStatus = null;   // a non-5xx origin status worth surfacing as-is
 
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          originFetch = await fetch(target, { headers: fetchHeaders, cf: { cacheTtl: 0 } });
-          if (originFetch.ok) break;
+      for (let attempt = 0; attempt < MAX_429_ATTEMPTS; attempt++) {
+        for (const cand of candidates) {
+          const candHost = new URL(cand).hostname;
+          try {
+            const r = await fetch(cand, { headers: fetchHeaders, cf: { cacheTtl: 0 } });
+            if (r.ok) { originFetch = r; break; }
 
-          // Release the connection — the error body is never read.
-          try { originFetch.body?.cancel().catch(() => {}); } catch { /* already consumed */ }
+            // Release the connection — the error body is never read.
+            try { r.body?.cancel().catch(() => {}); } catch { /* already consumed */ }
 
-          // 429 - rate limited, retry with backoff; other 4xx pass through
-          if (originFetch.status === 429) {
-            lastError = `Source rate limited (429)`;
-            errorStatus = 429;
-            throttled = true;
-          } else if (originFetch.status < 500) {
-            // Do NOT relay the origin's body to the client — it can contain
-            // upstream HTML/error pages and it bypasses our own CORS allowlist.
-            // Surface the status with a generic message instead.
-            return { type: 'error', status: originFetch.status, body: `Origin error ${originFetch.status}` };
+            lastError = `Source error ${r.status}`;
+            errorStatus = r.status;
+            // A throttled host is not a broken host — never count it toward
+            // the breaker, or a retry burst trips it on its own.
+            if (cand === target && r.status !== 429) breakerFail(candHost);
+
+            // A 4xx means this host simply does not hold the file; keep the
+            // first one so it can be surfaced, but still let a mirror answer.
+            if (r.status >= 400 && r.status < 500 && r.status !== 429 && clientStatus === null) {
+              clientStatus = r.status;
+              lastError = `Origin error ${r.status}`;
+            }
+
+            // Throttling applies to the whole CDN, so mirrors would be limited
+            // too. Stop instead of fanning out.
+            if (r.status === 429) { throttled = true; break; }
+          } catch (err) {
+            lastError = err.message;
+            if (cand === target) breakerFail(candHost);
           }
-
-          // 5xx — record and retry
-          lastError = `Source error ${originFetch.status}`;
-          errorStatus = originFetch.status;
-        } catch (err) {
-          lastError = err.message;
         }
+        if (originFetch) break;
 
-        // Backoff before retry. 429 gets a much longer, jittered wait — the CDN
-        // is shedding load, and retrying fast just re-enters the rate limiter.
-        if (attempt < 2) {
-          const base = throttled ? 1200 : 400;
-          const wait = base * (attempt + 1) + Math.floor(Math.random() * 400);
+        // A hard failure (5xx / network) is not worth many attempts — the
+        // circuit breaker handles repetition. Only a throttle earns patience.
+        if (!throttled && attempt >= MAX_5XX_ATTEMPTS - 1) break;
+
+        // Backoff. Throttling clears in ~10s, so escalate geometrically with
+        // jitter; ordinary failures back off fast and stop early.
+        const wait = throttled
+          ? 1000 * Math.pow(2, attempt) + Math.floor(Math.random() * 500)
+          : 400 * (attempt + 1) + Math.floor(Math.random() * 300);
+        if (attempt < MAX_429_ATTEMPTS - 1) {
           await new Promise(r => setTimeout(r, wait));
         }
       }
 
-      if (!originFetch || !originFetch.ok) {
-        // A throttled host is not a broken host: do NOT trip the breaker for
-        // 429, and keep the negative TTL short so the client's retry can win.
-        if (!throttled) breakerFail(host);
+      if (!originFetch) {
+        // breakerFail already ran per failing candidate; 429 never trips it.
         negSet(ctx, imgKey, { status: errorStatus, msg: lastError }, throttled ? NEG_TTL_429 : NEG_TTL_SEC);
-        return { type: 'error', status: 502, body: lastError };
+        // A 4xx is a real answer (the file is genuinely absent here), so relay
+        // it instead of disguising it as a gateway failure. 5xx and network
+        // errors stay 502 — that one is ours, not the origin's.
+        const surfaced = clientStatus ?? 502;
+        return { type: 'error', status: surfaced, body: lastError, originStatus: errorStatus };
       }
 
-      breakerOk(host);
+      breakerOk(new URL(target).hostname);
 
       const ct = originFetch.headers.get('content-type') || 'image/jpeg';
       const buf = await originFetch.arrayBuffer();
@@ -413,7 +457,7 @@ async function imgProxy(req, ctx, origin) {
   const result = await promise;
   if (result.type === 'error') {
     return errResponse(origin, result.status, result.body, {
-      'X-Cache': 'MISS', 'X-Origin-Status': String(result.status),
+      'X-Cache': 'MISS', 'X-Origin-Status': String(result.originStatus ?? result.status),
     });
   }
   return new Response(result.buf, {
