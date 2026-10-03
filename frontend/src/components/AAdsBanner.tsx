@@ -1,34 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AD_CONFIG, siteConfig } from '@/lib/site-config';
 
 const { aadsUnitId, aadsBgColor, aadsTitleColor } = AD_CONFIG;
 
-function AAdsBannerInner({ style }: { style?: React.CSSProperties }) {
-  const ref      = useRef<HTMLDivElement>(null);
+function AAdsBannerInner() {
   const pathname = usePathname();
   const [key, setKey] = useState(0);
+  const [isHidden, setIsHidden] = useState(false);
 
-  // Fire a fresh impression on every client-side navigation
   useEffect(() => { setKey(k => k + 1); }, [pathname]);
 
-  // Listen for dynamic height updates from the iframe
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        const h    = data?.height ?? data?.h;
-        const iframe = ref.current?.querySelector('iframe');
-        if (iframe && h) iframe.style.height = `${h}px`;
-      } catch { /* ignore non-json messages */ }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
-
-  if (!aadsUnitId) return null;
+  if (!aadsUnitId || isHidden) return null;
 
   let src = `//acceptable.a-ads.com/${aadsUnitId}/?size=Adaptive`;
   if (siteConfig.profile === 'manireader.online') {
@@ -37,66 +22,68 @@ function AAdsBannerInner({ style }: { style?: React.CSSProperties }) {
     src += `&background_color=${aadsBgColor}&title_color=${aadsTitleColor}&title_hover_color=${aadsTitleColor}`;
   }
 
+  const closeId = `aadssticky-${aadsUnitId}`;
+
   return (
-    <div
-      id="frame"
-      ref={ref}
-      style={{
-        width: '100%',
-        margin: '0 auto',
-        position: 'relative',
-        textAlign: 'center',
-        ...style
-      }}
-    >
-      <iframe
-        key={key}
-        data-aa={aadsUnitId}
-        src={src}
-        style={{
-          border: 0,
-          padding: 0,
-          width: '100%',
-          maxWidth: '728px',
-          height: '90px',
-          minHeight: '90px',
-          overflow: 'hidden',
-          display: 'inline-block',
-          verticalAlign: 'top'
-        }}
-        title="Advertisement"
-        scrolling="no"
-        allow="autoplay"
-      />
-      {siteConfig.profile === 'manireader.online' && (
-        <div style={{ width: '100%', maxWidth: '728px', margin: '4px auto 0', textAlign: 'center' }}>
-          <a
-            target="_blank"
+    <div style={{ position: 'fixed', zIndex: 99999, top: 0, left: 0, right: 0, width: '100%' }}>
+      <input autoComplete="off" type="checkbox" id={closeId} hidden />
+      <div style={{ paddingTop: 'auto', paddingBottom: 0 }}>
+        <div style={{ width: '100%', height: 'auto', position: 'fixed', textAlign: 'center', fontSize: 0, top: 0, left: 0, right: 0, margin: 'auto' }}>
+          <label
+            htmlFor={closeId}
             style={{
-              display: 'inline-block',
-              fontSize: '13px',
-              color: '#263238',
-              padding: '4px 10px',
-              background: '#F8F8F9',
-              textDecoration: 'none',
-              borderRadius: '4px'
+              top: '50%',
+              transform: 'translateY(-50%)',
+              right: '24px',
+              position: 'absolute',
+              borderRadius: '4px',
+              background: 'rgba(248, 248, 249, 0.70)',
+              padding: '4px',
+              zIndex: 99999,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
-            id="frame-link"
-            href={`https://aads.com/campaigns/new/?source_id=${aadsUnitId}&source_type=ad_unit&partner=${aadsUnitId}`}
           >
-            Advertise here
-          </a>
+            <svg fill="#000000" height="16px" width="16px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 490 490">
+              <polygon points="456.851,0 245,212.564 33.149,0 0.708,32.337 212.669,245.004 0.708,457.678 33.149,490 245,277.443 456.851,490 489.292,457.678 277.331,245.004 489.292,32.337 " />
+            </svg>
+          </label>
+          <div id="frame" style={{ width: '100%', margin: 'auto', position: 'relative', zIndex: 99998 }}>
+            <iframe
+              key={key}
+              data-aa={aadsUnitId}
+              src={src}
+              style={{
+                border: 0,
+                padding: 0,
+                width: '70%',
+                height: 'auto',
+                overflow: 'hidden',
+                margin: 'auto',
+                display: 'block'
+              }}
+              title="Advertisement"
+              scrolling="no"
+              allow="autoplay"
+            />
+          </div>
+          <style jsx>{`
+            #${closeId}:checked + div {
+              display: none;
+            }
+          `}</style>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-export default function AAdsBanner({ hideOnReader = false, style = {} }) {
+export default function AAdsBanner({ hideOnReader = false }) {
   const pathname = usePathname();
-  
-  // Hide on reader pages if requested (reader page has its own banner in footer)
+
   if (hideOnReader && pathname?.startsWith('/reader/')) return null;
-  
-  return <AAdsBannerInner style={style} />;
+
+  return <AAdsBannerInner />;
 }

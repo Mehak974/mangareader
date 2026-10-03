@@ -1,0 +1,75 @@
+# wrangler.toml — KV-Free Edition
+# KV namespace is no longer required for caching.
+# Only add it back if you need persistent storage (user data, etc.)
+
+name               = "mangareader-proxy"
+main               = "worker.js"
+compatibility_date = "2024-01-15"
+workers_dev        = true
+
+# ── Smart Placement ────────────────────────────────────────────────────────────
+# Enable in the Cloudflare dashboard → Workers → your worker → Settings →
+# Placement → Smart. Runs the Worker in the data center closest to your origin
+# (Railway) rather than closest to the user, reducing cache-miss round-trip time.
+# Free, takes 2 minutes, no config here.
+
+# cdn.mangareader.pro = the image/scraper host the frontends should use
+# (NEXT_PUBLIC_WORKER_URL). Cloudflare's edge cache does NOT work on *.workers.dev,
+# so every image view there becomes an R2 read. Keep workers_dev = true until the
+# frontends are redeployed with the cdn URL, THEN set workers_dev = false.
+routes = [
+  { pattern = "cdn.mangareader.pro", custom_domain = true },
+  { pattern = "api.mangareader.pro/*",   zone_name = "mangareader.pro"   },
+  { pattern = "api.mangaread.pro/*",     zone_name = "mangaread.pro"     },
+  { pattern = "api.manireader.online/*", zone_name = "manireader.online" },
+]
+
+# ── R2 image store ────────────────────────────────────────────────────────────
+# 1) npx wrangler r2 bucket create mangareader-images
+# 2) Dashboard → R2 → mangareader-images → Settings → Object lifecycle rules:
+#    expire prefix "img/" after 14 days (keeps you inside the 10GB free tier).
+# 3) Optional purge endpoint:  npx wrangler secret put ADMIN_TOKEN
+[[r2_buckets]]
+binding     = "IMG_BUCKET"
+bucket_name = "mangareader-images"
+
+# WebP conversion before caching. Billed as Cloudflare Images "unique
+# transformations": first 5,000/month free, then $0.50 per 1,000. Already-WebP
+# images are skipped. Remove this block (or set WEBP_CONVERT = "off") to disable.
+[images]
+binding = "IMAGES"
+
+# Backend fallback for images the Worker can't fetch (CDN throttles Cloudflare
+# IPs). Set to your Railway backend, e.g. "https://api-mangareader.railway.app".
+# Empty string = fallback disabled.
+[vars]
+BACKEND_URL = ""
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+# ── KV is REMOVED — caches.default handles everything for free ────────────────
+# Old line was:
+#   [[kv_namespaces]]
+#   binding = "CACHE"
+#   id      = "..."
+# Delete it. Zero KV reads. Zero KV costs.
+
+# ── Optional: add your custom domain ─────────────────────────────────────────
+# routes = [{ pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }]
+
+# NOTE: wrangler envs do NOT inherit bindings, routes or observability.
+# If you deploy with `--env production`, repeat them here.
+[env.production]
+name = "mangareader-proxy-prod"
+
+[env.production.images]
+binding = "IMAGES"
+
+[env.production.vars]
+BACKEND_URL = ""
+
+[[env.production.r2_buckets]]
+binding     = "IMG_BUCKET"
+bucket_name = "mangareader-images"

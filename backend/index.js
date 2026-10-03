@@ -206,7 +206,20 @@ async function setCached(key, data, ttlSeconds = 86400) {
 }
 
 // ── ANILIST PROXY (rate-limited + cached + deduplicated) ───────────────────────
-app.post('/api/anilist', rateLimit(60000, 30), async (req, res) => {
+// The limit here was 30/min, which was an abuse guard sized as if every request
+// reached AniList. They do not: cache.getOrFetch serves repeats from Redis for
+// 2h and coalesces concurrent misses into one upstream call. But the limiter
+// runs BEFORE the cache lookup, so it counted cache hits too — and server-side
+// rendering of /browse, /trending and /manga/[title] all issue this POST from a
+// small pool of Vercel egress IPs, so the whole site shared one 30/min bucket.
+// Roughly 15 SSR page views a minute returned 429 to every visitor, and the
+// browser's retry ladder (1s, 3s) kept the window permanently drained.
+//
+// Actual upstream protection lives in anilistClient: an 85/min Bottleneck
+// reservoir plus a circuit breaker, both well under AniList's 90/min ceiling.
+// This limiter only needs to stop abuse, so it is set well above any real
+// client's legitimate burst while still capping a single IP.
+app.post('/api/anilist', rateLimit(60000, 600), async (req, res) => {
   try {
     const cacheKey = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
     const result = await cache.getOrFetch(

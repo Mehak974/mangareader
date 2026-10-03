@@ -1,6 +1,29 @@
 import { API_BASE } from "./api";
 
+// Requests in flight for the same query+variables. The homepage, /browse,
+// /trending and the header search box all mount at once on a client-side
+// navigation and several of them ask for the same list, so without this the
+// same GraphQL query is POSTed N times in the same tick and the proxy's
+// rate-limit budget is spent on duplicates.
+const IN_FLIGHT = new Map();
+
+function inFlightKey(query, variables) {
+  return `${query}::${JSON.stringify(variables ?? {})}`;
+}
+
 export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1500) {
+  const key = inFlightKey(query, variables);
+  const existing = IN_FLIGHT.get(key);
+  if (existing) return existing;
+
+  const promise = fetchAnilistInner(query, variables, retries, delay).finally(() => {
+    IN_FLIGHT.delete(key);
+  });
+  IN_FLIGHT.set(key, promise);
+  return promise;
+}
+
+async function fetchAnilistInner(query, variables, retries, delay) {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
@@ -17,9 +40,23 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
       clearTimeout(timeoutId);
 
       if (res.status === 429) {
+        // A 429 from our own proxy means the shared budget is drained. Retrying
+        // after 1-3s lands inside the same window and keeps it drained, so the
+        // ladder is what turned a transient limit into a permanent one. Retry
+        // only when the server told us when to come back, and only once.
+        if (i === retries - 1) {
+          console.warn("AniList rate limited — giving up until the limit resets.");
+          return null;
+        }
         const retryAfter = res.headers.get("Retry-After");
-        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay * Math.pow(2, i);
-        console.warn(`AniList Rate Limit (429) hit. Waiting ${waitTime}ms before retry...`);
+        const reset = res.headers.get("RateLimit-Reset");
+        const waitSec = parseInt(retryAfter || reset || "0", 10);
+        if (!waitSec) {
+          console.warn("AniList rate limited with no reset hint — not retrying.");
+          return null;
+        }
+        const waitTime = Math.min(waitSec * 1000, 10000);
+        console.warn(`AniList rate limited. Waiting ${waitTime}ms before retry...`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         continue;
       }
@@ -139,7 +176,7 @@ export function mapAnilistMedia(media) {
 
 export async function getMangaList(variables) {
   try {
-    const data = await fetchAnilist(MANGA_QUERY, variables, 1, 1000);
+    const data = await fetchAnilist(MANGA_QUERY, variables, 2, 1000);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,
@@ -158,7 +195,7 @@ export async function getMangaList(variables) {
 
 export async function getRecentMangaList(variables) {
   try {
-    const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 1, 1000);
+    const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 2, 1000);
     if (data && data.Page) {
       return {
         pageInfo: data.Page.pageInfo,

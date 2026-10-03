@@ -1,0 +1,893 @@
+diff --git a/cloudflare/worker.js b/cloudflare/worker.js
+index fbb7a14..1deeac1 100644
+--- a/cloudflare/worker.js
++++ b/cloudflare/worker.js
+@@ -4,8 +4,11 @@
+  * CACHING ARCHITECTURE (zero KV reads for 99% of traffic):
+  *
+  *   L1 — Module-level Map    Free │ ~0ms   │ Lives per isolate instance (~mins)
+- *   L2 — caches.default      Free │ ~5ms   │ Cloudflare CDN edge, UNLIMITED
++ *   L2 — caches.default      Free │ ~5ms   │ Per-data-center edge cache (NOT global)
++ *   L2b— R2 (IMG_BUCKET)     Free*│ ~30ms  │ Global, persistent, images only. Optional:
++ *                                           skipped entirely if the binding is absent.
+  *   L3 — Origin fetch        Paid │ ~300ms │ Only on true cache miss
++ *                                           (converted to WebP here if env.IMAGES is bound)
+  *
+  * KV is NOT used here. caches.default replaces it completely for read-through
+  * caching and has ZERO operation limits on the free plan.
+@@ -18,7 +21,7 @@
+ 
+ // ─── L1: Module-level memory cache ───────────────────────────────────────────
+ const MEM = new Map();
+-const MEM_MAX = 300;
++const MEM_MAX = 100;   // entries hold whole chapter HTML; 300 risked the 128MB isolate cap
+ 
+ // Per-IP rate limiting (module-level, survives within an isolate instance)
+ // A single manga chapter is 20-50 images and they all arrive from the SAME
+@@ -257,14 +260,19 @@ export default {
+     if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
+     const path = new URL(req.url).pathname;
+     try {
+-      if (path.startsWith('/img-proxy'))       return imgProxy(req, ctx, origin);
+-      if (path.startsWith('/api/anilist'))     return anilist(req, ctx, origin);
+-      if (path.startsWith('/api/manganato'))   return scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
+-      if (path.startsWith('/api/mangakatana')) return scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
+-      if (path.startsWith('/api/mangaread'))   return scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
++      // `return await` (not bare `return`): without it a rejected promise from
++      // the handler escapes this try/catch and surfaces as an unhandled
++      // platform-level 500 instead of our JSON error.
++      if (path === '/admin/img-purge')         return await purgeImage(req, env, origin);
++      if (path.startsWith('/img-proxy'))       return await imgProxy(req, ctx, origin, env);
++      if (path.startsWith('/api/anilist'))     return await anilist(req, ctx, origin);
++      if (path.startsWith('/api/manganato'))   return await scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
++      if (path.startsWith('/api/mangakatana')) return await scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
++      if (path.startsWith('/api/mangaread'))   return await scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
+       return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
+     } catch (e) {
+-      return json({ error: e.message }, 500, {}, origin);
++      console.error(`[worker] ${path} failed:`, e && e.message);
++      return json({ error: e.message }, 502, {}, origin);
+     }
+   },
+ };
+@@ -287,13 +295,94 @@ function candidatesFor(url) {
+   return [url, ...mirrors.slice(0, 1)];
+ }
+ 
++// ─── WebP conversion (Cloudflare Images binding: env.IMAGES) ─────────────────
++// Runs once per image on a cold origin fetch, BEFORE the R2 / edge-cache write,
++// so every later hit (and every coalesced waiter) gets the smaller WebP.
++// Fails safe: no binding, kill switch, error, quota exhausted, or a "smaller"
++// result that isn't actually smaller -> the original bytes are used untouched.
++const WEBP_QUALITY = 80;
++const WEBP_SKIP = ['image/webp', 'image/avif', 'image/gif', 'image/svg+xml'];  // already efficient / animated / vector
++
++async function toWebp(env, buf, ct) {
++  if (!env || !env.IMAGES || env.WEBP_CONVERT === 'off') return null;
++  const type = ct.toLowerCase().split(';')[0].trim();
++  if (!type.startsWith('image/') || WEBP_SKIP.includes(type)) return null;
++  if (buf.byteLength === 0 || buf.byteLength > R2_MAX_BYTES) return null;
++  try {
++    const result = await env.IMAGES.input(new Response(buf).body)
++      .output({ format: 'image/webp', quality: WEBP_QUALITY });
++    const out = result.response();
++    const outType = (out.headers.get('content-type') || '').toLowerCase();
++    const outBuf = await out.arrayBuffer();
++    if (!outType.startsWith('image/webp') || outBuf.byteLength === 0 || outBuf.byteLength >= buf.byteLength) return null;
++    return { buf: outBuf, ct: 'image/webp' };
++  } catch (e) {
++    console.warn(`[webp] conversion failed, using original: ${e.message}`);
++    return null;
++  }
++}
++
++// ─── R2 (persistent image store) ─────────────────────────────────────────────
++// Binding: IMG_BUCKET. Everything here degrades to a no-op when it is missing
++// or when R2 errors, so R2 can never take image serving down.
++const R2_MAX_BYTES = 10 * 1024 * 1024;   // never store anything bigger than 10MB
++const R2_CACHE_CONTROL = 'public, max-age=31536000, immutable';
++// 'img:v1:<sha1>' -> 'img/v1/<sha1>' so a lifecycle rule can target the img/ prefix
++const r2KeyFor = (imgKey) => imgKey.split(':').join('/');
++
++function safeEqual(a, b) {
++  if (a.length !== b.length) return false;
++  let d = 0;
++  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
++  return d === 0;
++}
++
++// POST /admin/img-purge  {"url": "<exact image url the frontend proxies>"}
++// Authorization: Bearer <ADMIN_TOKEN secret>. 404s when no secret is configured.
++async function purgeImage(req, env, origin) {
++  if (req.method !== 'POST' || !env || !env.ADMIN_TOKEN) {
++    return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
++  }
++  const auth = req.headers.get('authorization') || '';
++  if (!safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
++    return new Response('Unauthorized', { status: 401, headers: corsHeaders(origin) });
++  }
++  let body;
++  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400, {}, origin); }
++  if (!body.url || !allowed(body.url)) return json({ error: 'Missing or disallowed url' }, 400, {}, origin);
++
++  const imgKey = await ckFor('img', body.url);
++  const r2Key = r2KeyFor(imgKey);
++  if (env.IMG_BUCKET) await env.IMG_BUCKET.delete(r2Key);
++  // Only clears this data center's edge copy; the rest expire on their own, or
++  // bump IMG_EPOCH and redeploy to invalidate every edge copy at once.
++  await caches.default.delete(new Request(`https://img.internal/${imgKey}`));
++  return json({ purged: true, r2Key }, 200, {}, origin);
++}
++
+ // ─── Image proxy ──────────────────────────────────────────────────────────────
+ // Uses caches.default for images — ALREADY FREE AND UNLIMITED.
+ // KV is never touched here.
+-async function imgProxy(req, ctx, origin) {
++// True when the request names a Referer/Origin that is NOT one of our sites.
++// Empty Referer is allowed (pages using referrerPolicy="no-referrer"); this only
++// stops other websites from hot-linking the proxy and burning R2 / origin quota.
++function isForeignReferer(req, env) {
++  if (env && env.HOTLINK_PROTECT === 'off') return false;
++  const src = req.headers.get('origin') || req.headers.get('referer');
++  if (!src) return false;
++  let host;
++  try { host = new URL(src).hostname; } catch { return true; }
++  return !ALLOWED_WORKER_ORIGINS.some(o => {
++    const h = new URL(o).hostname;
++    return host === h || host.endsWith('.' + h);
++  });
++}
++
++async function imgProxy(req, ctx, origin, env) {
+   const target = new URL(req.url).searchParams.get('url');
+   if (!target)         return errResponse(origin, 400, 'Missing ?url=');
+   if (!allowed(target)) return errResponse(origin, 403, 'Domain not allowed');
++  if (isForeignReferer(req, env)) return errResponse(origin, 403, 'Hotlinking not allowed');
+ 
+   const imgKey = await ckFor('img', target);
+   const host = new URL(target).hostname;
+@@ -313,15 +402,37 @@ async function imgProxy(req, ctx, origin) {
+     });
+   }
+ 
+-  const candidates = candidatesFor(target);
+-
+-  // Recent origin failure for this exact image — serve it instantly instead of
+-  // repeating dead fetches per visitor.
++  // Recent origin failure for this exact image — serve it instantly. Checked BEFORE
++  // R2 so a failing image's retries don't each cost an R2 read (Class B op).
+   const neg = await negGet(imgKey);
+   if (neg) {
+     return errResponse(origin, 502, neg.msg, { 'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status) });
+   }
+ 
++  // L2b: R2. Only reached on an edge-cache miss. Kill switch: R2_CACHE = "off".
++  const bucket = env && env.R2_CACHE !== 'off' ? env.IMG_BUCKET : null;
++  const r2Key = r2KeyFor(imgKey);
++  if (bucket) {
++    try {
++      const obj = await bucket.get(r2Key);
++      if (obj) {
++        const ct = obj.httpMetadata?.contentType || 'image/jpeg';
++        const base = { 'Content-Type': ct, 'Cache-Control': R2_CACHE_CONTROL };
++        // Stream once, serve the user and backfill this data center's edge cache.
++        const [toClient, toEdge] = obj.body.tee();
++        ctx.waitUntil(
++          caches.default.put(cacheKey, new Response(toEdge, { headers: { ...base, 'X-Cache': 'MISS' } }))
++            .catch(() => {})
++        );
++        return new Response(toClient, { headers: { ...base, 'X-Cache': 'R2', ...corsHeaders(origin) } });
++      }
++    } catch (e) {
++      console.warn(`[r2] get failed for ${r2Key}: ${e.message}`);   // fall through to origin
++    }
++  }
++
++  const candidates = candidatesFor(target);
++
+   // Origin host is in cooldown. If a mirror is available the request still has
+   // a chance, so only bail outright when there is nowhere left to try.
+   if (breakerOpen(host) && candidates.length === 1) {
+@@ -342,8 +453,8 @@ async function imgProxy(req, ctx, origin) {
+     // CORS headers, so a waiting visitor never inherits the first
+     // requester's Access-Control-Allow-Origin.
+     return new Response(result.buf, {
+-      headers: { 'Content-Type': result.ct, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) },
+-      cf: { cacheEverything: true, cacheTtl: 31536000 },
++      headers: { 'Content-Type': result.ct, 'Cache-Control': result.cacheable ? 'public, max-age=31536000, immutable' : 'no-store', 'X-Cache': 'HIT-INFLIGHT', ...corsHeaders(origin) },
++      ...(result.cacheable ? { cf: { cacheEverything: true, cacheTtl: 31536000 } } : {}),
+     });
+   }
+ 
+@@ -368,6 +479,8 @@ async function imgProxy(req, ctx, origin) {
+       let errorStatus = 502;
+       let throttled = false;
+       let clientStatus = null;   // a non-5xx origin status worth surfacing as-is
++      let triedBackend = false;
++      let viaBackend = false;
+ 
+       for (let attempt = 0; attempt < MAX_429_ATTEMPTS; attempt++) {
+         for (const cand of candidates) {
+@@ -402,6 +515,25 @@ async function imgProxy(req, ctx, origin) {
+         }
+         if (originFetch) break;
+ 
++        // Last-resort fallback: ask the backend (Railway) to fetch it. The image
++        // CDN throttles Cloudflare's shared egress IPs, so a different network
++        // path often succeeds where every Worker retry fails. Tried once, right
++        // after the first failed round, so the reader doesn't wait out backoffs.
++        if (!triedBackend && env && env.BACKEND_URL) {
++          triedBackend = true;
++          try {
++            const br = await fetch(
++              `${String(env.BACKEND_URL).replace(/\/$/, '')}/api/proxy-image?url=${encodeURIComponent(target)}`,
++              { signal: AbortSignal.timeout(10000), cf: { cacheTtl: 0 } }
++            );
++            const bct = (br.headers.get('content-type') || '').toLowerCase();
++            if (br.ok && bct.startsWith('image/')) { originFetch = br; viaBackend = true; break; }
++            try { br.body?.cancel().catch(() => {}); } catch { /* ignore */ }
++          } catch (err) {
++            console.warn(`[img] backend fallback failed for ${target}: ${err.message}`);
++          }
++        }
++
+         // A hard failure (5xx / network) is not worth many attempts — the
+         // circuit breaker handles repetition. Only a throttle earns patience.
+         if (!throttled && attempt >= MAX_5XX_ATTEMPTS - 1) break;
+@@ -426,28 +558,64 @@ async function imgProxy(req, ctx, origin) {
+         return { type: 'error', status: surfaced, body: lastError, originStatus: errorStatus };
+       }
+ 
+-      breakerOk(new URL(target).hostname);
++      if (!viaBackend) breakerOk(new URL(target).hostname);
++
++      let ct = originFetch.headers.get('content-type') || 'image/jpeg';
++      let buf;
++      try {
++        buf = await originFetch.arrayBuffer();
++      } catch (err) {
++        // Connection dropped while the body was streaming ("Network connection
++        // lost"). Previously this rejected the shared promise and became an
++        // uncaught 500 for every coalesced waiter.
++        breakerFail(new URL(target).hostname);
++        negSet(ctx, imgKey, { status: 502, msg: 'Origin connection lost' }, 10);
++        return { type: 'error', status: 502, body: 'Origin connection lost', originStatus: 502 };
++      }
+ 
+-      const ct = originFetch.headers.get('content-type') || 'image/jpeg';
+-      const buf = await originFetch.arrayBuffer();
++      // Convert to WebP once, here, so R2, the edge cache, the user and any
++      // coalesced waiters all share the same (smaller) bytes.
++      const origBytes = buf.byteLength;
++      const webp = await toWebp(env, buf, ct);
++      if (webp) { buf = webp.buf; ct = webp.ct; }
++
++      // Persist to R2 (non-blocking). Only real images: an origin that answers
++      // 200 with an HTML error/challenge page must never be stored for a year.
++      if (bucket && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
++        ctx.waitUntil(
++          bucket.put(r2Key, buf, {
++            httpMetadata: { contentType: ct, cacheControl: R2_CACHE_CONTROL },
++            customMetadata: {
++              src: host, cachedAt: String(Date.now()),
++              ...(webp ? { converted: 'webp', origBytes: String(origBytes) } : {}),
++            },
++          }).catch(e => console.warn(`[r2] put failed for ${r2Key}: ${e.message}`))
++        );
++      }
+ 
+       // Populate CDN cache (non-blocking).
+       // Store origin-AGNOST headers only. Baking Access-Control-Allow-Origin
+       // into the cached object leaks one visitor's origin to every other
+       // visitor and, on re-merge, produces an invalid comma-joined value.
+       // CORS is re-derived per request at serve time instead.
+-      const cacheResp = new Response(buf, {
+-        headers: {
+-          'Content-Type':  ct,
+-          'Cache-Control': 'public, max-age=31536000, immutable',
+-          'X-Cache':       'MISS',
+-        },
+-        cf: { cacheEverything: true, cacheTtl: 31536000 },
+-      });
+-      ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
++      // Only real images are cached for a year. An origin that answers 200 with
++      // an HTML challenge/error page is still relayed, but never cached, so a
++      // one-off bad answer can't stick for months.
++      const cacheable = ct.toLowerCase().startsWith('image/') && buf.byteLength > 0;
++      if (cacheable) {
++        const cacheResp = new Response(buf, {
++          headers: {
++            'Content-Type':  ct,
++            'Cache-Control': 'public, max-age=31536000, immutable',
++            'X-Cache':       'MISS',
++          },
++          cf: { cacheEverything: true, cacheTtl: 31536000 },
++        });
++        ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
++      }
+ 
+       // Return buffer + content-type so concurrent waiters each build their own Response
+-      return { type: 'image', buf, ct };
++      return { type: 'image', buf, ct, cacheable };
+     } finally {
+       IN_FLIGHT.delete(imgKey);
+     }
+@@ -463,11 +631,11 @@ async function imgProxy(req, ctx, origin) {
+   return new Response(result.buf, {
+     headers: {
+       'Content-Type': result.ct,
+-      'Cache-Control': 'public, max-age=31536000, immutable',
++      'Cache-Control': result.cacheable ? 'public, max-age=31536000, immutable' : 'no-store',
+       'X-Cache': 'MISS',
+       ...corsHeaders(origin),
+     },
+-    cf: { cacheEverything: true, cacheTtl: 31536000 },
++    ...(result.cacheable ? { cf: { cacheEverything: true, cacheTtl: 31536000 } } : {}),
+   });
+ }
+ 
+@@ -530,7 +698,7 @@ async function anilist(req, ctx, origin) {
+ //   SCRAPED_EPOCH          → bumps every source (manganato, mangakatana, …)
+ //   SCRAPED_EPOCH.manganato → bumps one source only
+ const SCRAPED_EPOCH = 'v1';
+-const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v2' };
++const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v3' };  // bumped: drop cached failures
+ const IMG_EPOCH = 'v1';
+ const ANILIST_EPOCH = 'v1';
+ function ckFor(source, str) {
+@@ -564,6 +732,7 @@ async function scraped(req, ctx, source, siteReferer, origin) {
+   if (IN_FLIGHT.has(ck)) {
+     try {
+       const data = await IN_FLIGHT.get(ck);
++      if (data.failed) throw new Error('shared origin failure');
+       memSet(ck, data, 300);
+       return json(data, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
+     } catch {
+@@ -573,8 +742,25 @@ async function scraped(req, ctx, source, siteReferer, origin) {
+ 
+   const promise = (async () => {
+     try {
+-      const targetOrigin = new URL(target).origin + '/';
+-      const r = await fetch(target, {
++      // Manganato domains rotate and die independently (530 = Cloudflare can't
++      // reach the origin). Try the same path on each sibling mirror in turn.
++      const MIRRORS = ['www.manganato.gg', 'manganato.gg', 'www.manganato.com', 'manganato.com'];
++      const tu = new URL(target);
++      const hosts = MIRRORS.includes(tu.hostname)
++        ? [tu.hostname, ...MIRRORS.filter(h => h !== tu.hostname)] : [tu.hostname];
++      let r;
++      for (const h of hosts) {
++        const u = new URL(target); u.hostname = h;
++        try {
++          r = await doFetch(u.toString());
++          if (r.ok || (r.status < 500 && r.status !== 429)) break;
++          try { r.body?.cancel().catch(() => {}); } catch {}
++        } catch (e) { r = null; }
++      }
++      if (!r) throw new Error('all mirrors unreachable');
++      async function doFetch(url) {
++        const targetOrigin = new URL(url).origin + '/';
++        return fetch(url, {
+         headers: {
+           'User-Agent':      ua(),
+           'Referer':         targetOrigin,
+@@ -586,8 +772,15 @@ async function scraped(req, ctx, source, siteReferer, origin) {
+           'Sec-Fetch-Site':  'same-origin',
+           'Upgrade-Insecure-Requests': '1',
+         },
+-      });
+-      if (!r.ok) throw new Error(`${source} ${r.status}`);
++        });
++      }
++      if (!r.ok) {
++        // 530 / 1xxx = Cloudflare refusing to reach a CF-fronted origin (dead
++        // domain, DNS error, edge ban). Log the target so it is diagnosable.
++        console.warn(`[scraped:${source}] origin ${r.status} for ${target}`);
++        try { r.body?.cancel().catch(() => {}); } catch { /* ignore */ }
++        return { failed: true, originStatus: r.status };
++      }
+ 
+       const html = await r.text();
+       const data = { html, status: r.status };
+@@ -603,6 +796,17 @@ async function scraped(req, ctx, source, siteReferer, origin) {
+ 
+   IN_FLIGHT.set(ck, promise);
+ 
+-  const data = await promise;
++  let data;
++  try {
++    data = await promise;
++  } catch (e) {
++    console.warn(`[scraped:${source}] fetch threw for ${target}: ${e.message}`);
++    return json({ error: `${source} unreachable`, detail: e.message }, 502, { 'Cache-Control': 'no-store' }, origin);
++  }
++  if (data.failed) {
++    const status = data.originStatus >= 500 || data.originStatus === 429 ? 502 : data.originStatus;
++    return json({ error: `${source} origin returned ${data.originStatus}`, originStatus: data.originStatus },
++      status, { 'Cache-Control': 'no-store' }, origin);
++  }
+   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
+ }
+diff --git a/cloudflare/worker.test.mjs b/cloudflare/worker.test.mjs
+index 390d98a..ce85564 100644
+--- a/cloudflare/worker.test.mjs
++++ b/cloudflare/worker.test.mjs
+@@ -22,6 +22,7 @@ globalThis.caches = {
+   default: {
+     async match(req) { return cacheStore.get(req.url) ?? undefined; },
+     async put(req, res) { cacheStore.set(req.url, res.clone()); },
++    async delete(req) { return cacheStore.delete(req.url); },
+   },
+ };
+ 
+@@ -158,6 +159,35 @@ console.log('\nScraper endpoint');
+   check('returns upstream html', body.html === '<html>chapter</html>');
+ }
+ 
++// ── 8b. Scraper origin failure (e.g. Cloudflare 530) returns clean 502 JSON ──
++console.log('\nScraper origin 530');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  for (const h of ['www.manganato.gg','manganato.gg','www.manganato.com','manganato.com'])
++    originRoutes.set(h, () => new Response('error code: 1016', { status: 530 }));
++  const req = new Request('https://w.test/api/manganato?url=https%3A%2F%2Fmanganato.com%2Fmanga-x', {
++    headers: { origin: 'https://mangareader.pro' },
++  });
++  const r = await worker.fetch(req, {}, ctx());
++  const body = await r.json();
++  check('returns 502 JSON, not a crash', r.status === 502 && body.originStatus === 530, `got ${r.status}`);
++  check('failure not cached as html', !body.html);
++}
++
++// ── 8c. Dead mirror fails over to a live one ─────────────────────────────────
++console.log('\nScraper mirror failover');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('manganato.com', () => new Response('x', { status: 530 }));
++  originRoutes.set('www.manganato.gg', () => new Response('<html>ok</html>', { status: 200 }));
++  const req = new Request('https://w.test/api/manganato?url=https%3A%2F%2Fmanganato.com%2Fmanga-x', {
++    headers: { origin: 'https://mangareader.pro' },
++  });
++  const r = await worker.fetch(req, {}, ctx());
++  const body = await r.json();
++  check('falls over to live mirror', r.status === 200 && body.html === '<html>ok</html>', `got ${r.status}`);
++}
++
+ // ── 9. 404 from origin passes through, body is not relayed ───────────────────
+ console.log('\nOrigin 404');
+ {
+@@ -197,5 +227,261 @@ console.log('\nPersistent throttle');
+   check('breaker not tripped by 429', !String(r.headers.get('X-Cache')).includes('BREAKER'), r.headers.get('X-Cache'));
+ }
+ 
++// ── 10. R2 ───────────────────────────────────────────────────────────────────
++function makeBucket() {
++  const m = new Map();
++  return {
++    m,
++    async get(k) { const o = m.get(k); return o ? { body: new Response(o.buf).body, httpMetadata: o.opts.httpMetadata } : null; },
++    async put(k, buf, opts) { m.set(k, { buf, opts }); },
++    async delete(k) { m.delete(k); },
++  };
++}
++const flush = () => new Promise(r => setTimeout(r, 20));
++
++console.log('\nR2 write-through');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', okImage);
++  const bucket = makeBucket();
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/r2/1.webp'), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  check('origin image served', r.status === 200);
++  check('stored in R2 under img/ prefix', [...bucket.m.keys()].length === 1 && [...bucket.m.keys()][0].startsWith('img/v1/'));
++  check('stored with content type', [...bucket.m.values()][0].opts.httpMetadata.contentType === 'image/webp');
++}
++
++console.log('\nR2 read-through (cold edge cache, no origin call)');
++{
++  const bucket = makeBucket();
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', okImage);
++  await worker.fetch(imgReq('https://media.mangaka.com/r2/2.webp'), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  cacheStore.clear(); originCalls = [];            // simulate a different data center
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/r2/2.webp'), { IMG_BUCKET: bucket }, ctx());
++  const body = Buffer.from(await r.arrayBuffer());
++  check('served from R2', r.headers.get('X-Cache') === 'R2', r.headers.get('X-Cache'));
++  check('zero origin calls', originCalls.length === 0, `calls: ${originCalls.length}`);
++  check('bytes intact', body.equals(IMG));
++  await flush();
++  check('edge cache backfilled', cacheStore.size === 1, `size ${cacheStore.size}`);
++}
++
++console.log('\nR2 never stores non-images');
++{
++  cacheStore.clear(); originCalls = []; originRoutes = new Map();
++  originRoutes.set('media.mangaka.com', () => new Response('<html>challenge</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
++  const bucket = makeBucket();
++  await worker.fetch(imgReq('https://media.mangaka.com/r2/3.webp'), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  check('HTML 200 not stored', bucket.m.size === 0);
++}
++
++console.log('\nR2 failures never break serving');
++{
++  cacheStore.clear(); originCalls = []; originRoutes = new Map();
++  originRoutes.set('media.mangaka.com', okImage);
++  const broken = { async get() { throw new Error('r2 down'); }, async put() { throw new Error('r2 down'); }, async delete() {} };
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/r2/4.webp'), { IMG_BUCKET: broken }, ctx());
++  check('still serves from origin', r.status === 200, `got ${r.status}`);
++}
++
++console.log('\nPurge endpoint');
++{
++  cacheStore.clear(); originCalls = []; originRoutes = new Map();
++  originRoutes.set('media.mangaka.com', okImage);
++  const bucket = makeBucket();
++  const url = 'https://media.mangaka.com/r2/5.webp';
++  await worker.fetch(imgReq(url), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  const mk = (tok) => new Request('https://w.test/admin/img-purge', {
++    method: 'POST', headers: { authorization: `Bearer ${tok}`, 'content-type': 'application/json' },
++    body: JSON.stringify({ url }),
++  });
++  const env = { IMG_BUCKET: bucket, ADMIN_TOKEN: 'secret' };
++  check('404 when no ADMIN_TOKEN set', (await worker.fetch(mk('x'), { IMG_BUCKET: bucket }, ctx())).status === 404);
++  check('401 on wrong token', (await worker.fetch(mk('nope'), env, ctx())).status === 401);
++  check('object still present after bad token', bucket.m.size === 1);
++  const ok = await worker.fetch(mk('secret'), env, ctx());
++  check('200 on right token', ok.status === 200, `got ${ok.status}`);
++  check('object deleted from R2', bucket.m.size === 0);
++}
++
++// ── 11. Backend fallback for throttled / dead image hosts ────────────────────
++console.log('\nBackend fallback');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('mangakatana.com', () => new Response('slow down', { status: 429 }));
++  originRoutes.set('backend.test', () => okImage());
++  const t0 = Date.now();
++  const r = await worker.fetch(imgReq('https://mangakatana.com/fb/1.webp'), { BACKEND_URL: 'https://backend.test' }, ctx());
++  check('served via backend', r.status === 200, `got ${r.status}`);
++  check('fast (no backoff wait)', Date.now() - t0 < 1500, `${Date.now() - t0}ms`);
++  check('backend called exactly once', originCalls.filter(u => u.includes('backend.test')).length === 1);
++  check('backend URL carries target', originCalls.some(u => u.includes('backend.test/api/proxy-image?url=')));
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', () => new Response('nope', { status: 503 }));
++  originRoutes.set('backend.test', () => new Response('<html>err</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/fb/2.webp'), { BACKEND_URL: 'https://backend.test' }, ctx());
++  check('non-image from backend is rejected', r.status === 502, `got ${r.status}`);
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', () => new Response('nope', { status: 503 }));
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/fb/3.webp'), {}, ctx());
++  check('no BACKEND_URL = old behaviour', r.status === 502 && !originCalls.some(u => u.includes('backend')));
++}
++
++// ── 12. WebP conversion ──────────────────────────────────────────────────────
++function makeImages(fn) {
++  const calls = [];
++  return {
++    calls,
++    input(stream) {
++      calls.push('input');
++      return { async output(opts) { const out = await fn(stream, opts); return { response: () => out }; } };
++    },
++  };
++}
++const jpegRoute = () => new Response(IMG, { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
++const WEBP_SMALL = Buffer.from('tiny');
++const webpOut = (b) => () => new Response(b, { headers: { 'Content-Type': 'image/webp' } });
++
++console.log('\nWebP conversion');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const bucket = makeBucket();
++  const images = makeImages(webpOut(WEBP_SMALL));
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/w/1.jpg'), { IMG_BUCKET: bucket, IMAGES: images }, ctx());
++  const body = Buffer.from(await r.arrayBuffer());
++  await flush();
++  const stored = [...bucket.m.values()][0];
++  check('user gets webp', r.headers.get('Content-Type') === 'image/webp', r.headers.get('Content-Type'));
++  check('user gets converted bytes', body.equals(WEBP_SMALL));
++  check('R2 stores converted bytes', Buffer.from(stored.buf).equals(WEBP_SMALL));
++  check('R2 content type is webp', stored.opts.httpMetadata.contentType === 'image/webp');
++  check('R2 metadata records conversion', stored.opts.customMetadata.converted === 'webp' && stored.opts.customMetadata.origBytes === String(IMG.length));
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', okImage);   // already image/webp
++  const images = makeImages(webpOut(WEBP_SMALL));
++  await worker.fetch(imgReq('https://media.mangaka.com/w/2.webp'), { IMAGES: images }, ctx());
++  check('already-webp skipped (no billable transform)', images.calls.length === 0);
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const images = makeImages(() => { throw new Error('quota exceeded'); });
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/w/3.jpg'), { IMAGES: images }, ctx());
++  const body = Buffer.from(await r.arrayBuffer());
++  check('conversion error -> original served', r.status === 200 && body.equals(IMG) && r.headers.get('Content-Type') === 'image/jpeg');
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const images = makeImages(webpOut(Buffer.alloc(500, 1)));   // bigger than the 15-byte original
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/w/4.jpg'), { IMAGES: images }, ctx());
++  const body = Buffer.from(await r.arrayBuffer());
++  check('bigger webp rejected, original kept', body.equals(IMG));
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const images = makeImages(webpOut(WEBP_SMALL));
++  await worker.fetch(imgReq('https://media.mangaka.com/w/5.jpg'), { IMAGES: images, WEBP_CONVERT: 'off' }, ctx());
++  check('kill switch disables conversion', images.calls.length === 0);
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const images = makeImages(() => new Response('<html>', { headers: { 'Content-Type': 'text/html' } }));
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/w/6.jpg'), { IMAGES: images }, ctx());
++  check('non-webp output rejected', Buffer.from(await r.arrayBuffer()).equals(IMG));
++}
++{
++  // converted once, then a cold edge cache is served from R2 with NO second transform
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', jpegRoute);
++  const bucket = makeBucket(); const images = makeImages(webpOut(WEBP_SMALL));
++  const env = { IMG_BUCKET: bucket, IMAGES: images };
++  await worker.fetch(imgReq('https://media.mangaka.com/w/7.jpg'), env, ctx());
++  await flush(); cacheStore.clear();
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/w/7.jpg'), env, ctx());
++  check('second request from R2', r.headers.get('X-Cache') === 'R2');
++  check('only one transform ever billed', images.calls.length === 1, `calls: ${images.calls.length}`);
++}
++
++// ── 13. Errors and bad answers are never cached long-term ────────────────────
++console.log('\nError caching');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', () => new Response('down', { status: 503 }));
++  const bucket = makeBucket();
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/e/1.webp'), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  check('failed fetch returns 502', r.status === 502);
++  check('nothing written to R2 on failure', bucket.m.size === 0);
++  const cc = r.headers.get('Cache-Control') || '';
++  check('error response cache-control is short (<=15s)', /max-age=(\d+)/.test(cc) && Number(cc.match(/max-age=(\d+)/)[1]) <= 15, cc);
++  const negTtls = [...cacheStore.entries()].filter(([k]) => k.includes('neg')).map(([, v]) => v.headers.get('Cache-Control'));
++  check('negative-cache entry is short (<=60s)', negTtls.every(c => Number(c.match(/max-age=(\d+)/)[1]) <= 60), String(negTtls));
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', () => new Response('<html>challenge</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
++  const bucket = makeBucket();
++  const r = await worker.fetch(imgReq('https://media.mangaka.com/e/2.webp'), { IMG_BUCKET: bucket }, ctx());
++  await flush();
++  check('HTML-200 not stored in R2', bucket.m.size === 0);
++  check('HTML-200 not stored in edge cache', ![...cacheStore.keys()].some(k => k.includes('img.internal')));
++  check('HTML-200 response is no-store', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
++}
++
++// ── 14. R2 operation budget ──────────────────────────────────────────────────
++function countingBucket() {
++  const b = makeBucket(); b.ops = { get: 0, put: 0 };
++  const g = b.get.bind(b), p = b.put.bind(b);
++  b.get = async (k) => { b.ops.get++; return g(k); };
++  b.put = async (k, v, o) => { b.ops.put++; return p(k, v, o); };
++  return b;
++}
++console.log('\nR2 operation budget');
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', () => new Response('down', { status: 503 }));
++  const bucket = countingBucket();
++  await worker.fetch(imgReq('https://media.mangaka.com/b/1.webp'), { IMG_BUCKET: bucket }, ctx());   // first failure: 1 read
++  const before = bucket.ops.get;
++  for (let i = 0; i < 5; i++) await worker.fetch(imgReq('https://media.mangaka.com/b/1.webp'), { IMG_BUCKET: bucket }, ctx());
++  check('repeat retries of a failing image cost 0 extra R2 reads', bucket.ops.get === before, `reads ${before} -> ${bucket.ops.get}`);
++  check('failing image never written', bucket.ops.put === 0);
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', okImage);
++  const bucket = countingBucket();
++  await worker.fetch(imgReq('https://media.mangaka.com/b/2.webp'), { IMG_BUCKET: bucket, R2_CACHE: 'off' }, ctx());
++  check('R2_CACHE=off -> zero R2 operations', bucket.ops.get === 0 && bucket.ops.put === 0);
++}
++{
++  cacheStore.clear(); originRoutes = new Map(); originCalls = [];
++  originRoutes.set('media.mangaka.com', okImage);
++  const bucket = countingBucket();
++  const r = await worker.fetch(new Request('https://w.test/img-proxy?url=' + encodeURIComponent('https://media.mangaka.com/b/3.webp'),
++    { headers: { referer: 'https://some-scraper.example/page' } }), { IMG_BUCKET: bucket }, ctx());
++  check('foreign referer blocked (hotlink)', r.status === 403, `got ${r.status}`);
++  check('blocked hotlink costs 0 R2 ops and 0 origin calls', bucket.ops.get === 0 && originCalls.length === 0);
++  const ok = await worker.fetch(new Request('https://w.test/img-proxy?url=' + encodeURIComponent('https://media.mangaka.com/b/3.webp'),
++    { headers: { referer: 'https://www.mangareader.pro/reader/1' } }), { IMG_BUCKET: bucket }, ctx());
++  check('own-site referer allowed', ok.status === 200);
++  const none = await worker.fetch(new Request('https://w.test/img-proxy?url=' + encodeURIComponent('https://media.mangaka.com/b/4.webp')), { IMG_BUCKET: bucket }, ctx());
++  check('empty referer allowed (no-referrer pages)', none.status === 200);
++}
++
+ console.log(`\n${pass} passed, ${fail} failed\n`);
+ process.exit(fail ? 1 : 0);
+\ No newline at end of file
+diff --git a/cloudflare/wrangler.toml b/cloudflare/wrangler.toml
+index efca06f..1071cfe 100644
+--- a/cloudflare/wrangler.toml
++++ b/cloudflare/wrangler.toml
+@@ -13,12 +13,38 @@ workers_dev        = true
+ # (Railway) rather than closest to the user, reducing cache-miss round-trip time.
+ # Free, takes 2 minutes, no config here.
+ 
++# cdn.mangareader.pro = the image/scraper host the frontends should use
++# (NEXT_PUBLIC_WORKER_URL). Cloudflare's edge cache does NOT work on *.workers.dev,
++# so every image view there becomes an R2 read. Keep workers_dev = true until the
++# frontends are redeployed with the cdn URL, THEN set workers_dev = false.
+ routes = [
++  { pattern = "cdn.mangareader.pro", custom_domain = true },
+   { pattern = "api.mangareader.pro/*",   zone_name = "mangareader.pro"   },
+   { pattern = "api.mangaread.pro/*",     zone_name = "mangaread.pro"     },
+   { pattern = "api.manireader.online/*", zone_name = "manireader.online" },
+ ]
+ 
++# ── R2 image store ────────────────────────────────────────────────────────────
++# 1) npx wrangler r2 bucket create mangareader-images
++# 2) Dashboard → R2 → mangareader-images → Settings → Object lifecycle rules:
++#    expire prefix "img/" after 14 days (keeps you inside the 10GB free tier).
++# 3) Optional purge endpoint:  npx wrangler secret put ADMIN_TOKEN
++[[r2_buckets]]
++binding     = "IMG_BUCKET"
++bucket_name = "mangareader-images"
++
++# WebP conversion before caching. Billed as Cloudflare Images "unique
++# transformations": first 5,000/month free, then $0.50 per 1,000. Already-WebP
++# images are skipped. Remove this block (or set WEBP_CONVERT = "off") to disable.
++[images]
++binding = "IMAGES"
++
++# Backend fallback for images the Worker can't fetch (CDN throttles Cloudflare
++# IPs). Set to your Railway backend, e.g. "https://api-mangareader.railway.app".
++# Empty string = fallback disabled.
++[vars]
++BACKEND_URL = ""
++
+ [observability.logs]
+ enabled = true
+ invocation_logs = true
+@@ -33,5 +59,17 @@ invocation_logs = true
+ # ── Optional: add your custom domain ─────────────────────────────────────────
+ # routes = [{ pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }]
+ 
++# NOTE: wrangler envs do NOT inherit bindings, routes or observability.
++# If you deploy with `--env production`, repeat them here.
+ [env.production]
+ name = "mangareader-proxy-prod"
++
++[env.production.images]
++binding = "IMAGES"
++
++[env.production.vars]
++BACKEND_URL = ""
++
++[[env.production.r2_buckets]]
++binding     = "IMG_BUCKET"
++bucket_name = "mangareader-images"
+diff --git a/frontend/src/app/reader/[id]/page.js b/frontend/src/app/reader/[id]/page.js
+index a1451ea..72b220b 100644
+--- a/frontend/src/app/reader/[id]/page.js
++++ b/frontend/src/app/reader/[id]/page.js
+@@ -550,37 +550,31 @@ function ReaderContent({ params }) {
+                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}
+                     unoptimized={true}
+                     onError={() => {
++                      // Alternate proxies on every failure (Worker <-> backend use
++                      // different networks, so one usually works when the other is
++                      // throttled), with a growing delay so we don't hit the
++                      // Worker's short negative cache instantly.
+                       const retryCount = (imgRetries[i] || 0) + 1;
+-                      if (retryCount < 3) {
+-                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
+-                        const img = document.querySelectorAll('.reader-page img')[i];
+-                        if (img) {
+-                          const sep = img.src.includes('?') ? '&' : '?';
+-                          img.src = img.src.replace(/[&?]_retry=\d+/, '') + sep + '_retry=' + retryCount;
+-                        }
+-                      } else if (retryCount === 3) {
+-                        // ponytail: swap proxy — try the OTHER proxy before giving up
+-                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
+-                        const img = document.querySelectorAll('.reader-page img')[i];
+-                        if (img) {
+-                          try {
+-                            const u = new URL(img.src);
+-                            const rawUrl = u.searchParams.get('url') || imgUrl;
+-                            const API = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
+-                            const WKR = process.env.NEXT_PUBLIC_WORKER_URL || '';
+-                            // If currently on backend, try worker; if on worker, try backend
+-                            if (img.src.includes('/api/proxy-image') && WKR) {
+-                              img.src = `${WKR}/img-proxy?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
+-                            } else if (API) {
+-                              img.src = `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
+-                            } else {
+-                              setImgErrors(prev => ({ ...prev, [i]: true }));
+-                            }
+-                          } catch { setImgErrors(prev => ({ ...prev, [i]: true })); }
+-                        }
+-                      } else {
++                      setImgRetries(prev => ({ ...prev, [i]: retryCount }));
++                      if (retryCount > 3) {
+                         setImgErrors(prev => ({ ...prev, [i]: true }));
++                        return;
+                       }
++                      const img = document.querySelectorAll('.reader-page img')[i];
++                      if (!img) return;
++                      try {
++                        const u = new URL(img.src);
++                        const rawUrl = u.searchParams.get('url') || imgUrl;
++                        const API = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
++                        const WKR = process.env.NEXT_PUBLIC_WORKER_URL || '';
++                        const onBackend = img.src.includes('/api/proxy-image');
++                        const base = (onBackend ? (WKR && `${WKR}/img-proxy`) : (API && `${API}/api/proxy-image`))
++                          || img.src.split('?')[0];   // no alternate configured: retry same proxy
++                        const delay = retryCount === 1 ? 0 : retryCount * 1500;
++                        setTimeout(() => {
++                          img.src = `${base}?url=${encodeURIComponent(rawUrl)}&_retry=${retryCount}`;
++                        }, delay);
++                      } catch { setImgErrors(prev => ({ ...prev, [i]: true })); }
+                     }}
+                     onDoubleClick={() => setZoomedImage(zoomedImage === i ? null : i)}
+                   />
+diff --git a/frontend/src/app/sitemap.ts b/frontend/src/app/sitemap.ts
+index b77c331..19db550 100644
+--- a/frontend/src/app/sitemap.ts
++++ b/frontend/src/app/sitemap.ts
+@@ -34,11 +34,6 @@ const STATIC_ROUTES: Array<{
+   { path: '/dmca',    changeFrequency: 'yearly',  priority: 0.3, lastModified: '2026-09-01' },
+ ];
+ 
+-// Top 10 most-opened discovered manga. Ranking is purely cumulative opens —
+-  // no recency weighting and no activity window, so a title's rank reflects how
+-  // often readers actually open it.
+-const SITEMAP_TOP_MANGA = 10;
+-
+ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+   // Static routes
+   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(r => ({
+@@ -64,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+     }));
+   } catch { /* DB unavailable during build — skip */ }
+ 
+-  // Top-ranked discovered manga — the 10 most-opened titles.
++  // Discovered manga pages (most recently viewed first, capped at 5 000)
+   let mangaEntries: MetadataRoute.Sitemap = [];
+   try {
+     const discovered = await prisma.$queryRaw<
+@@ -72,16 +67,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+     >`
+       SELECT slug, last_viewed_at AS "lastViewedAt", view_count AS "viewCount"
+       FROM discovered_manga
+-      ORDER BY view_count DESC, last_viewed_at DESC
+-      LIMIT ${SITEMAP_TOP_MANGA}
++      ORDER BY last_viewed_at DESC
++      LIMIT 5000
+     `;
+-    const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
+-    mangaEntries = discovered.map((m, i) => ({
++    mangaEntries = discovered.map(m => ({
+       url:             `${SITE_URL}/manga/${m.slug}`,
+       lastModified:    m.lastViewedAt,
+       changeFrequency: 'weekly' as const,
+-      // Rank 1 gets 0.9, decaying to 0.5 by rank 10.
+-      priority:        Number((0.9 - i * step).toFixed(2)),
++      // Boost popular titles toward 0.9; base floor at 0.5
++      priority:        Math.min(0.9, 0.5 + Math.min((m.viewCount ?? 0) / 100, 0.4)),
+     }));
+   } catch { /* DB unavailable */ }
+ 
