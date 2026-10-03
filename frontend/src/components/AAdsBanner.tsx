@@ -67,11 +67,13 @@ function AAdsBannerInner() {
                 style={{
                   border: 0,
                   padding: 0,
-                  width: '70%',
-                  height: 'auto',
+                  width: '100%',
+                  maxWidth: '728px',
+                  height: '90px',
+                  minHeight: '90px',
                   overflow: 'hidden',
-                  margin: 'auto',
-                  display: 'block'
+                  display: 'block',
+                  margin: '0 auto'
                 }}
                 title="Advertisement"
                 scrolling="no"
