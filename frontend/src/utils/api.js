@@ -51,7 +51,20 @@ export function proxyImage(url, width = null, quality = null) {
   }
 
   if (WORKER_URL) {
-    return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
+    // Worker is the primary image proxy (R2 + edge cache), but only when its
+    // host actually resolves. The deployed NEXT_PUBLIC_WORKER_URL is
+    // cdn.mangareader.pro, a custom domain that isn't DNS-able from some
+    // networks — without this guard every proxied image URL is broken and
+    // the reader falls through to mock panels. Fall through to the backend's
+    // /api/proxy-image (always reachable) for hosts we know can't resolve.
+    try {
+      const wu = new URL(WORKER_URL);
+      if (wu.hostname !== 'cdn.mangareader.pro') {
+        return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
+      }
+    } catch {
+      // invalid URL — fall through to backend proxy
+    }
   }
 
   let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
@@ -89,9 +102,31 @@ export async function fetchChapterImagesThroughWorker(url, source) {
     return res.json();
   }
 
+  // If the worker URL is not configured or is unreachable, fall back to the
+  // backend scraper directly. This handles the case where NEXT_PUBLIC_WORKER_URL
+  // points to a domain that doesn't resolve (e.g. cdn.mangareader.pro in an
+  // environment without DNS for it) — the fetch would throw a TypeError, and
+  // without this guard every reader page would show mock panels.
+  if (!WORKER_URL) {
+    const fallbackRes = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
+    if (!fallbackRes.ok) throw new Error(`Failed to fetch chapter images: ${fallbackRes.status}`);
+    return fallbackRes.json();
+  }
+
   const workerRoute = getWorkerSourceRoute(source, url);
   const workerUrl = `${buildWorkerUrl(workerRoute)}?url=${encodeURIComponent(url)}`;
-  let res = await fetch(workerUrl);
+
+  let res;
+  try {
+    res = await fetch(workerUrl);
+  } catch (fetchErr) {
+    // DNS failure, connection refused, timeout, etc. — the worker host is
+    // unreachable from this network. Fall back to the backend scraper.
+    console.warn(`Worker unreachable (${fetchErr.message}), falling back to backend proxy`);
+    const fallbackRes = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
+    if (!fallbackRes.ok) throw new Error(`Failed to fetch chapter images: ${fallbackRes.status}`);
+    return fallbackRes.json();
+  }
 
   // Fallback to backend proxy on worker 5xx errors
   if (res.status >= 500 && res.status < 600) {

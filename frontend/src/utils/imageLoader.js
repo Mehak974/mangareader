@@ -30,7 +30,20 @@ export default function myImageLoader({ src, width, quality }) {
   }
 
   if (WORKER_URL) {
-    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
+    // Worker is the primary image proxy (R2 + edge cache), but only when its
+    // host actually resolves. The deployed NEXT_PUBLIC_WORKER_URL is
+    // cdn.mangareader.pro, a custom domain that isn't DNS-able from some
+    // networks — without this guard every proxied image URL is broken and
+    // the reader falls through to mock panels. Fall through to the backend's
+    // /api/proxy-image (always reachable) for hosts we know can't resolve.
+    try {
+      const wu = new URL(WORKER_URL);
+      if (wu.hostname !== 'cdn.mangareader.pro') {
+        return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
+      }
+    } catch {
+      // invalid URL — fall through to backend proxy
+    }
   }
 
   const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
