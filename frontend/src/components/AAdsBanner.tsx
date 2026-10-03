@@ -87,7 +87,7 @@ function AAdsBannerInner() {
           `}</style>
         </div>
       </div>
-      <div style={{ height: '90px', width: '100%' }} />
+      <div style={{ height: '90px', width: '100%', display: 'block' }} />
     </>
   );
 }
