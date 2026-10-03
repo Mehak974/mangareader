@@ -75,6 +75,7 @@ export function middleware(request) {
     'https://purple-text.com',
     'https://www.untimely-promotion.com',
     'https://www.quizzical-topic.com',
+    'https://va.vercel-scripts.com',
   ];
 
   const cspHeader = `
