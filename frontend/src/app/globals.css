@@ -5705,3 +5705,9 @@ body:not(.logged-in) .guest-flex {
   overflow: hidden;
 }
 
+/* Text pages need more air around the block than the reader's page-to-page
+   gaps give — there is no black gutter to disappear into. */
+.crypto-page .aads-inline {
+  margin: 34px auto;
+}
+

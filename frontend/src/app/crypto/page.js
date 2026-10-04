@@ -8,7 +8,9 @@
  * robots.ts.
  *
  * The popunder (Hilltop / purple-text.com) is suppressed here via
- * EXCLUDED_PATHS in components/AdScriptLoader.tsx.
+ * EXCLUDED_PATHS in components/AdScriptLoader.tsx. The page still carries one
+ * in-flow 300x250 unit (components/AAdsInline.jsx) below the intro, plus the
+ * sticky 728x90 banner every other page has.
  *
  * Widgets live in ./CryptoTools.jsx: client-side, computed locally, nothing
  * leaves the browser. None of this is financial advice.
@@ -16,6 +18,7 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
+import AAdsInline from "@/components/AAdsInline";
 import { buildMetadata, breadcrumbSchema, faqSchema, SITE_URL } from "@/lib/seo";
 import { MarketBoard, GrowthPlanner, HalvingCountdown } from "./CryptoTools";
 
@@ -424,6 +427,14 @@ export default function CryptoPage() {
             selling anything. It is an explanation of how the plumbing works, so that you can tell
             when somebody is making things up.
           </div>
+
+          {/* ── AD ─────────────────────────────────────────────────── */}
+          {/* One 300x250 slot, after the intro and before the first section.
+              Placed here rather than at the foot of a 15-section reference
+              page because this is the only ad the page will ever serve: below
+              the fold it would go unseen for most visitors. In flow, like every
+              other unit on the site — nothing floats over the text. */}
+          <AAdsInline />
 
           {/* ── MARKETS ─────────────────────────────────────────────── */}
           <section id="markets">
