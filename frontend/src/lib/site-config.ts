@@ -17,6 +17,12 @@
 export type AdConfig = {
   /** A-ADS (a-ads.com) publisher unit ID — different per domain */
   aadsUnitId: string;
+  /**
+   * A-ADS unit ID for the 300x250 floating unit (components/AAdsFloat.tsx).
+   * Separate from aadsUnitId because the network meters and pays per unit, so
+   * the float needs its own ID to attribute its revenue.
+   */
+  aadsFloatUnitId: string;
   /** A-ADS iframe background color (hex without #) */
   aadsBgColor: string;
   /** A-ADS title link color (hex without #) */
@@ -81,6 +87,7 @@ const CONFIGS: Record<string, SiteConfig> = {
     url: 'https://mangareader.pro',
     ads: {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2454751',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2457490',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0A0612',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'A855F7',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
@@ -113,6 +120,7 @@ const CONFIGS: Record<string, SiteConfig> = {
     url: 'https://mangaread.pro',
     ads: {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455860',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2457490',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0C1220',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || '38BDF8',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
@@ -145,6 +153,7 @@ const CONFIGS: Record<string, SiteConfig> = {
     url: 'https://manireader.online',
     ads: {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455863',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2457490',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0E0F14',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'F97316',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
@@ -201,6 +210,9 @@ export const THEME     = siteConfig.theme;
 
 /** True when AADS banner should be shown */
 export const AADS_ENABLED = Boolean(siteConfig.ads.aadsUnitId && siteConfig.ads.aadsUnitId !== '0000000');
+
+/** True when the AADS 300x250 floating unit should be shown */
+export const AADS_FLOAT_ENABLED = Boolean(siteConfig.ads.aadsFloatUnitId && siteConfig.ads.aadsFloatUnitId !== '0000000');
 
 /** True when the Hilltop script should be injected */
 export const HILLTOP_ENABLED = Boolean(siteConfig.ads.hilltopVerification);

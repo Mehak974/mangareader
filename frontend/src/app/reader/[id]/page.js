@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState, useEffect, useRef, Suspense } from "react";
+import React, { Fragment, use, useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Loader from "@/components/Loader";
@@ -9,8 +9,28 @@ import Image from "next/image";
 import { API_BASE, proxyImage, fetchChapterImagesThroughWorker } from "@/utils/api";
 import { useDrag } from "@use-gesture/react";
 import dynamic from "next/dynamic";
+import AAdsInline from "@/components/AAdsInline";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
+
+/**
+ * Exactly one 300x250 slot per chapter, after the 3rd page image:
+ *
+ *   page 1 / page 2 / page 3 / [ad] / page 4 ... rest of the chapter
+ *
+ * One is deliberate. The sticky 728x90 A-ADS banner already runs at the bottom
+ * of every reader, so a second inline unit repeating every few pages would make
+ * two ad slots per screenful on long chapters — that reads as a wall of ads,
+ * and readers bounce. Two ad moments per chapter is the budget:
+ * one mid-chapter, one at the bottom.
+ *
+ * Skipped on short chapters where the 3rd page is the last one — a slot with
+ * nothing after it reads as an end-of-chapter banner, not an inline unit.
+ *
+ * Webtoon mode only. Paged mode renders one 100vh page at a time, so a block
+ * there would push the artwork down instead of separating two pages.
+ */
+const AD_AFTER_PAGE = 3;
 
 function ReaderContent({ params }) {
   const router = useRouter();
@@ -489,8 +509,8 @@ function ReaderContent({ params }) {
             const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
             const hasError = imgErrors[i];
             return (
+              <Fragment key={i}>
               <div
-                key={i}
                 className="reader-page"
                 style={{
                   position: "relative",
@@ -577,6 +597,14 @@ function ReaderContent({ params }) {
                   </div>
                 )}
               </div>
+              {/* The one inline ad slot, between page 3 and page 4. A sibling
+                  of .reader-page, never a child, so the `.reader-page img`
+                  index used by the retry handler above stays aligned with the
+                  image list. */}
+              {viewMode === "webtoon" &&
+                i === AD_AFTER_PAGE - 1 &&
+                i < images.length - 1 && <AAdsInline />}
+              </Fragment>
             );
           })}
           <div ref={endRef} style={{ width: '100%', height: '1px' }} />

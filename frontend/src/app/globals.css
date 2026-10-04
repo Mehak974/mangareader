@@ -5678,3 +5678,30 @@ body:not(.logged-in) .guest-flex {
     font-size: 1.1rem;
   }
 }
+
+/* ── INLINE 300x250 (A-ADS unit 2457490) ──────────────────────────────────────
+ * Rendered by components/AAdsInline.jsx, in the flow of a chapter between page
+ * images.
+ *
+ * No position, no z-index, no transform. It is an ordinary block in the
+ * .reader-pages flex column, so it sits between two pages, is centred by auto
+ * margins, and scrolls with everything else. Anything that made it float would
+ * put it on top of artwork and intercept taps aimed at the page next to it.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+.aads-inline {
+  width: 300px;
+  margin: 16px auto;
+  flex-shrink: 0;
+}
+
+.aads-inline-frame {
+  position: relative;
+  width: 300px;
+  height: 250px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
