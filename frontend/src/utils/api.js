@@ -15,7 +15,17 @@ export const API_BASE =
 // built `${BACKEND}/img-proxy?...`, which 404s every image on the site.
 // With no value here, proxyImage() drops through to the backend's
 // /api/proxy-image, which does exist.
-export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || "https://cdn.mangareader.pro";
+const formatUrl = (urlStr) => {
+  if (!urlStr) return "";
+  let trimmed = urlStr.trim().replace(/\/$/, "");
+  if (!trimmed) return "";
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
+export const WORKER_URL = formatUrl(process.env.NEXT_PUBLIC_WORKER_URL) || "https://cdn.mangareader.pro";
 
 export function isWorkerAvailable() {
   if (!WORKER_URL) return false;

@@ -227,8 +227,8 @@ const REFERERS = {
   'chapmanganato':       'https://chapmanganato.to/',
   'mangaread.org':       'https://mangaread.org/',
   '2xstorage':           'https://mangakakalot.com/',
-  'waitst.com':          'https://chapmanganato.to/',
-  'waitst':              'https://chapmanganato.to/',
+  'waitst.com':          'https://www.manganato.gg/',
+  'waitst':              'https://www.manganato.gg/',
   'anilist.co':          'https://anilist.co/',
 };
 function referer(url) {
