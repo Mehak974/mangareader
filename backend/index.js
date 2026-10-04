@@ -1231,7 +1231,8 @@ async function proxyImage(url, w, q, cacheKey) {
     // ponytail: referer detection by substring — no map to maintain.
     const referer =
       h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
-       h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') || h.includes('waitst.com') ? 'https://www.manganato.com/' :
+      h.includes('manganato.gg') || h.includes('waitst') ? 'https://www.manganato.gg/' :
+      h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') ? 'https://mangakakalot.com/' :
       h.includes('mangaread')   ? 'https://mangaread.org/' :
       `${parsed.origin}/`;
 
