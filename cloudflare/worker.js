@@ -556,7 +556,7 @@ async function imgProxy(req, ctx, origin, env) {
           try {
             const br = await fetch(
               `${String(env.BACKEND_URL).replace(/\/$/, '')}/api/proxy-image?url=${encodeURIComponent(target)}`,
-              { signal: AbortSignal.timeout(4000), cf: { cacheTtl: 0 } }
+              { signal: AbortSignal.timeout(8000), cf: { cacheTtl: 0 } }
             );
             const bct = (br.headers.get('content-type') || '').toLowerCase();
             if (br.ok && bct.startsWith('image/')) { originFetch = br; viaBackend = true; break; }
@@ -582,7 +582,8 @@ async function imgProxy(req, ctx, origin, env) {
 
       if (!originFetch) {
         // breakerFail already ran per failing candidate; 429 never trips it.
-        negSet(ctx, req.url, imgKey, { status: errorStatus, msg: lastError }, throttled ? NEG_TTL_429 : NEG_TTL_SEC);
+        const isTransient = throttled || (lastError && (lastError.includes('aborted') || lastError.includes('timeout')));
+        negSet(ctx, req.url, imgKey, { status: errorStatus, msg: lastError }, isTransient ? NEG_TTL_429 : 15);
         // A 4xx is a real answer (the file is genuinely absent here), so relay
         // it instead of disguising it as a gateway failure. 5xx and network
         // errors stay 502 — that one is ours, not the origin's.
