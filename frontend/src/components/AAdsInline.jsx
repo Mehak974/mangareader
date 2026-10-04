@@ -1,4 +1,7 @@
+'use client';
+
 import { AADS_FLOAT_ENABLED, AD_CONFIG } from '@/lib/site-config';
+import { useAdMode } from '@/lib/useAdMode';
 
 /**
  * AAdsInline — the 300x250 A-ADS unit that sits in the flow of a chapter,
@@ -26,7 +29,9 @@ const { aadsFloatUnitId } = AD_CONFIG;
 const UNIT_SRC = `//ad.a-ads.com/${aadsFloatUnitId}/?size=300x250&background_color=transparent`;
 
 export default function AAdsInline() {
-  if (!AADS_FLOAT_ENABLED || !aadsFloatUnitId) return null;
+  const adMode = useAdMode();
+
+  if (!AADS_FLOAT_ENABLED || !aadsFloatUnitId || adMode !== 'inline') return null;
 
   return (
     <div className="aads-inline">
