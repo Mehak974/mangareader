@@ -153,9 +153,13 @@ const ALLOWED_WORKER_ORIGINS = [
   'https://www.mangareader.pro',
   'https://mangaread.pro',
   'https://www.mangaread.pro',
+  'https://mangaread.org',
+  'https://www.mangaread.org',
   'https://manireader.online',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
 ];
 
 function corsHeaders(origin) {
@@ -831,7 +835,7 @@ async function anilist(req, ctx, origin, env) {
 //   SCRAPED_EPOCH.manganato → bumps one source only
 const SCRAPED_EPOCH = 'v1';
 const SCRAPED_EPOCH_BY_SOURCE = { manganato: 'v3' };  // bumped: drop cached failures
-const IMG_EPOCH = 'v1';
+const IMG_EPOCH = 'v2';
 // bumped v1 -> v2: every v1 entry is a cached copy of AniList's "you have been
 // manually blocked" response, stored for 24h as if it were data. Bumping the
 // epoch makes them unreachable so they expire naturally.
