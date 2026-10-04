@@ -1087,7 +1087,7 @@ function imageCacheSet(key, entry) {
 // Concurrency gate. Each in-flight image costs 3-4 copies of the source Buffer
 // (axios → sharp input → sharp output), so without this a chapter page firing
 // ~20 parallel <img> requests was enough to exhaust the heap.
-const IMAGE_CONCURRENCY = parseInt(process.env.IMAGE_CONCURRENCY || '6', 10);
+const IMAGE_CONCURRENCY = parseInt(process.env.IMAGE_CONCURRENCY || '30', 10);
 const MAX_SOURCE_BYTES = parseInt(process.env.IMAGE_MAX_SOURCE_BYTES || String(15 * 1024 * 1024), 10);
 let imageBusy = 0;
 const imageQueue = [];
