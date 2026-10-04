@@ -69,6 +69,7 @@ binding = "IMAGES"
 # network path often succeeds where every Worker retry fails.
 [vars]
 BACKEND_URL = "https://api.mangareader.pro"
+WEBP_CONVERT = "off"
 
 [observability.logs]
 enabled = true
@@ -104,6 +105,7 @@ binding = "IMAGES"
 
 [env.production.vars]
 BACKEND_URL = "https://api.mangareader.pro"
+WEBP_CONVERT = "off"
 
 [[env.production.r2_buckets]]
 binding     = "IMG_BUCKET"
