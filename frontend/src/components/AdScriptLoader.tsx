@@ -3,7 +3,11 @@
 import { useEffect } from 'react';
 import { usePathname }       from 'next/navigation';
 
-const EXCLUDED_PATHS = ['/aads', '/admin', '/login', '/signup'];
+// Routes where the popunder must never fire. `startsWith` matching, so
+// '/crypto' also covers any future sub-route under it. /crypto is a long
+// reference page, and a popunder stealing focus partway through it loses the
+// reader for good.
+const EXCLUDED_PATHS = ['/aads', '/admin', '/login', '/signup', '/crypto'];
 
 // ── Hilltop Ads (served from purple-text.com) ────────────────────────────────
 const HILLTOP_SRC = '//purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTOXS/0B3SMNzDIAw-NxTgMszu';
