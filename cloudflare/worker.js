@@ -75,24 +75,30 @@ function memSet(key, val, ttlSec) {
 // ─── L2: Cloudflare Cache API (caches.default) ───────────────────────────────
 // Free, unlimited, global CDN. Works for ANY response type (JSON, images, HTML).
 // TTL is set via Cache-Control header. No KV, no cost.
-async function cacheGet(key) {
-  const r = await caches.default.match(new Request(`https://cache.internal/${key}`));
+function cacheReq(reqUrl, key) {
+  let host = 'cache.internal';
+  if (reqUrl) {
+    try { host = new URL(reqUrl).host; } catch {}
+  }
+  return new Request(`https://${host}/_cache/${key}`);
+}
+
+async function cacheGet(reqUrl, key) {
+  const r = await caches.default.match(cacheReq(reqUrl, key));
   if (!r) return null;
   try { return await r.json(); } catch { return null; }
 }
-async function cachePut(ctx, key, data, ttlSec) {
-  const ttl = ttlSec;
+async function cachePut(ctx, reqUrl, key, data, ttlSec) {
   ctx.waitUntil(
     caches.default.put(
-      new Request(`https://cache.internal/${key}`),
+      cacheReq(reqUrl, key),
       new Response(JSON.stringify(data), {
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': `public, max-age=${ttlSec}`,
         },
-        cf: { cacheEverything: true, cacheTtl: ttl },
       })
-    )
+    ).catch(() => {})
   );
 }
 
@@ -104,15 +110,15 @@ async function cachePut(ctx, key, data, ttlSec) {
 const NEG_TTL_SEC = 60;      // 5xx / network — origin is down, back off hard
 const NEG_TTL_429 = 8;       // 429 — transient throttle, only suppress a burst
 
-async function negGet(key) {
+async function negGet(reqUrl, key) {
   const m = memGet(`neg:${key}`);
   if (m) return m;
-  const c = await cacheGet(`neg:${key}`);
+  const c = await cacheGet(reqUrl, `neg:${key}`);
   return c || null;
 }
-function negSet(ctx, key, val, ttlSec = NEG_TTL_SEC) {
+function negSet(ctx, reqUrl, key, val, ttlSec = NEG_TTL_SEC) {
   memSet(`neg:${key}`, val, ttlSec);
-  cachePut(ctx, `neg:${key}`, val, ttlSec);
+  cachePut(ctx, reqUrl, `neg:${key}`, val, ttlSec);
 }
 
 // ─── L3b: Per-host circuit breaker ───────────────────────────────────────────
@@ -225,7 +231,8 @@ const REFERERS = {
   'chapmanganato':       'https://chapmanganato.to/',
   'mangaread.org':       'https://mangaread.org/',
   '2xstorage':           'https://mangakakalot.com/',
-  'waitst.com':          'https://mangakatana.com/',
+  'waitst.com':          'https://chapmanganato.to/',
+  'waitst':              'https://chapmanganato.to/',
   'anilist.co':          'https://anilist.co/',
 };
 function referer(url) {
@@ -287,8 +294,8 @@ export default {
 // they rot independently: img-r1 serves, img-r2 answers 503, imgs-2 404s on
 // page images. The path layout is identical across hosts, so when the host in
 // the HTML is dead we replay the same path against a verified-good mirror.
-const MIRROR_HOSTS = ['img-r1.2xstorage.com'];
-const MAX_429_ATTEMPTS = 5;   // throttle clears in ~10s → 1+2+4+8s of backoff
+const MIRROR_HOSTS = ['img-r1.2xstorage.com', 'img-r2.2xstorage.com', 'imgs-2.2xstorage.com'];
+const MAX_429_ATTEMPTS = 2;   // fast retry + backend fallback; don't hang worker isolates
 const MAX_5XX_ATTEMPTS = 2;   // hard failures give up early, breaker covers repeats
 
 function candidatesFor(url) {
@@ -361,7 +368,7 @@ async function purgeImage(req, env, origin) {
   if (env.IMG_BUCKET) await env.IMG_BUCKET.delete(r2Key);
   // Only clears this data center's edge copy; the rest expire on their own, or
   // bump IMG_EPOCH and redeploy to invalidate every edge copy at once.
-  await caches.default.delete(new Request(`https://img.internal/${imgKey}`));
+  await caches.default.delete(cacheReq(req.url, imgKey));
   return json({ purged: true, r2Key }, 200, {}, origin);
 }
 
@@ -384,6 +391,7 @@ function isForeignReferer(req, env) {
   if (!src) return false;
   let host;
   try { host = new URL(src).hostname; } catch { return true; }
+  if (host.endsWith('.vercel.app')) return false;
   return !ALLOWED_WORKER_ORIGINS.some(o => {
     let allowedHost;
     try { allowedHost = new URL(o).hostname; } catch { allowedHost = o; }
@@ -404,7 +412,7 @@ async function imgProxy(req, ctx, origin, env) {
   const host = new URL(target).hostname;
 
   // L2: check Cloudflare CDN cache (free, no limits)
-  const cacheKey = new Request(`https://img.internal/${imgKey}`);
+  const cacheKey = cacheReq(req.url, imgKey);
   const hit = await caches.default.match(cacheKey);
   if (hit) {
     // Headers normalises casing, so spreading hit.headers and then adding
@@ -414,7 +422,6 @@ async function imgProxy(req, ctx, origin, env) {
     delete cached['access-control-allow-origin'];
     return new Response(hit.body, {
       headers: { ...cached, ...corsHeaders(origin) },
-      cf: { cacheEverything: true, cacheTtl: 31536000 },
     });
   }
 
@@ -425,7 +432,12 @@ async function imgProxy(req, ctx, origin, env) {
   const r2Key = r2KeyFor(imgKey);
   if (bucket) {
     try {
-      const obj = await bucket.get(r2Key);
+      let obj = null;
+      try {
+        obj = await bucket.get(r2Key);
+      } catch (err) {
+        console.warn(`[r2] bucket.get error for ${r2Key}: ${err?.message || err}`);
+      }
       if (obj) {
         const ct = obj.httpMetadata?.contentType || 'image/jpeg';
         const base = { 'Content-Type': ct, 'Cache-Control': R2_CACHE_CONTROL };
@@ -446,9 +458,10 @@ async function imgProxy(req, ctx, origin, env) {
 
   // Recent origin failure for this exact image — serve it instantly instead of
   // repeating dead fetches per visitor.
-  const neg = await negGet(imgKey);
+  const neg = await negGet(req.url, imgKey);
   if (neg) {
-    return errResponse(origin, 502, neg.msg, {
+    const status = (neg.status >= 400 && neg.status < 500) ? neg.status : 502;
+    return errResponse(origin, status, neg.msg, {
       'X-Cache': 'NEGATIVE', 'X-Origin-Status': String(neg.status), 'X-Origin-Host': host,
     });
   }
@@ -506,7 +519,7 @@ async function imgProxy(req, ctx, origin, env) {
         for (const cand of candidates) {
           const candHost = new URL(cand).hostname;
           try {
-            const r = await fetch(cand, { headers: fetchHeaders, cf: { cacheTtl: 0 } });
+            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(4000), cf: { cacheTtl: 0 } });
             if (r.ok) { originFetch = r; break; }
 
             // Release the connection — the error body is never read.
@@ -514,9 +527,8 @@ async function imgProxy(req, ctx, origin, env) {
 
             lastError = `Source error ${r.status}`;
             errorStatus = r.status;
-            // A throttled host is not a broken host — never count it toward
-            // the breaker, or a retry burst trips it on its own.
-            if (cand === target && r.status !== 429) breakerFail(candHost);
+            // A throttled host or 4xx missing image is not a broken server — only count 5xx toward breaker.
+            if (cand === target && r.status >= 500) breakerFail(candHost);
 
             // A 4xx means this host simply does not hold the file; keep the
             // first one so it can be surfaced, but still let a mirror answer.
@@ -544,7 +556,7 @@ async function imgProxy(req, ctx, origin, env) {
           try {
             const br = await fetch(
               `${String(env.BACKEND_URL).replace(/\/$/, '')}/api/proxy-image?url=${encodeURIComponent(target)}`,
-              { signal: AbortSignal.timeout(10000), cf: { cacheTtl: 0 } }
+              { signal: AbortSignal.timeout(4000), cf: { cacheTtl: 0 } }
             );
             const bct = (br.headers.get('content-type') || '').toLowerCase();
             if (br.ok && bct.startsWith('image/')) { originFetch = br; viaBackend = true; break; }
@@ -570,7 +582,7 @@ async function imgProxy(req, ctx, origin, env) {
 
       if (!originFetch) {
         // breakerFail already ran per failing candidate; 429 never trips it.
-        negSet(ctx, imgKey, { status: errorStatus, msg: lastError }, throttled ? NEG_TTL_429 : NEG_TTL_SEC);
+        negSet(ctx, req.url, imgKey, { status: errorStatus, msg: lastError }, throttled ? NEG_TTL_429 : NEG_TTL_SEC);
         // A 4xx is a real answer (the file is genuinely absent here), so relay
         // it instead of disguising it as a gateway failure. 5xx and network
         // errors stay 502 — that one is ours, not the origin's.
@@ -589,7 +601,7 @@ async function imgProxy(req, ctx, origin, env) {
         // lost"). Previously this rejected the shared promise and became an
         // uncaught 500 for every coalesced waiter.
         breakerFail(new URL(target).hostname);
-        negSet(ctx, imgKey, { status: 502, msg: 'Origin connection lost' }, 10);
+        negSet(ctx, req.url, imgKey, { status: 502, msg: 'Origin connection lost' }, 10);
         return { type: 'error', status: 502, body: 'Origin connection lost', originStatus: 502 };
       }
 
@@ -629,9 +641,8 @@ async function imgProxy(req, ctx, origin, env) {
             'Cache-Control': 'public, max-age=31536000, immutable',
             'X-Cache':       'MISS',
           },
-          cf: { cacheEverything: true, cacheTtl: 31536000 },
         });
-        ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()));
+        ctx.waitUntil(caches.default.put(cacheKey, cacheResp.clone()).catch(() => {}));
       }
 
       // Return buffer + content-type so concurrent waiters each build their own Response
@@ -781,7 +792,7 @@ async function anilist(req, ctx, origin, env) {
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 3600 } }, origin);
 
   // L2 Cache API check (free CDN)
-  const cacheHit = cacheGet ? await cacheGet(ck) : null;
+  const cacheHit = await cacheGet(req.url, ck);
   if (cacheHit) {
     memSet(ck, cacheHit, 300); // backfill memory for next requests
     return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 86400 } }, origin);
@@ -807,7 +818,7 @@ async function anilist(req, ctx, origin, env) {
 
   const ttl = 86400; // 24h — AniList data barely changes
   memSet(ck, data, 3600);
-  cachePut(ctx, ck, data, ttl); // async, non-blocking
+  cachePut(ctx, req.url, ck, data, ttl); // async, non-blocking
   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
 }
 
@@ -846,7 +857,7 @@ async function scraped(req, ctx, source, siteReferer, origin) {
   const mem = memGet(ck);
   if (mem) return json(mem, 200, { 'X-Cache': 'MEM', cf: { cacheEverything: true, cacheTtl: 300 } }, origin);
 
-  const cacheHit = await cacheGet(ck);
+  const cacheHit = await cacheGet(req.url, ck);
   if (cacheHit) {
     memSet(ck, cacheHit, 300);
     return json(cacheHit, 200, { 'X-Cache': 'CDN', cf: { cacheEverything: true, cacheTtl: 1800 } }, origin);
@@ -911,7 +922,7 @@ async function scraped(req, ctx, source, siteReferer, origin) {
       const ttl = 1800; // 30min — chapter HTML doesn't change
 
       memSet(ck, data, 300); // 5min in memory
-      cachePut(ctx, ck, data, ttl); // 30min in CDN cache
+      cachePut(ctx, req.url, ck, data, ttl); // 30min in CDN cache
       return data;
     } finally {
       IN_FLIGHT.delete(ck);

@@ -550,38 +550,19 @@ function ReaderContent({ params }) {
                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}
                     unoptimized={true}
                     onError={() => {
-                      const retryCount = (imgRetries[i] || 0) + 1;
-                      if (retryCount < 3) {
-                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
-                        const img = document.querySelectorAll('.reader-page img')[i];
-                        if (img) {
-                          const sep = img.src.includes('?') ? '&' : '?';
-                          img.src = img.src.replace(/[&?]_retry=\d+/, '') + sep + '_retry=' + retryCount;
-                        }
-                      } else if (retryCount === 3) {
-                        // ponytail: swap proxy — try the OTHER proxy before giving up
-                        setImgRetries(prev => ({ ...prev, [i]: retryCount }));
-                        const img = document.querySelectorAll('.reader-page img')[i];
-                        if (img) {
-try {
-                            const u = new URL(img.src);
-                            const rawUrl = u.searchParams.get('url') || imgUrl;
-                            const API = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
-                            const WKR = process.env.NEXT_PUBLIC_WORKER_URL || '';
-                            // If the worker host is the known-unreachable
-                            // cdn.mangareader.pro, swapping to it is pointless —
-                            // every attempt would 404 and the page would land on
-                            // mock panels. Keep using the backend instead.
-                            const workerUnreachable = !WKR || (() => { try { return new URL(WKR).hostname === 'cdn.mangareader.pro'; } catch { return true; } })();
-                            // If currently on backend, try worker; if on worker, try backend
-                            if (img.src.includes('/api/proxy-image') && WKR && !workerUnreachable) {
-                              img.src = `${WKR}/img-proxy?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
-                            } else if (API && !img.src.includes('/api/proxy-image')) {
-                              img.src = `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}&_retry=alt`;
-                            } else {
-                              setImgErrors(prev => ({ ...prev, [i]: true }));
-                            }
-                          } catch { setImgErrors(prev => ({ ...prev, [i]: true })); }
+                      const img = document.querySelectorAll('.reader-page img')[i];
+                      if (img) {
+                        try {
+                          const u = new URL(img.src);
+                          const rawUrl = u.searchParams.get('url') || imgUrl;
+                          const API = API_BASE || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
+                          if (!img.src.includes('/api/proxy-image') && API) {
+                            img.src = `${API}/api/proxy-image?url=${encodeURIComponent(rawUrl)}`;
+                          } else {
+                            setImgErrors(prev => ({ ...prev, [i]: true }));
+                          }
+                        } catch {
+                          setImgErrors(prev => ({ ...prev, [i]: true }));
                         }
                       } else {
                         setImgErrors(prev => ({ ...prev, [i]: true }));

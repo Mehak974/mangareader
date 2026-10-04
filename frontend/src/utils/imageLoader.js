@@ -1,7 +1,8 @@
+import { isWorkerAvailable, WORKER_URL } from './api';
+
 export default function myImageLoader({ src, width, quality }) {
   if (src.startsWith('/')) return src;
 
-  const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || "";
   if (WORKER_URL && src.startsWith(WORKER_URL)) return src;
 
   if (src.includes('/img-proxy?') || src.includes('/api/proxy-image?')) return src;
@@ -23,27 +24,14 @@ export default function myImageLoader({ src, width, quality }) {
     // If it's not a valid URL (e.g. relative path), keep it
   }
 
-  const isMangakatanaImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => actualUrl.includes(d));
-  if (isMangakatanaImage) {
+  const isBypassWorkerImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => actualUrl.includes(d));
+  if (isBypassWorkerImage) {
     const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(actualUrl)}&w=${width}${quality ? `&q=${quality}` : ''}`;
   }
 
-  if (WORKER_URL) {
-    // Worker is the primary image proxy (R2 + edge cache), but only when its
-    // host actually resolves. The deployed NEXT_PUBLIC_WORKER_URL is
-    // cdn.mangareader.pro, a custom domain that isn't DNS-able from some
-    // networks — without this guard every proxied image URL is broken and
-    // the reader falls through to mock panels. Fall through to the backend's
-    // /api/proxy-image (always reachable) for hosts we know can't resolve.
-    try {
-      const wu = new URL(WORKER_URL);
-      if (wu.hostname !== 'cdn.mangareader.pro') {
-        return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
-      }
-    } catch {
-      // invalid URL — fall through to backend proxy
-    }
+  if (isWorkerAvailable()) {
+    return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
   }
 
   const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";

@@ -5,7 +5,7 @@
 name               = "mangareader-proxy"
 main               = "worker.js"
 compatibility_date = "2024-01-15"
-workers_dev        = false
+workers_dev        = true
 
 # ── Smart Placement ────────────────────────────────────────────────────────────
 # Enable in the Cloudflare dashboard → Workers → your worker → Settings →

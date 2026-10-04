@@ -17,6 +17,16 @@ export const API_BASE =
 // /api/proxy-image, which does exist.
 export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || "";
 
+export function isWorkerAvailable() {
+  if (!WORKER_URL) return false;
+  try {
+    new URL(WORKER_URL);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const ANILIST_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp', '.svg'];
@@ -39,32 +49,19 @@ export function proxyImage(url, width = null, quality = null) {
   if (isSkipped) return url;
 
   const isImageExt = IMAGE_EXTENSIONS.some(ext => cleanUrl.toLowerCase().includes(ext));
-  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co'].some(d => cleanUrl.includes(d));
+  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co', 'waitst'].some(d => cleanUrl.includes(d));
   if (!isImageExt && !isKnownImageDomain) return url;
 
-  const isMangakatanaImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
-  if (isMangakatanaImage) {
+  const isBypassWorkerImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
+  if (isBypassWorkerImage) {
     let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
     if (width) target += `&w=${width}`;
     if (quality) target += `&q=${quality}`;
     return target;
   }
 
-  if (WORKER_URL) {
-    // Worker is the primary image proxy (R2 + edge cache), but only when its
-    // host actually resolves. The deployed NEXT_PUBLIC_WORKER_URL is
-    // cdn.mangareader.pro, a custom domain that isn't DNS-able from some
-    // networks — without this guard every proxied image URL is broken and
-    // the reader falls through to mock panels. Fall through to the backend's
-    // /api/proxy-image (always reachable) for hosts we know can't resolve.
-    try {
-      const wu = new URL(WORKER_URL);
-      if (wu.hostname !== 'cdn.mangareader.pro') {
-        return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
-      }
-    } catch {
-      // invalid URL — fall through to backend proxy
-    }
+  if (isWorkerAvailable()) {
+    return `${buildWorkerUrl('/img-proxy')}?url=${encodeURIComponent(cleanUrl)}`;
   }
 
   let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
@@ -107,7 +104,9 @@ export async function fetchChapterImagesThroughWorker(url, source) {
   // points to a domain that doesn't resolve (e.g. cdn.mangareader.pro in an
   // environment without DNS for it) — the fetch would throw a TypeError, and
   // without this guard every reader page would show mock panels.
-  if (!WORKER_URL) {
+  const isWorkerUnreachable = !WORKER_URL;
+
+  if (isWorkerUnreachable) {
     const fallbackRes = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
     if (!fallbackRes.ok) throw new Error(`Failed to fetch chapter images: ${fallbackRes.status}`);
     return fallbackRes.json();
