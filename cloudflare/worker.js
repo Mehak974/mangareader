@@ -110,15 +110,11 @@ async function cachePut(ctx, reqUrl, key, data, ttlSec) {
 const NEG_TTL_SEC = 60;      // 5xx / network — origin is down, back off hard
 const NEG_TTL_429 = 8;       // 429 — transient throttle, only suppress a burst
 
-async function negGet(reqUrl, key) {
-  const m = memGet(`neg:${key}`);
-  if (m) return m;
-  const c = await cacheGet(reqUrl, `neg:${key}`);
-  return c || null;
+function negGet(reqUrl, key) {
+  return memGet(`neg:${key}`) || null;
 }
-function negSet(ctx, reqUrl, key, val, ttlSec = NEG_TTL_SEC) {
+function negSet(ctx, reqUrl, key, val, ttlSec = NEG_TTL_429) {
   memSet(`neg:${key}`, val, ttlSec);
-  cachePut(ctx, reqUrl, `neg:${key}`, val, ttlSec);
 }
 
 // ─── L3b: Per-host circuit breaker ───────────────────────────────────────────
@@ -440,14 +436,17 @@ async function imgProxy(req, ctx, origin, env) {
       }
       if (obj) {
         const ct = obj.httpMetadata?.contentType || 'image/jpeg';
-        const base = { 'Content-Type': ct, 'Cache-Control': R2_CACHE_CONTROL };
-        // Stream once, serve the user and backfill this data center's edge cache.
-        const [toClient, toEdge] = obj.body.tee();
+        const buf = await obj.arrayBuffer();
+        const base = {
+          'Content-Type': ct,
+          'Content-Length': String(buf.byteLength),
+          'Cache-Control': R2_CACHE_CONTROL,
+        };
         ctx.waitUntil(
-          caches.default.put(cacheKey, new Response(toEdge, { headers: { ...base, 'X-Cache': 'MISS' } }))
+          caches.default.put(cacheKey, new Response(buf, { headers: { ...base, 'X-Cache': 'MISS' } }))
             .catch(() => {})
         );
-        return new Response(toClient, { headers: { ...base, 'X-Cache': 'R2', ...corsHeaders(origin) } });
+        return new Response(buf, { headers: { ...base, 'X-Cache': 'R2', ...corsHeaders(origin) } });
       }
     } catch (e) {
       console.warn(`[r2] get failed for ${r2Key}: ${e.message}`);   // fall through to origin
