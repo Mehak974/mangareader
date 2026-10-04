@@ -518,7 +518,7 @@ async function imgProxy(req, ctx, origin, env) {
         for (const cand of candidates) {
           const candHost = new URL(cand).hostname;
           try {
-            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(4000), cf: { cacheTtl: 0 } });
+            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(4000), cf: { cacheTtl: 86400 } });
             if (r.ok) { originFetch = r; break; }
 
             // Release the connection — the error body is never read.
@@ -555,7 +555,7 @@ async function imgProxy(req, ctx, origin, env) {
           try {
             const br = await fetch(
               `${String(env.BACKEND_URL).replace(/\/$/, '')}/api/proxy-image?url=${encodeURIComponent(target)}`,
-              { signal: AbortSignal.timeout(15000), cf: { cacheTtl: 0 } }
+              { signal: AbortSignal.timeout(15000), cf: { cacheTtl: 86400 } }
             );
             const bct = (br.headers.get('content-type') || '').toLowerCase();
             if (br.ok && bct.startsWith('image/')) { originFetch = br; viaBackend = true; break; }
