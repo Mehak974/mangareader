@@ -107,8 +107,8 @@ async function cachePut(ctx, reqUrl, key, data, ttlSec) {
 // match the failure. 2xstorage rate-limits (429) Cloudflare's egress IPs on a
 // scale of seconds, so a long negative TTL there would poison an image far
 // longer than the rate limit lasts and defeat the client's own retries.
-const NEG_TTL_SEC = 60;      // 5xx / network — origin is down, back off hard
-const NEG_TTL_429 = 8;       // 429 — transient throttle, only suppress a burst
+const NEG_TTL_SEC = 5;      // 5xx / network — origin down, back off briefly
+const NEG_TTL_429 = 3;       // 429 — transient throttle, only suppress immediate burst
 
 function negGet(reqUrl, key) {
   return memGet(`neg:${key}`) || null;
@@ -124,8 +124,8 @@ function negSet(ctx, reqUrl, key, val, ttlSec = NEG_TTL_429) {
 // After BREAKER_FAILS consecutive failures the host is skipped entirely for
 // BREAKER_COOLDOWN_MS so the isolate stops hammering a dead origin.
 const HOST_FAIL = new Map();
-const BREAKER_FAILS = 5;
-const BREAKER_COOLDOWN_MS = 60 * 1000;
+const BREAKER_FAILS = 30;
+const BREAKER_COOLDOWN_MS = 5 * 1000;
 
 function breakerOpen(host) {
   const e = HOST_FAIL.get(host);
@@ -295,7 +295,7 @@ export default {
 // page images. The path layout is identical across hosts, so when the host in
 // the HTML is dead we replay the same path against a verified-good mirror.
 const MIRROR_HOSTS = ['img-r1.2xstorage.com', 'img-r2.2xstorage.com', 'imgs-2.2xstorage.com'];
-const MAX_429_ATTEMPTS = 2;   // fast retry + backend fallback; don't hang worker isolates
+const MAX_429_ATTEMPTS = 4;   // fast retries (~250-750ms) to clear burst rate-limiting
 const MAX_5XX_ATTEMPTS = 2;   // hard failures give up early, breaker covers repeats
 
 function candidatesFor(url) {
@@ -522,7 +522,7 @@ async function imgProxy(req, ctx, origin, env) {
         for (const cand of candidates) {
           const candHost = new URL(cand).hostname;
           try {
-            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(4000), cf: { cacheTtl: 86400 } });
+            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(8000), cf: { cacheTtl: 86400 } });
             if (r.ok) { originFetch = r; break; }
 
             // Release the connection — the error body is never read.
@@ -576,8 +576,8 @@ async function imgProxy(req, ctx, origin, env) {
         // Backoff. Throttling clears in ~10s, so escalate geometrically with
         // jitter; ordinary failures back off fast and stop early.
         const wait = throttled
-          ? 1000 * Math.pow(2, attempt) + Math.floor(Math.random() * 500)
-          : 400 * (attempt + 1) + Math.floor(Math.random() * 300);
+          ? 250 * (attempt + 1) + Math.floor(Math.random() * 200)
+          : 300 * (attempt + 1) + Math.floor(Math.random() * 200);
         if (attempt < MAX_429_ATTEMPTS - 1) {
           await new Promise(r => setTimeout(r, wait));
         }
