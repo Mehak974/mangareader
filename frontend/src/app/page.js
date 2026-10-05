@@ -12,7 +12,7 @@ import HomeAuthNudge from "@/components/HomeAuthNudge";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 const withTimeout = (promise, ms) =>
   Promise.race([
