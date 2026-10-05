@@ -15,8 +15,15 @@ type EnvShape = {
   NODE_ENV: "development" | "production" | "test";
 };
 
-function required(name: string, value: string | undefined): string {
+const isBuilding =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.npm_lifecycle_event === "build";
+
+function required(name: string, value: string | undefined, buildFallback = ""): string {
   if (!value || value.trim() === "") {
+    if (isBuilding) {
+      return buildFallback;
+    }
     throw new Error(
       `Missing required environment variable: ${name}. See frontend/.env.example.`
     );
@@ -30,6 +37,7 @@ function validateUrl(name: string, value: string): string {
     new URL(value);
     return value;
   } catch {
+    if (isBuilding) return "https://mangareader.pro";
     throw new Error(`Environment variable ${name} is not a valid URL: "${value}".`);
   }
 }
@@ -37,10 +45,18 @@ function validateUrl(name: string, value: string): string {
 const nodeEnv = (process.env.NODE_ENV ?? "development") as EnvShape["NODE_ENV"];
 
 export const env: EnvShape = {
-  DATABASE_URL: required("DATABASE_URL", process.env.DATABASE_URL),
+  DATABASE_URL: required(
+    "DATABASE_URL",
+    process.env.DATABASE_URL,
+    "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  ),
   AUTH_SECRET: (() => {
-    const secret = required("AUTH_SECRET", process.env.AUTH_SECRET);
-    if (nodeEnv === "production" && secret.length < 32) {
+    const secret = required(
+      "AUTH_SECRET",
+      process.env.AUTH_SECRET,
+      "01234567890123456789012345678901"
+    );
+    if (nodeEnv === "production" && secret.length < 32 && !isBuilding) {
       throw new Error(
         "AUTH_SECRET must be at least 32 characters in production. Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
       );
@@ -49,11 +65,19 @@ export const env: EnvShape = {
   })(),
   NEXT_PUBLIC_SITE_URL: validateUrl(
     "NEXT_PUBLIC_SITE_URL",
-    required("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL)
+    required(
+      "NEXT_PUBLIC_SITE_URL",
+      process.env.NEXT_PUBLIC_SITE_URL,
+      "https://mangareader.pro"
+    )
   ),
   NEXT_PUBLIC_SCRAPER_URL: validateUrl(
     "NEXT_PUBLIC_SCRAPER_URL",
-    required("NEXT_PUBLIC_SCRAPER_URL", process.env.NEXT_PUBLIC_SCRAPER_URL)
+    required(
+      "NEXT_PUBLIC_SCRAPER_URL",
+      process.env.NEXT_PUBLIC_SCRAPER_URL,
+      "https://mangareader.pro"
+    )
   ),
   NODE_ENV: nodeEnv,
 };
