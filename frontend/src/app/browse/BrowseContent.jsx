@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
@@ -31,6 +31,7 @@ const ANILIST_GENRES = [
 ];
 
 export default function BrowseContent({ initialData, initialParams }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { searchQuery, setSearchQuery, isNSFW } = useApp();
   const applyNsfwFilter = (list) => list;
@@ -48,7 +49,10 @@ export default function BrowseContent({ initialData, initialParams }) {
   const [rating, setRating] = useState("All");
   const [country, setCountry] = useState("All");
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const pInUrl = parseInt(searchParams?.get("page") || "1", 10);
+    return pInUrl > 0 ? pInUrl : 1;
+  });
   const [mangaList, setMangaList] = useState(initialData?.media || []);
   const [pageInfo, setPageInfo] = useState(
     initialData?.pageInfo || { currentPage: 1, lastPage: 1, hasNextPage: false }
@@ -58,6 +62,21 @@ export default function BrowseContent({ initialData, initialParams }) {
 
   const perPage = 36;
   const isInitialMount = useRef(true);
+
+  const changePage = (newPage) => {
+    const targetPage = Math.max(1, newPage);
+    setPage(targetPage);
+    const params = new URLSearchParams(searchParams.toString());
+    if (targetPage > 1) {
+      params.set("page", String(targetPage));
+    } else {
+      params.delete("page");
+    }
+    router.push(`/browse?${params.toString()}`, { scroll: true });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // Sync URL params to state (for client-side navigation)
   useEffect(() => {
@@ -71,6 +90,12 @@ export default function BrowseContent({ initialData, initialParams }) {
     const genreParam = searchParams.get("genre");
     if (genreParam) {
       setActiveGenre(genreParam);
+    }
+
+    const pageParam = parseInt(searchParams.get("page") || "1", 10);
+    const targetPage = pageParam > 0 ? pageParam : 1;
+    if (targetPage !== page) {
+      setPage(targetPage);
     }
   }, [searchParams, setSearchQuery]);
 
@@ -307,7 +332,7 @@ export default function BrowseContent({ initialData, initialParams }) {
               <div className="ch-pagination" style={{ marginTop: "32px", justifyContent: "center" }}>
                 <button
                   className="pg-btn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => changePage(Math.max(1, page - 1))}
                   disabled={page === 1}
                   aria-label="Previous page"
                 >
@@ -328,7 +353,7 @@ export default function BrowseContent({ initialData, initialParams }) {
                     <button
                       key={idx}
                       className={`pg-btn ${pg === page ? "active" : ""}`}
-                      onClick={() => setPage(pg)}
+                      onClick={() => changePage(pg)}
                     >
                       {pg}
                     </button>
@@ -337,7 +362,7 @@ export default function BrowseContent({ initialData, initialParams }) {
 
                 <button
                   className="pg-btn"
-                  onClick={() => setPage((p) => Math.min(pageInfo.lastPage, p + 1))}
+                  onClick={() => changePage(Math.min(pageInfo.lastPage, page + 1))}
                   disabled={page === pageInfo.lastPage}
                   aria-label="Next page"
                 >
