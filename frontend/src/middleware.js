@@ -73,14 +73,22 @@ export function middleware(request) {
   // by frame-src rather than script-src.
   const adScriptOrigins = [
     'https://purple-text.com',
+    'https://*.purple-text.com',
     'https://www.untimely-promotion.com',
+    'https://*.untimely-promotion.com',
     'https://www.quizzical-topic.com',
+    'https://*.quizzical-topic.com',
     'https://va.vercel-scripts.com',
+    'https://www.googletagmanager.com',
+    'https://www.google-analytics.com',
+    'https://us.posthog.com',
+    'https://app.posthog.com',
   ];
 
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline' ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
+    script-src-elem 'self' 'unsafe-inline' ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com https://vercel.live;

@@ -464,8 +464,11 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     console.log(`[source-chapters] Fetching detail from:`, url);
     const s = SOURCE_SCRAPERS[sid]; if (!s) return res.status(400).json({ error: `Unknown source: ${sid}` });
     const d = await s.getMangaDetail(url);
-    console.log(`[source-chapters] Detail result:`, d.title, d.chapters?.length, 'chapters');
-    if (d.chapters?.length) {
+    if (!d || !d.chapters) {
+      return res.status(404).json({ error: `Not found on source: ${sid}` });
+    }
+    console.log(`[source-chapters] Detail result:`, d.title || title, d.chapters.length, 'chapters');
+    if (d.chapters.length) {
       const ts = Date.now();
       await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
       await cache.set('chapter_list', redisKey, { source_id: sid, source_slug: url, chapters: d.chapters, fetched_at: ts, detail: null }, cache.TTL.chapter_list);
@@ -743,7 +746,7 @@ async function searchSource(sourceId, title, mangaId = null) {
                   fetchHTML(directUrl),
                   new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
                 ]);
-                if (html.includes('chapter-list-container') || html.includes('chapter-list') || html.includes('container-chapter-reader')) { result = directUrl; return; }
+                if (typeof html === 'string' && (html.includes('chapter-list-container') || html.includes('chapter-list') || html.includes('container-chapter-reader'))) { result = directUrl; return; }
               } catch (e) { }
             }
           }

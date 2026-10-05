@@ -59,31 +59,14 @@ bucket_name = "mangareader-images"
 binding = "IMAGES"
 
 # Backend fallback, used for both images and AniList.
-#
-# AniList is REQUIRED here, not optional: it blocks Cloudflare's shared egress
-# IPs and answers {"errors":[{"status":403,"message":"You have been manually
-# blocked..."}]}. Cloudflare cannot route around that, so the Worker relays via
-# the Railway backend, whose IP is not blocked.
-#
-# Images use this too: the image CDNs throttle Cloudflare's IPs, and a different
-# network path often succeeds where every Worker retry fails.
 [vars]
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
+R2_CACHE = "on"
 
 [observability.logs]
 enabled = true
 invocation_logs = true
-
-# ── KV is REMOVED — caches.default handles everything for free ────────────────
-# Old line was:
-#   [[kv_namespaces]]
-#   binding = "CACHE"
-#   id      = "..."
-# Delete it. Zero KV reads. Zero KV costs.
-
-# ── Optional: add your custom domain ─────────────────────────────────────────
-# routes = [{ pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }]
 
 # NOTE: wrangler envs do NOT inherit bindings, routes or observability, so every
 # block from the top-level config is repeated below.
@@ -106,6 +89,7 @@ binding = "IMAGES"
 [env.production.vars]
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
+R2_CACHE = "on"
 
 [[env.production.r2_buckets]]
 binding     = "IMG_BUCKET"

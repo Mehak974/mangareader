@@ -617,7 +617,9 @@ async function imgProxy(req, ctx, origin, env) {
 
       // Persist to R2 (non-blocking). Only real images: an origin that answers
       // 200 with an HTML error/challenge page must never be stored for a year.
-      if (bucket && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
+      // Probabilistic sampling (20% sample rate) caps R2 Class A PUT operations safely under 1M/month free quota.
+      const shouldSaveR2 = Math.random() < 0.20;
+      if (bucket && shouldSaveR2 && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
         ctx.waitUntil(
           bucket.put(r2Key, buf, {
             httpMetadata: { contentType: ct, cacheControl: R2_CACHE_CONTROL },
