@@ -199,7 +199,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Cloudflare Web Analytics */}
         <Script
           src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon='{"token": "3d1e523ea68c46bc8be8ad71ac5a0a6c"}'
+          data-cf-beacon='{"token": "3d1e523ea68c46bc8be8ad71ac5a0a6c", "spa": true}'
           strategy="afterInteractive"
         />
 
