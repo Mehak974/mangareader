@@ -194,7 +194,6 @@ function resolveProfile(): string {
   // 3. Dev fallback
   if (process.env.NODE_ENV !== 'production') return 'mangareader.pro';
 
-  console.error('[site-config] Cannot resolve domain profile. Set DOMAIN_PROFILE env var.');
   return 'mangareader.pro';
 }
 

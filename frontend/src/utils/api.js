@@ -7,7 +7,7 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_SCRAPER_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3001";
+  "https://api.mangareader.pro";
 
 // Image/scraper host. Deliberately NOT falling back to NEXT_PUBLIC_SCRAPER_URL:
 // that is the Express backend, which serves /api/proxy-image and has no
