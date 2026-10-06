@@ -90,8 +90,8 @@ export function middleware(request) {
 
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
-    script-src-elem 'self' 'unsafe-inline' ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' https: ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
+    script-src-elem 'self' 'unsafe-inline' https: ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com https://vercel.live;
