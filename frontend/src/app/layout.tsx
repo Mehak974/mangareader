@@ -202,6 +202,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
+        {/* Umami Analytics (Self-Hosted on Railway - First-Party Proxied) */}
+        <Script
+          src="/u/script.js"
+          data-website-id="21b5b514-456a-478b-ab8d-f0931ca7b250"
+          data-host-url="/u"
+          strategy="afterInteractive"
+        />
+
         {/* Cloudflare Web Analytics */}
         <Script
           src="https://static.cloudflareinsights.com/beacon.min.js"

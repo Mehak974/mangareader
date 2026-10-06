@@ -81,12 +81,11 @@ export function middleware(request) {
     'https://va.vercel-scripts.com',
     'https://www.googletagmanager.com',
     'https://www.google-analytics.com',
-    'https://us.posthog.com',
-    'https://app.posthog.com',
     'https://www.elderly-craft.com',
     'https://*.elderly-craft.com',
     'https://static.cloudflareinsights.com',
     'https://cloudflareinsights.com',
+    'https://umami-production-f50d.up.railway.app',
   ];
 
   const cspHeader = `
