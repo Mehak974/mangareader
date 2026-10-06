@@ -124,11 +124,14 @@ export default function BrowseContent({ initialData, initialParams }) {
     const fetchVariables = {
       page,
       perPage,
-      sort: activeSort,
       status: activeStatus,
     };
     if (activeGenre !== "All") fetchVariables.genre = activeGenre;
-    if (searchQuery.trim()) fetchVariables.search = searchQuery.trim();
+    if (searchQuery.trim()) {
+      fetchVariables.search = searchQuery.trim();
+    } else {
+      fetchVariables.sort = activeSort;
+    }
     if (country !== "All") fetchVariables.countryOfOrigin = country;
     if (year !== "All") {
       fetchVariables.startDate_greater = parseInt(`${year}0000`);
