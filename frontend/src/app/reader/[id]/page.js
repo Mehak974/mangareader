@@ -115,15 +115,12 @@ function ReaderContent({ params }) {
       try {
         const res = await fetchChapterImagesThroughWorker(url, source);
         if (res?.data?.images && res.data.images.length > 0) {
-          const validImages = res.data.images.filter(img => img && typeof img === 'string' && img !== '#' && !img.endsWith('/#') && !img.startsWith('javascript:'));
-          if (validImages.length > 0) {
-            setImages(validImages);
-            setLoading(false);
-            addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId, cover);
-            return;
-          }
+          setImages(res.data.images);
+          setLoading(false);
+          addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId, cover);
+        } else {
+          throw new Error("No images found in server response");
         }
-        throw new Error("No images found in server response");
       } catch (err) {
         console.warn("Reader fetch error, falling back to mock panels:", err.message);
 

@@ -922,9 +922,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
-      'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com',
-      'manganelo.com', 'chapmanganelo.com', 'chapmanganelo.to', 'natomanga.com',
-      'mangakakalot.com', 'mangakakalot.gg',
+      'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
       '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
@@ -1233,9 +1231,7 @@ async function proxyImage(url, w, q, cacheKey) {
     const ALLOWED_PATTERNS = [
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
-      'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com',
-      'manganelo.com', 'chapmanganelo.com', 'chapmanganelo.to', 'natomanga.com',
-      'mangakakalot.com', 'mangakakalot.gg',
+      'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
       '2xstorage.com', 'media.mangaka.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
