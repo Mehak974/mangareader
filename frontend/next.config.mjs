@@ -58,13 +58,11 @@ const nextConfig = {
     ],
   },
 
-  // First-party GA & Umami proxies so ad blockers don't drop hits (see layout.tsx).
+  // First-party GA proxy so ad blockers don't drop hits (see layout.tsx).
   async rewrites() {
     return [
       { source: "/a/s.js", destination: "https://www.googletagmanager.com/gtag/js" },
       { source: "/a/g/collect", destination: "https://www.google-analytics.com/g/collect" },
-      { source: "/u/script.js", destination: "https://umami-production-f50d.up.railway.app/script.js" },
-      { source: "/u/api/send", destination: "https://umami-production-f50d.up.railway.app/api/send" },
     ];
   },
 

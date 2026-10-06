@@ -202,11 +202,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
-        {/* Umami Analytics (Self-Hosted on Railway - First-Party Proxied) */}
+        {/* Umami Analytics (Self-Hosted on Railway) */}
         <Script
-          src="/u/script.js"
+          src="https://umami-production-f50d.up.railway.app/script.js"
           data-website-id="21b5b514-456a-478b-ab8d-f0931ca7b250"
-          data-host-url="/u"
           strategy="afterInteractive"
         />
 
