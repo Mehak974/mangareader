@@ -168,36 +168,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           })();
         `}} />
 
-        {/* Google Analytics 4 */}
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-          <>
-            <Script
-              src={`/a/s.js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
-              strategy="beforeInteractive"
-            />
-            <Script
-              id="gtag-init"
-              strategy="beforeInteractive"
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
-                    send_page_view: false,
-                    transport_url: location.origin + '/a',
-                    first_party_collection: true,
-                  });
-                  window.__gaLast = location.pathname + location.search;
-                  gtag('event', 'page_view', {
-                    page_location: window.location.href,
-                    page_title: document.title,
-                  });
-                `,
-              }}
-            />
-          </>
-        )}
+        {/* Google Analytics 4 (Works on both Railway and Vercel) */}
+        {(() => {
+          const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-XX0H13PM0H';
+          return (
+            <>
+              <Script
+                src={`/a/s.js?id=${gaId}`}
+                strategy="beforeInteractive"
+              />
+              <Script
+                id="gtag-init"
+                strategy="beforeInteractive"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    gtag('js', new Date());
+                    gtag('config', '${gaId}', {
+                      send_page_view: false,
+                      transport_url: location.origin + '/a',
+                      first_party_collection: true,
+                    });
+                    window.__gaLast = location.pathname + location.search;
+                    gtag('event', 'page_view', {
+                      page_location: window.location.href,
+                      page_title: document.title,
+                    });
+                  `,
+                }}
+              />
+            </>
+          );
+        })()}
 
         {/* Cloudflare Web Analytics */}
         <Script
