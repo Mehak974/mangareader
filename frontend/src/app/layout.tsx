@@ -173,11 +173,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <>
             <Script
               src={`/a/s.js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
+              strategy="beforeInteractive"
             />
             <Script
               id="gtag-init"
-              strategy="afterInteractive"
+              strategy="beforeInteractive"
               dangerouslySetInnerHTML={{
                 __html: `
                   window.dataLayer = window.dataLayer || [];
