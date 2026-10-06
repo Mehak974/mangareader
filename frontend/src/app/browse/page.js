@@ -21,11 +21,14 @@ function buildFetchVariables(params) {
   const fetchVariables = {
     page: 1,
     perPage: 36,
-    sort: activeSort,
     status: undefined,
   };
+  if (!q) {
+    fetchVariables.sort = activeSort;
+  } else {
+    fetchVariables.search = q;
+  }
   if (genreParam !== "All") fetchVariables.genre = genreParam;
-  if (q) fetchVariables.search = q;
   return fetchVariables;
 }
 

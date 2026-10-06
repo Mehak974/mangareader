@@ -274,6 +274,14 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
 
 app.use(doubleCsrfProtection);
 
+// Graceful error handling for CSRF token validation failures
+app.use((err, req, res, next) => {
+  if (err && (err.code === 'EBADCSRFTOKEN' || err.message?.toLowerCase().includes('csrf'))) {
+    return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+  }
+  next(err);
+});
+
 app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: generateCsrfToken(req, res) });
 });
