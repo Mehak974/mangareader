@@ -18,45 +18,72 @@ const HILLTOP_SRC = '//purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTO
 // up the wrapper — leaving N copies of the purple-text.com script and their
 // listeners in the DOM after N navigations.
 //
-// The guard prevents re-injection. The cleanup does NOT remove the ad
-// scripts — they are meant to persist across client-side navigations
-// (that's the whole point of a popunder ad). Removing them on every route
-// change killed the popunder after the first navigation.
+// The guard prevents re-injection. Cleanup does NOT remove the ad scripts on
+// ordinary navigations — they are meant to persist across client-side
+// navigations (that's the whole point of a popunder ad). The one exception
+// is the excluded routes below: entering one tears the popunder down so it
+// can never fire there, and leaving one re-arms injection so it works again
+// on the next allowed page.
 let hilltopInjected = false;
+let hilltopNodes: HTMLScriptElement[] = [];
+
+function removeHilltop() {
+  for (const node of hilltopNodes) {
+    try { node.remove(); } catch { /* already gone */ }
+  }
+  hilltopNodes = [];
+  hilltopInjected = false;
+}
 
 export default function AdScriptLoader() {
   const pathname = usePathname();
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') return;
-    if (EXCLUDED_PATHS.some(p => pathname.startsWith(p))) return;
+
+    if (EXCLUDED_PATHS.some(p => pathname.startsWith(p))) {
+      // Popunder must never be active on these routes. If it was
+      // injected on an earlier allowed page, tear it down now and
+      // allow re-injection when the user returns to an allowed page.
+      removeHilltop();
+      return;
+    }
+
     if (hilltopInjected) return;
 
     hilltopInjected = true;
-    const script = document.createElement('script');
+    const wrapper = document.createElement('script');
 
     // textContent, not innerHTML: scripts inserted via innerHTML are not
     // executed by the browser. This snippet then creates its own src-based
     // script (purple-text.com) and inserts it before itself.
-    script.textContent = `
+    wrapper.textContent = `
       (function(ht){
         var d = document,
             s = d.createElement('script'),
             l = d.currentScript || d.scripts[d.scripts.length - 1];
         s.settings = ht || {};
         s.src = "${HILLTOP_SRC}";
-        s.async = true;
+        s.async = false;
         s.referrerPolicy = 'no-referrer-when-downgrade';
         l.parentNode.insertBefore(s, l);
       })({})
     `;
-    document.body.appendChild(script);
+    document.body.appendChild(wrapper);
 
-    // Intentionally no cleanup. The Hilltop popunder is meant to persist
-    // across client-side navigations. Removing the scripts on every route
-    // change (which is what the old cleanup did) killed the popunder after
-    // the first navigation, while the module-level guard prevented
-    // re-injection — a net loss of the ad entirely.
+    // The inline snippet runs synchronously on append, so the
+    // purple-text.com script it inserts is already the wrapper's
+    // previous sibling. Track both so an excluded route can tear the
+    // whole popunder down.
+    const srcScript = wrapper.previousElementSibling;
+    hilltopNodes =
+      srcScript && srcScript.tagName === 'SCRIPT'
+        ? [wrapper, srcScript as HTMLScriptElement]
+        : [wrapper];
+
+    // No cleanup on ordinary navigations: the Hilltop popunder is meant
+    // to persist across client-side route changes. Only the excluded-route
+    // branch above removes it.
   }, [pathname]);
 
   return null;
