@@ -429,11 +429,11 @@ export default function CryptoPage() {
           </div>
 
           {/* ── AD ─────────────────────────────────────────────────── */}
-          {/* One 300x250 slot, after the intro and before the first section.
-              Placed here rather than at the foot of a 15-section reference
-              page because this is the only ad the page will ever serve: below
-              the fold it would go unseen for most visitors. In flow, like every
-              other unit on the site — nothing floats over the text. */}
+          {/* One 300x250 slot, after the intro and before the first
+              section. useAdMode() pins /crypto to 'inline', so this
+              always renders here and the layout banner's own inline
+              fallback stays off /crypto (see AAdsBanner) — exactly one
+              300x250, never zero and never two. */}
           <AAdsInline />
 
           {/* ── MARKETS ─────────────────────────────────────────────── */}

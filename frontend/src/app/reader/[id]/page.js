@@ -569,8 +569,8 @@ function ReaderContent({ params }) {
                     }}
                     priority={i < 2 || (viewMode === "paged" && i === page - 1)}
                     unoptimized={true}
-                    onError={() => {
-                      const img = document.querySelectorAll('.reader-page img')[i];
+                    onError={(e) => {
+                      const img = e.currentTarget || e.target;
                       if (img) {
                         try {
                           const u = new URL(img.src);

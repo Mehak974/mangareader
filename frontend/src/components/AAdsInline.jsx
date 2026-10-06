@@ -28,6 +28,13 @@ const { aadsFloatUnitId } = AD_CONFIG;
 
 const UNIT_SRC = `//ad.a-ads.com/${aadsFloatUnitId}/?size=300x250&background_color=transparent`;
 
+/**
+ * Renders only in 'inline' ad mode. useAdMode() assigns /crypto
+ * 'inline' deterministically, so that page always carries its
+ * in-flow 300x250 with no prop. Every other route stays on the
+ * 50/50 sticky/inline split, which is why the mode gate lives
+ * here rather than at the call site.
+ */
 export default function AAdsInline() {
   const adMode = useAdMode();
 

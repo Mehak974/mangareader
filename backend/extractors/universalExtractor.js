@@ -632,7 +632,7 @@ const SOURCE_SCRAPERS = {
       const urlsToTry = [
         url,
         url.replace(/\/\/www\./, '//'), // www.mangaread.org -> mangaread.org
-        url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
+        url.includes('//www.') ? url : url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
       ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
       // Add -manga suffix variant if not already present
@@ -804,7 +804,7 @@ const SOURCE_SCRAPERS = {
       const urlsToTry = [
         url,
         url.replace(/\/\/www\./, '//'), // www.mangaread.org -> mangaread.org
-        url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
+        url.includes('//www.') ? url : url.replace(/^(https?:\/\/)/, '$1www.'),  // mangaread.org -> www.mangaread.org
       ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
       for (const tryUrl of urlsToTry) {
@@ -1251,17 +1251,18 @@ const SOURCE_SCRAPERS = {
         const html = await this.fetchWithFallback(pageUrls);
         const $ = cheerio.load(html);
         
-        // Method 1: Parse window.chapterImages from inline script (semicolon optional)
-        const scriptMatch = html.match(/window\.chapterImages\s*=\s*(\[.*?\])\s*;?/s);
+        // Method 1: Parse window.chapterImages / const chapterImages from inline script
+        const scriptMatch = html.match(/(?:window\.)?chapterImages\s*=\s*(\[.*?\])\s*;?/s) || html.match(/(?:window\.)?chapter_images\s*=\s*(\[.*?\])\s*;?/s);
         if (scriptMatch) {
           try {
             const parsed = JSON.parse(scriptMatch[1]);
-            const cdnMatch = html.match(/var\s+cdns\s*=\s*\["([^"]+)"/);
-            const cdnBase = cdnMatch ? cdnMatch[1] : 'https://img-r1.2xstorage.com/';
+            const cdnMatch = html.match(/(?:var|const|let)\s+cdns\s*=\s*\["([^"]+)"/i) || html.match(/cdns\s*=\s*\["([^"]+)"/i);
+            const rawCdn = cdnMatch ? cdnMatch[1].replace(/\\/g, '') : 'https://img-r2.2xstorage.com/';
+            const cdnBase = rawCdn.endsWith('/') ? rawCdn : rawCdn + '/';
             const images = parsed
-              .map(img => img.replace(/\\\//g, '/').replace(/^\/+/, ''))
+              .map(img => String(img).replace(/\\/g, '').replace(/^\/+/, ''))
               .filter(img => img && !img.includes('data:'))
-              .map(img => cdnBase + img);
+              .map(img => (img.startsWith('http://') || img.startsWith('https://')) ? img : cdnBase + img);
             if (images.length > 0) return { images, source: 'manganato' };
           } catch (e) {
             console.log('[manganato] Failed to parse chapterImages JSON');

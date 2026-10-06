@@ -63,6 +63,8 @@ binding = "IMAGES"
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
 R2_CACHE = "on"
+# R2 writes (Class A ops) disabled for now; set "on" to re-enable.
+R2_WRITE = "off"
 
 [observability.logs]
 enabled = true
@@ -90,6 +92,7 @@ binding = "IMAGES"
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
 R2_CACHE = "on"
+R2_WRITE = "off"
 
 [[env.production.r2_buckets]]
 binding     = "IMG_BUCKET"

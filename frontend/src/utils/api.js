@@ -174,14 +174,24 @@ export async function fetchChapterImagesThroughWorker(url, source) {
   }
 
   if (images.length === 0) {
-    const varNames = ['ytaw', 'thzq', 'reader_data', 'chapter_images', 'image_list'];
+    const cdnMatch = html.match(/(?:var|const|let)\s+cdns\s*=\s*\["([^"]+)"/i) || html.match(/cdns\s*=\s*\["([^"]+)"/i);
+    const rawCdn = cdnMatch ? cdnMatch[1].replace(/\\/g, '') : '';
+    const cdnBase = rawCdn ? (rawCdn.endsWith('/') ? rawCdn : rawCdn + '/') : '';
+
+    const varNames = ['chapterImages', 'chapter_images', 'ytaw', 'thzq', 'reader_data', 'image_list'];
     for (const varName of varNames) {
-      const scriptMatch = html.match(new RegExp(`var\\s+${varName}\\s*=\\s*(\\[[^\\]]+\\])`));
+      const scriptMatch = html.match(new RegExp(`(?:var|const|let|window\\.)\\s*${varName}\\s*=\\s*(\\[[^\\]]+\\])`, 'i'));
       if (scriptMatch) {
         try {
           const rawStr = scriptMatch[1].replace(/'/g, '"').replace(/,\s*]/, ']');
           const rawUrls = JSON.parse(rawStr);
-          images.push(...rawUrls.filter(u => u && typeof u === 'string' && !shouldSkip(u)));
+          for (const u of rawUrls) {
+            if (u && typeof u === 'string' && !shouldSkip(u)) {
+              const cleanPath = u.replace(/\\/g, '').replace(/^\/+/, '');
+              const fullUrl = (/^https?:\/\//i.test(cleanPath)) ? cleanPath : (cdnBase ? `${cdnBase}${cleanPath}` : cleanPath);
+              images.push(fullUrl);
+            }
+          }
         } catch {}
       }
       if (images.length > 0) break;

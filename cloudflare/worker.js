@@ -110,11 +110,20 @@ async function cachePut(ctx, reqUrl, key, data, ttlSec) {
 const NEG_TTL_SEC = 5;      // 5xx / network — origin down, back off briefly
 const NEG_TTL_429 = 3;       // 429 — transient throttle, only suppress immediate burst
 
-function negGet(reqUrl, key) {
-  return memGet(`neg:${key}`) || null;
+// Shared via caches.default (not just per-isolate memory) so one colo's failure
+// suppresses the retry storm from every isolate in that data center.
+async function negGet(reqUrl, key) {
+  const m = memGet(`neg:${key}`);
+  if (m) return m;
+  const r = await caches.default.match(cacheReq(reqUrl, `neg-${key}`));
+  if (!r) return null;
+  try { return await r.json(); } catch { return null; }
 }
 function negSet(ctx, reqUrl, key, val, ttlSec = NEG_TTL_429) {
   memSet(`neg:${key}`, val, ttlSec);
+  ctx.waitUntil(caches.default.put(cacheReq(reqUrl, `neg-${key}`), new Response(JSON.stringify(val), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttlSec}` },
+  })).catch(() => {}));
 }
 
 // ─── L3b: Per-host circuit breaker ───────────────────────────────────────────
@@ -303,8 +312,7 @@ function candidatesFor(url) {
   if (!host.endsWith('2xstorage.com')) return [url];
   const tail = url.slice(url.indexOf(host) + host.length);
   const mirrors = MIRROR_HOSTS.filter(m => m !== host).map(m => `https://${m}${tail}`);
-  // Never fan out to more than the original host plus one mirror.
-  return [url, ...mirrors.slice(0, 1)];
+  return [url, ...mirrors];
 }
 
 // ─── WebP conversion (Cloudflare Images binding: env.IMAGES) ─────────────────
@@ -522,7 +530,9 @@ async function imgProxy(req, ctx, origin, env) {
         for (const cand of candidates) {
           const candHost = new URL(cand).hostname;
           try {
-            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(8000), cf: { cacheTtl: 86400 } });
+            // cacheEverything + year TTL: Cloudflare's own cache (with tiered
+            // caching) absorbs repeat origin fetches; errors are never cached.
+            const r = await fetch(cand, { headers: fetchHeaders, signal: AbortSignal.timeout(8000), cf: { cacheEverything: true, cacheTtlByStatus: { '200-299': 31536000, '300-599': 0 } } });
             if (r.ok) { originFetch = r; break; }
 
             // Release the connection — the error body is never read.
@@ -617,8 +627,10 @@ async function imgProxy(req, ctx, origin, env) {
 
       // Persist to R2 (non-blocking). Only real images: an origin that answers
       // 200 with an HTML error/challenge page must never be stored for a year.
-      // Probabilistic sampling (20% sample rate) caps R2 Class A PUT operations safely under 1M/month free quota.
-      const shouldSaveR2 = Math.random() < 0.20;
+      // R2 writes (Class A) are OFF by default: set R2_WRITE = "on" to re-enable.
+      // The edge cache below still stores every image for a year.
+      // Probabilistic sampling (20% sample rate) caps R2 Class A PUT operations when enabled.
+      const shouldSaveR2 = env && env.R2_WRITE === 'on' && Math.random() < 0.20;
       if (bucket && shouldSaveR2 && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
         ctx.waitUntil(
           bucket.put(r2Key, buf, {
