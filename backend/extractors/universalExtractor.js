@@ -1301,14 +1301,15 @@ const SOURCE_SCRAPERS = {
         
         // Method 3: Fallback to container-chapter-reader
         const images = [];
-        $('.container-chapter-reader img, .reading-content img, .vung-doc img, .vung-doc img').each((_, el) => {
-          const src = $(el).attr('data-src') || $(el).attr('src') || '';
+        $('.container-chapter-reader img, .reading-content img, .vung-doc img, .vungdoc img, .chapter-content img, .reader-content img').each((_, el) => {
+          let src = $(el).attr('data-src') || $(el).attr('data-original') || $(el).attr('data-cdn') || $(el).attr('data-url') || $(el).attr('src') || '';
+          if (src === '#' || src.startsWith('javascript:') || src.startsWith('data:') || src.includes('blank.gif') || src.includes('loading.gif')) src = '';
           if (src && isValidImageUrl(src)) images.push(src.trim());
         });
         
         // Filter out trailing non-chapter images (ads, recommendations, etc.)
         // Keep only images from known chapter CDN domains
-        const chapterCdnDomains = ['2xstorage.com', 'img-r', 'mangakatana', 'mangakakalot', 'manganato', 'cdn.', 'storage'];
+        const chapterCdnDomains = ['2xstorage.com', 'img-r', 'mangakatana', 'mangakakalot', 'manganato', 'manganelo', 'chapmanganelo', 'natomanga', 'cdn.', 'storage', 'uploads'];
         const filteredImages = images.filter(src => 
           chapterCdnDomains.some(domain => src.includes(domain))
         );
@@ -1320,7 +1321,8 @@ const SOURCE_SCRAPERS = {
         // Method 4: Any img with chapter paths
         if (images.length === 0 || filteredImages.length < 3) {
           $('img').each((_, el) => {
-            const src = $(el).attr('data-src') || $(el).attr('src') || '';
+            let src = $(el).attr('data-src') || $(el).attr('data-original') || $(el).attr('data-cdn') || $(el).attr('data-url') || $(el).attr('src') || '';
+            if (src === '#' || src.startsWith('javascript:') || src.startsWith('data:') || src.includes('blank.gif') || src.includes('loading.gif')) src = '';
             if (src && /\/manga\/|\/chapter\/|\/uploads\/|storage|cdn/i.test(src) && isValidImageUrl(src)) {
               images.push(src.trim());
             }
@@ -1348,10 +1350,15 @@ const SOURCE_SCRAPERS = {
 function isValidImageUrl(url) {
   if (!url || typeof url !== 'string') return false;
   const clean = url.trim();
-  // Must be http/https and a known image extension, OR a CDN-style URL
-  // Reject SVGs (mostly icons) and data URIs
-  if (clean.startsWith('data:') || /\.svg(\?|$)/i.test(clean)) return false;
-  return /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(clean);
+  if (clean === '#' || clean.startsWith('#') || clean.startsWith('javascript:') || clean.startsWith('data:')) return false;
+  if (clean.includes('blank.gif') || clean.includes('loading.gif') || clean.includes('pixel.gif')) return false;
+  if (/^https?:\/\/.+/i.test(clean)) {
+    if (/\.svg(\?|$)/i.test(clean)) return false;
+    const isKnownCdn = ['2xstorage.com', 'img-r', 'mangakatana', 'mangakakalot', 'manganato', 'manganelo', 'chapmanganelo', 'natomanga', 'cdn.', 'storage', 'uploads'].some(d => clean.toLowerCase().includes(d));
+    const isImgExt = /\.(jpg|jpeg|png|webp|gif|avif)(\?.*)?$/i.test(clean);
+    return isKnownCdn || isImgExt;
+  }
+  return false;
 }
 
 function toAbsolute(href, base) {
