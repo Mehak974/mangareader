@@ -58,6 +58,14 @@ const nextConfig = {
     ],
   },
 
+  // First-party GA proxy so ad blockers don't drop hits (see layout.tsx).
+  async rewrites() {
+    return [
+      { source: "/a/s.js", destination: "https://www.googletagmanager.com/gtag/js" },
+      { source: "/a/g/collect", destination: "https://www.google-analytics.com/g/collect" },
+    ];
+  },
+
   async headers() {
     return [
       {

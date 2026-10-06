@@ -172,7 +172,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <>
             <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+              src={`/a/s.js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
               strategy="afterInteractive"
             />
             <Script
@@ -185,7 +185,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   gtag('js', new Date());
                   gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
                     send_page_view: false,
+                    transport_url: location.origin + '/a',
+                    first_party_collection: true,
                   });
+                  window.__gaLast = location.pathname + location.search;
                   gtag('event', 'page_view', {
                     page_location: window.location.href,
                     page_title: document.title,

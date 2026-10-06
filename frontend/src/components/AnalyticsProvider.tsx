@@ -2,22 +2,10 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
 
 function AnalyticsTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_API_HOST || "https://us.posthog.com",
-        person_profiles: "identified_only",
-        capture_pageview: true,
-        capture_pageleave: true,
-      });
-    }
-  }, []);
 
   // Track Google Analytics & Cloudflare pageviews on SPA route changes
   useEffect(() => {
@@ -27,7 +15,9 @@ function AnalyticsTracker() {
       const title = typeof document !== "undefined" ? document.title : "";
 
       // 1. Google Analytics
-      if ((window as any).gtag) {
+      // layout.tsx init script already sent the first view (sets __gaLast); skip the duplicate
+      if ((window as any).gtag && (window as any).__gaLast !== fullPath) {
+        (window as any).__gaLast = fullPath;
         (window as any).gtag("event", "page_view", {
           page_location: fullUrl,
           page_path: fullPath,
