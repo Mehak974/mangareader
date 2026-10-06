@@ -7,7 +7,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "start": "node index.js",
+    "start": "node --max-old-space-size=512 index.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
