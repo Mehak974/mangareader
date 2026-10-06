@@ -1,4 +1,4 @@
-import { isWorkerAvailable, WORKER_URL } from './api';
+import { isWorkerAvailable, WORKER_URL, API_BASE } from './api';
 
 export default function myImageLoader({ src, width, quality }) {
   if (src.startsWith('/')) return src;
@@ -26,7 +26,6 @@ export default function myImageLoader({ src, width, quality }) {
 
   const isBypassWorkerImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => actualUrl.includes(d));
   if (isBypassWorkerImage) {
-    const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(actualUrl)}&w=${width}${quality ? `&q=${quality}` : ''}`;
   }
 
@@ -34,6 +33,5 @@ export default function myImageLoader({ src, width, quality }) {
     return `${WORKER_URL}/img-proxy?url=${encodeURIComponent(actualUrl)}`;
   }
 
-  const API_BASE = process.env.NEXT_PUBLIC_SCRAPER_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(actualUrl)}&w=${width}${quality ? `&q=${quality}` : ''}`;
 }

@@ -13,7 +13,7 @@ import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
 import MangaNote from "@/components/MangaNote";
 import { MANGA, abbr, COVER_GRADS } from "@/data/mockData";
-import { proxyImage } from "@/utils/api";
+import { API_BASE, proxyImage } from "@/utils/api";
 import {
   readDetail,
   writeDetail,
@@ -25,7 +25,7 @@ import {
   markViewedOnce,
 } from "@/utils/detailCache";
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const apiBase = API_BASE;
 
 const SINGLE_MANGA_QUERY = `
   query ($id: Int) {
