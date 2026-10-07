@@ -178,6 +178,11 @@ export default function RewardedAdModal({
     }
   }, [isCompleted, onReward]);
 
+  const handleClose = () => {
+    if (!isCompleted) return;
+    onClose();
+  };
+
   const handleManualPlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
@@ -256,22 +261,40 @@ export default function RewardedAdModal({
             </span>
           </div>
 
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255, 255, 255, 0.5)',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '4px',
-              lineHeight: 1,
-            }}
-            title="Cancel"
-            aria-label="Cancel download"
-          >
-            ✕
-          </button>
+          {isCompleted ? (
+            <button
+              onClick={handleClose}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '4px',
+                lineHeight: 1,
+              }}
+              title="Close"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          ) : (
+            <span
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255, 255, 255, 0.45)',
+                fontWeight: 600,
+                padding: '3px 8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '10px',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.3px',
+              }}
+              title={`Close available in ${timeLeft}s`}
+            >
+              ✕ in {timeLeft}s
+            </span>
+          )}
         </div>
 
         {/* Video / Sponsor Area */}
@@ -309,7 +332,14 @@ export default function RewardedAdModal({
                   setVideoSrc('/videos/sponsor-ad.mp4');
                 }
               }}
-              onEnded={() => setIsCompleted(true)}
+              onEnded={() => {
+                if (timeLeft <= 0) {
+                  setIsCompleted(true);
+                } else if (videoRef.current) {
+                  videoRef.current.currentTime = 0;
+                  videoRef.current.play().catch(() => {});
+                }
+              }}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
 
@@ -501,7 +531,7 @@ export default function RewardedAdModal({
           {/* Action button */}
           {isCompleted && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 marginTop: '4px',
                 padding: '10px',
