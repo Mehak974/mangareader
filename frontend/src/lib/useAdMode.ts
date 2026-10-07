@@ -14,13 +14,12 @@ function getOrUpdateAdMode(pathname: string | null): 'sticky' | 'inline' {
   // hydration flips the mode.
   if (pathname === '/aads' || pathname.startsWith('/aads/')) return 'sticky';
   if (pathname === '/crypto' || pathname.startsWith('/crypto/')) return 'inline';
-  // Everywhere else: 80/20 inline/sticky split, stable per
-  // page path. 300x250 in-flow units carry the majority of
-  // impressions; the sticky 728x90 keeps a minority of traffic.
+  // Everywhere else: 50/50 inline/sticky split, stable per
+  // page path.
   if (typeof window === 'undefined') return 'sticky';
   if (pathname !== currentPagePath) {
     currentPagePath = pathname;
-    currentAdMode = Math.random() < 0.2 ? 'sticky' : 'inline';
+    currentAdMode = Math.random() < 0.5 ? 'sticky' : 'inline';
   }
   return currentAdMode;
 }
