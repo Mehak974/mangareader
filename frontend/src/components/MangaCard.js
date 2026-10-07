@@ -9,7 +9,7 @@ import { isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
 import { proxyImage } from "@/utils/api";
 
-export default function MangaCard({ manga, index, priority = false }) {
+const MangaCard = React.memo(function MangaCard({ manga, index, priority = false }) {
   const router = useRouter();
   const {
     hiddenGenres,
@@ -189,4 +189,6 @@ export default function MangaCard({ manga, index, priority = false }) {
       </div>
     </div>
   );
-}
+});
+
+export default MangaCard;

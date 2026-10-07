@@ -373,9 +373,7 @@ async function purgeImage(req, env, origin) {
 
   const imgKey = await ckFor('img', body.url);
   const r2Key = r2KeyFor(imgKey);
-  if (env.IMG_BUCKET) await env.IMG_BUCKET.delete(r2Key);
-  // Only clears this data center's edge copy; the rest expire on their own, or
-  // bump IMG_EPOCH and redeploy to invalidate every edge copy at once.
+  // R2 Class A operations (DELETE) are forbidden — only purge the edge cache copy
   await caches.default.delete(cacheReq(req.url, imgKey));
   return json({ purged: true, r2Key }, 200, {}, origin);
 }
@@ -627,21 +625,9 @@ async function imgProxy(req, ctx, origin, env) {
 
       // Persist to R2 (non-blocking). Only real images: an origin that answers
       // 200 with an HTML error/challenge page must never be stored for a year.
-      // R2 writes (Class A) are OFF by default: set R2_WRITE = "on" to re-enable.
-      // The edge cache below still stores every image for a year.
-      // Probabilistic sampling (20% sample rate) caps R2 Class A PUT operations when enabled.
-      const shouldSaveR2 = env && env.R2_WRITE === 'on' && Math.random() < 0.20;
-      if (bucket && shouldSaveR2 && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
-        ctx.waitUntil(
-          bucket.put(r2Key, buf, {
-            httpMetadata: { contentType: ct, cacheControl: R2_CACHE_CONTROL },
-            customMetadata: {
-              src: host, cachedAt: String(Date.now()),
-              ...(webp ? { converted: 'webp', origBytes: String(origBytes) } : {}),
-            },
-          }).catch(e => console.warn(`[r2] put failed for ${r2Key}: ${e.message}`))
-        );
-      }
+      // R2 Class A operations (PUT, DELETE, LIST, MULTIPART) are strictly FORBIDDEN.
+      // Zero writes are performed to R2. Images are cached solely in the free Cloudflare
+      // Edge Cache (caches.default) below, eliminating all R2 Class A write costs.
 
       // Populate CDN cache (non-blocking).
       // Store origin-AGNOST headers only. Baking Access-Control-Allow-Origin

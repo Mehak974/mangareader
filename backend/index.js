@@ -1135,8 +1135,21 @@ function releaseImageSlot() {
 const imageInFlight = new Map();
 
 app.get('/api/proxy-image', rateLimit(60000, 1000), async (req, res) => {
-  const { url, w, q } = req.query;
-  if (!url || !helpers.isValidUrl(url)) return res.status(400).send('Invalid url');
+  let { url, w, q } = req.query;
+  if (!url) return res.status(400).send('Invalid url');
+
+  // If a wrapped proxy URL was passed, unwrap to the target image URL
+  if (typeof url === 'string' && (url.includes('img-proxy?url=') || url.includes('/api/proxy-image?url='))) {
+    try {
+      const u = new URL(url);
+      const inner = u.searchParams.get('url');
+      if (inner && helpers.isValidUrl(inner)) {
+        url = inner;
+      }
+    } catch {}
+  }
+
+  if (!helpers.isValidUrl(url)) return res.status(400).send('Invalid url');
   const cacheKey = `${url}|${w || ''}|${q || ''}`;
 
   // Try Redis cache first (persistent, survives restarts, shared across instances)
@@ -1233,7 +1246,7 @@ async function proxyImage(url, w, q, cacheKey) {
       'mangakatana.com', 'mkklcdnv',
       'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
       '2xstorage.com', 'media.mangaka.com',
-      'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
+      'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org', 'mangareader.pro',
     ];
     if (!ALLOWED_PATTERNS.some(p => h === p || h.endsWith('.' + p))) {
       throw fail(403, 'Forbidden: Domain not in allowlist');
@@ -1260,7 +1273,7 @@ async function proxyImage(url, w, q, cacheKey) {
             Referer: referer,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
-          }, timeout: 8000,
+          }, timeout: 4000,
           // Without this axios buffers an arbitrarily large body into the heap;
           // a single oversized CDN response was enough to OOM the process.
           maxContentLength: MAX_SOURCE_BYTES,

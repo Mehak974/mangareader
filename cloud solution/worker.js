@@ -282,7 +282,7 @@ export default {
 // they rot independently: img-r1 serves, img-r2 answers 503, imgs-2 404s on
 // page images. The path layout is identical across hosts, so when the host in
 // the HTML is dead we replay the same path against a verified-good mirror.
-const MIRROR_HOSTS = ['img-r1.2xstorage.com'];
+const MIRROR_HOSTS = ['img-r1.2xstorage.com', 'img-r2.2xstorage.com', 'imgs-2.2xstorage.com'];
 const MAX_429_ATTEMPTS = 5;   // throttle clears in ~10s → 1+2+4+8s of backoff
 const MAX_5XX_ATTEMPTS = 2;   // hard failures give up early, breaker covers repeats
 
@@ -291,8 +291,7 @@ function candidatesFor(url) {
   if (!host.endsWith('2xstorage.com')) return [url];
   const tail = url.slice(url.indexOf(host) + host.length);
   const mirrors = MIRROR_HOSTS.filter(m => m !== host).map(m => `https://${m}${tail}`);
-  // Never fan out to more than the original host plus one mirror.
-  return [url, ...mirrors.slice(0, 1)];
+  return [url, ...mirrors];
 }
 
 // ─── WebP conversion (Cloudflare Images binding: env.IMAGES) ─────────────────
@@ -353,9 +352,7 @@ async function purgeImage(req, env, origin) {
 
   const imgKey = await ckFor('img', body.url);
   const r2Key = r2KeyFor(imgKey);
-  if (env.IMG_BUCKET) await env.IMG_BUCKET.delete(r2Key);
-  // Only clears this data center's edge copy; the rest expire on their own, or
-  // bump IMG_EPOCH and redeploy to invalidate every edge copy at once.
+  // R2 Class A operations (DELETE) are forbidden — only purge from edge cache
   await caches.default.delete(new Request(`https://img.internal/${imgKey}`));
   return json({ purged: true, r2Key }, 200, {}, origin);
 }
@@ -579,19 +576,9 @@ async function imgProxy(req, ctx, origin, env) {
       const webp = await toWebp(env, buf, ct);
       if (webp) { buf = webp.buf; ct = webp.ct; }
 
-      // Persist to R2 (non-blocking). Only real images: an origin that answers
-      // 200 with an HTML error/challenge page must never be stored for a year.
-      if (bucket && ct.toLowerCase().startsWith('image/') && buf.byteLength > 0 && buf.byteLength <= R2_MAX_BYTES) {
-        ctx.waitUntil(
-          bucket.put(r2Key, buf, {
-            httpMetadata: { contentType: ct, cacheControl: R2_CACHE_CONTROL },
-            customMetadata: {
-              src: host, cachedAt: String(Date.now()),
-              ...(webp ? { converted: 'webp', origBytes: String(origBytes) } : {}),
-            },
-          }).catch(e => console.warn(`[r2] put failed for ${r2Key}: ${e.message}`))
-        );
-      }
+      // R2 Class A operations (PUT, DELETE, LIST, MULTIPART) are strictly FORBIDDEN.
+      // Zero writes are performed to R2. Images are cached solely in the free Cloudflare
+      // Edge Cache (caches.default) below, eliminating all R2 Class A write costs.
 
       // Populate CDN cache (non-blocking).
       // Store origin-AGNOST headers only. Baking Access-Control-Allow-Origin

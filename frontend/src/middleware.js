@@ -94,6 +94,7 @@ export function middleware(request) {
     script-src-elem 'self' 'unsafe-inline' https: ${adScriptOrigins.join(" ")}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https: http:;
+    media-src 'self' blob: data: https: http:;
     font-src 'self' data: https://fonts.gstatic.com https://vercel.live;
     connect-src 'self' https: http: ws: wss:;
     object-src 'none';

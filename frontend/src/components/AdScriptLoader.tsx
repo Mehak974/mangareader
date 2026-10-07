@@ -37,15 +37,24 @@ export default function AdScriptLoader() {
     hilltopInjected = true;
 
     // Directly create script and append to document.head.
-    // Appending to document.head avoids mutating document.body where Next.js / React
-    // performs streaming SSR hydration ($RS), preventing React Error #418 & parentNode errors.
-    const s = document.createElement('script');
-    s.src = HILLTOP_SRC;
-    s.async = false;
-    s.referrerPolicy = 'no-referrer-when-downgrade';
+    const inject = () => {
+      const s = document.createElement('script');
+      s.src = HILLTOP_SRC;
+      s.async = true;
+      s.referrerPolicy = 'no-referrer-when-downgrade';
+      s.onerror = () => {
+        removeHilltop();
+      };
 
-    document.head.appendChild(s);
-    hilltopNode = s;
+      document.head.appendChild(s);
+      hilltopNode = s;
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(inject);
+    } else {
+      setTimeout(inject, 200);
+    }
   }, [pathname]);
 
   return null;

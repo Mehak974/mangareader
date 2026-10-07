@@ -4,7 +4,6 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
-import { isExplicitNSFW } from "@/utils/anilist";
 import { proxyImage, fetchHomeSection } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
@@ -56,10 +55,10 @@ export default async function Home() {
   return (
     <>
       {featuredHero?.cover && (
-        <link rel="preload" as="image" href={proxyImage(featuredHero.cover, 200)} media="(max-width: 768px)" />
+        <link rel="preload" as="image" href={proxyImage(featuredHero.cover, 300)} media="(max-width: 768px)" />
       )}
       {desktopHero?.cover && (
-        <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 360)} media="(min-width: 769px)" />
+        <link rel="preload" as="image" href={proxyImage(desktopHero.cover, 800)} media="(min-width: 769px)" />
       )}
       <div>
       {/* MOBILE HERO VIEWPORT */}

@@ -10,6 +10,16 @@ import { API_BASE, proxyImage, fetchChapterImagesThroughWorker } from "@/utils/a
 import { useDrag } from "@use-gesture/react";
 import dynamic from "next/dynamic";
 import AAdsInline from "@/components/AAdsInline";
+import RewardedAdModal from "@/components/RewardedAdModal";
+import { 
+  getOfflineChapter, 
+  makeChapterAvailableOffline, 
+  isChapterOffline, 
+  getOfflineChaptersForManga, 
+  getMemoryOfflineChapter, 
+  preloadOfflineChapter 
+} from "@/utils/offlineStorage";
+import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
 
@@ -44,9 +54,22 @@ function ReaderContent({ params }) {
   const mangaId = searchParams.get("mangaId") || "";
   const cover = searchParams.get("cover") || "";
 
-  const [images, setImages] = useState([]);
+  const isNotChapterImage = (img) => typeof img === 'string' && (
+    /[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(img) ||
+    /\b(?:avatar|logo|banner|icon|thumb)\b/i.test(img) ||
+    img.startsWith('data:text/html') ||
+    img.startsWith('data:application/')
+  );
+  const sanitizeChapterImages = (list) => Array.isArray(list) ? list.filter(img => typeof img === 'string' && !isNotChapterImage(img)) : [];
+
+  // Instant synchronous memory lookup to eliminate any flash of loading spinner
+  const initialMem = typeof window !== 'undefined' ? getMemoryOfflineChapter(mangaId, id, title) : null;
+  const initialImages = sanitizeChapterImages(initialMem?.images);
+
+  const [currentId, setCurrentId] = useState(id);
+  const [images, setImages] = useState(initialImages);
   const [chapters, setChapters] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => initialImages.length === 0);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [brightness, setBrightness] = useState(0);
@@ -56,6 +79,50 @@ function ReaderContent({ params }) {
   const [viewMode, setViewMode] = useState("webtoon");
   const [showNav, setShowNav] = useState(true);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [showRewardedModal, setShowRewardedModal] = useState(false);
+  const [packProgress, setPackProgress] = useState(null);
+  const [isOfflineMode, setIsOfflineMode] = useState(() => initialImages.length > 0);
+  const [savedOfflineChapters, setSavedOfflineChapters] = useState(() => new Set());
+  const [loadedImages, setLoadedImages] = useState({});
+  const hasTriggeredAutoDownloadRef = useRef(false);
+  const autoDownload = searchParams.get("download") === "1";
+
+  // Sync state synchronously during render when navigating across chapters
+  if (currentId !== id) {
+    setCurrentId(id);
+    const mem = typeof window !== 'undefined' ? getMemoryOfflineChapter(mangaId, id, title) : null;
+    const cleanMem = sanitizeChapterImages(mem?.images);
+    if (cleanMem.length) {
+      setImages(cleanMem);
+      setIsOfflineMode(true);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
+
+  const handleStartDownload = async () => {
+    if (!images || images.length === 0) return;
+    setShowRewardedModal(true);
+    setPackProgress({ percent: 5, text: `Pre-caching Chapter ${id} for offline reading...` });
+
+    try {
+      await makeChapterAvailableOffline({
+        images,
+        mangaTitle: title || 'Manga',
+        chapterNum: id,
+        chapterTitle: title ? `${title} - Chapter ${id}` : `Chapter ${id}`,
+        cover,
+        mangaId,
+        onProgress: (percent, text) => {
+          setPackProgress({ percent, text });
+        },
+      });
+      setIsOfflineMode(true);
+    } catch (err) {
+      console.warn('Offline caching error in reader:', err);
+    }
+  };
 
   const readerPagesRef = useRef(null);
   const endRef = useRef(null);
@@ -82,6 +149,15 @@ function ReaderContent({ params }) {
     };
   }, [brightnessPop, brightness]);
 
+  // Reset navigation guard, scroll to top, and clear transient state on chapter change
+  useEffect(() => {
+    isNavigatingRef.current = false;
+    window.scrollTo({ top: 0, behavior: "instant" });
+    setPage(1);
+    setImgErrors({});
+    setLoadedImages({});
+  }, [id]);
+
   // Fetch chapters list on mount
   useEffect(() => {
     if (title) {
@@ -100,11 +176,58 @@ function ReaderContent({ params }) {
     }
   }, [title, mangaId, source]);
 
+  // Sync offline chapters from IndexedDB so continuous offline reading works seamlessly
+  useEffect(() => {
+    if (!mangaId && !title) return;
+    const syncOffline = () => {
+      getOfflineChaptersForManga(mangaId, title).then((offlineList) => {
+        if (offlineList && offlineList.length > 0) {
+          const nums = new Set(offlineList.map((c) => Number(c.chapterNum) || c.chapterNum));
+          setSavedOfflineChapters(nums);
+          // Preload adjacent offline chapters for continuous 0ms reading
+          const currentNum = parseInt(id) || 1;
+          preloadOfflineChapter(mangaId, currentNum + 1, title);
+          if (currentNum > 1) {
+            preloadOfflineChapter(mangaId, currentNum - 1, title);
+          }
+          // If chapters list from network failed/offline, seed with offline chapters
+          setChapters((prev) => {
+            if (prev && prev.length > 0) return prev;
+            return offlineList
+              .map((c) => ({
+                title: c.chapterTitle || `Chapter ${c.chapterNum}`,
+                href: '',
+                chNum: Number(c.chapterNum) || c.chapterNum,
+              }))
+              .sort((a, b) => b.chNum - a.chNum);
+          });
+        } else {
+          setSavedOfflineChapters(new Set());
+        }
+      });
+    };
+    syncOffline();
+    window.addEventListener('offline-chapters-updated', syncOffline);
+    return () => window.removeEventListener('offline-chapters-updated', syncOffline);
+  }, [mangaId, title, id]);
+
   // Fetch chapter images
   useEffect(() => {
-    if (!url) {
-      setError("No chapter URL provided.");
+    const mem = getMemoryOfflineChapter(mangaId, id, title);
+    const cleanMem = sanitizeChapterImages(mem?.images);
+    if (cleanMem.length) {
+      setImages(cleanMem);
+      setIsOfflineMode(true);
       setLoading(false);
+      addToHistory(
+        title || mem.mangaTitle || "Manga",
+        `Chapter ${id}`,
+        parseInt(id) || 1,
+        url || '',
+        source || '',
+        mangaId || mem.mangaId,
+        cover || mem.cover || ''
+      );
       return;
     }
 
@@ -113,6 +236,38 @@ function ReaderContent({ params }) {
 
     const fetchImages = async () => {
       try {
+        // 1. Instant load from offline IndexedDB if downloaded (works offline without network or url)
+        if (id) {
+          try {
+            const offlineChapter = await getOfflineChapter(mangaId, id, title);
+            const validImages = sanitizeChapterImages(offlineChapter?.images);
+            if (validImages.length > 0) {
+              setImages(validImages);
+              setIsOfflineMode(true);
+              setLoading(false);
+                addToHistory(
+                  title || offlineChapter.mangaTitle || "Manga",
+                  `Chapter ${id}`,
+                  parseInt(id) || 1,
+                  url || '',
+                  source || '',
+                  mangaId || offlineChapter.mangaId,
+                  cover || offlineChapter.cover || ''
+                );
+                return;
+            }
+          } catch (e) {
+            console.warn("Offline DB check error:", e);
+          }
+        }
+        setIsOfflineMode(false);
+
+        if (!url) {
+          setError("No chapter URL provided.");
+          setLoading(false);
+          return;
+        }
+
         const res = await fetchChapterImagesThroughWorker(url, source);
         if (res?.data?.images && res.data.images.length > 0) {
           setImages(res.data.images);
@@ -147,7 +302,28 @@ function ReaderContent({ params }) {
     };
 
     fetchImages();
-  }, [url, source, id, title]);
+  }, [url, source, id, title, mangaId]);
+
+  // Preload adjacent offline chapters into memory cache so next/prev clicks transition in 0ms
+  useEffect(() => {
+    const curNum = parseInt(id) || 1;
+    const nextNum = curNum + 1;
+    const prevNum = curNum - 1;
+    if (savedOfflineChapters.has(nextNum)) {
+      preloadOfflineChapter(mangaId, nextNum, title);
+    }
+    if (prevNum >= 1 && savedOfflineChapters.has(prevNum)) {
+      preloadOfflineChapter(mangaId, prevNum, title);
+    }
+  }, [id, mangaId, title, savedOfflineChapters]);
+
+  // Trigger download modal if navigated with ?download=1
+  useEffect(() => {
+    if (autoDownload && images.length > 0 && !hasTriggeredAutoDownloadRef.current) {
+      hasTriggeredAutoDownloadRef.current = true;
+      handleStartDownload();
+    }
+  }, [autoDownload, images]);
 
   // Page tracking via IntersectionObserver — accurate per image detection
   const observerRef = useRef(null);
@@ -206,40 +382,71 @@ function ReaderContent({ params }) {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   };
 
-  const goToNextChapter = () => {
+  const goToNextChapter = async () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
 
+    const currentChNum = parseInt(id) || 1;
+    let targetNextNum = currentChNum + 1;
+    let nextHref = "";
 
-    // Match by href first, fallback to matching chapter number from route params (id is totalChapters - chapterNumber)
-    let currentIdx = chapters.findIndex(ch => ch.href === url);
-    if (currentIdx === -1 && id) {
-      const chNumFromUrl = parseInt(id);
-      currentIdx = chapters.length - chNumFromUrl;
+    // 1. Try to find the next chapter in the chapters array
+    const directMatch = chapters.find((c) => Number(c.chNum) === targetNextNum);
+    if (directMatch) {
+      nextHref = directMatch.href || "";
+    } else {
+      let currentIdx = chapters.findIndex((c) => (c.href && c.href === url) || Number(c.chNum) === currentChNum);
+      if (currentIdx === -1 && id) {
+        currentIdx = chapters.length - currentChNum;
+      }
+      if (currentIdx > 0 && chapters[currentIdx - 1]) {
+        nextHref = chapters[currentIdx - 1].href || "";
+        if (chapters[currentIdx - 1].chNum) {
+          targetNextNum = Number(chapters[currentIdx - 1].chNum);
+        }
+      }
     }
 
-    if (currentIdx > 0) {
-      const next = chapters[currentIdx - 1];
-      router.push(`/reader/${chapters.length - currentIdx + 1}?url=${encodeURIComponent(next.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+    const nextIsOffline = await isChapterOffline(mangaId, targetNextNum, title);
+    if (nextHref || nextIsOffline || savedOfflineChapters.has(targetNextNum) || (chapters.length > 0 && targetNextNum <= chapters.length)) {
+      router.push(`/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
     } else {
       isNavigatingRef.current = false;
     }
   };
 
-  const goToPrevChapter = () => {
+  const goToPrevChapter = async () => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
 
+    const currentChNum = parseInt(id) || 1;
+    let targetPrevNum = currentChNum - 1;
 
-    let currentIdx = chapters.findIndex(ch => ch.href === url);
-    if (currentIdx === -1 && id) {
-      const chNumFromUrl = parseInt(id);
-      currentIdx = chapters.length - chNumFromUrl;
+    if (targetPrevNum < 1) {
+      router.push(`/manga/${encodeURIComponent(title)}`);
+      return;
     }
 
-    if (currentIdx < chapters.length - 1 && currentIdx !== -1) {
-      const prev = chapters[currentIdx + 1];
-      router.push(`/reader/${chapters.length - currentIdx - 1}?url=${encodeURIComponent(prev.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+    let prevHref = "";
+    const directMatch = chapters.find((c) => Number(c.chNum) === targetPrevNum);
+    if (directMatch) {
+      prevHref = directMatch.href || "";
+    } else {
+      let currentIdx = chapters.findIndex((c) => (c.href && c.href === url) || Number(c.chNum) === currentChNum);
+      if (currentIdx === -1 && id) {
+        currentIdx = chapters.length - currentChNum;
+      }
+      if (currentIdx < chapters.length - 1 && currentIdx !== -1 && chapters[currentIdx + 1]) {
+        prevHref = chapters[currentIdx + 1].href || "";
+        if (chapters[currentIdx + 1].chNum) {
+          targetPrevNum = Number(chapters[currentIdx + 1].chNum);
+        }
+      }
+    }
+
+    const prevIsOffline = await isChapterOffline(mangaId, targetPrevNum, title);
+    if (prevHref || prevIsOffline || savedOfflineChapters.has(targetPrevNum)) {
+      router.push(`/reader/${targetPrevNum}?url=${encodeURIComponent(prevHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
     } else {
       router.push(`/manga/${encodeURIComponent(title)}`);
     }
@@ -331,8 +538,8 @@ function ReaderContent({ params }) {
       <div className="reader-wrap" style={{ background: "#000" }} onClick={handleReaderClick}>
         {/* Top Toolbar */}
         {showNav && (
-          <div className="reader-toolbar" style={{ display: "flex", gap: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>
-            <button className="rt-btn" onClick={() => router.back()} style={{ flexShrink: 0 }} aria-label="Go back">
+          <div className="reader-toolbar">
+            <button className="rt-btn" onClick={() => router.back()} aria-label="Go back">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M19 12H5M12 5l-7 7 7 7"
@@ -342,9 +549,9 @@ function ReaderContent({ params }) {
                   strokeLinejoin="round"
                 />
               </svg>
-              Back
+              <span className="rt-btn-text">Back</span>
             </button>
-            <button className="rt-btn" onClick={() => router.push("/")} style={{ flexShrink: 0 }} aria-label="Go to home">
+            <button className="rt-btn rt-desktop-only" onClick={() => router.push("/")} aria-label="Go to home">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path d="M3 12L12 3l9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <path
@@ -356,15 +563,16 @@ function ReaderContent({ params }) {
                 />
               </svg>
             </button>
-            <button className="rt-btn" onClick={() => window.location.reload()} style={{ flexShrink: 0 }} aria-label="Reload chapter">
+            <button className="rt-btn rt-desktop-only" onClick={() => window.location.reload()} aria-label="Reload chapter">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path d="M4 4v5h5M20 20v-5h-5M4.93 19.07A10 10 0 102.12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
 
-            <div className="rt-sep" style={{ flexShrink: 0 }}></div>
+            <div className="rt-sep"></div>
             {chapters.length > 0 ? (
               <select
+                className="rt-ch-select"
                 value={(() => {
                   const idx = chapters.findIndex(ch => ch.href === url);
                   if (idx !== -1) return idx;
@@ -372,49 +580,70 @@ function ReaderContent({ params }) {
                   return 0;
                 })()}
                 onChange={handleChapterSelect}
-                style={{
-                  background: "var(--bg3)",
-                  color: "#fff",
-                  border: "none",
-                  padding: "8px",
-                  borderRadius: "6px",
-                  fontSize: "14px",
-                  flex: "1",
-                  maxWidth: "150px"
-                }}
                 aria-expanded="false"
                 aria-label="Select chapter"
               >
-                {chapters.map((ch, idx) => (
-                  <option key={idx} value={idx} style={{ background: "#180e25", color: "#fff" }}>
-                    {ch.title || `Chapter ${chapters.length - idx}`}
-                  </option>
-                ))}
+                {chapters.map((ch, idx) => {
+                  const chNumber = ch.chNum ?? (chapters.length - idx);
+                  const isOff = savedOfflineChapters.has(Number(chNumber));
+                  return (
+                    <option key={idx} value={idx} style={{ background: "#180e25", color: "#fff" }}>
+                      {isOff ? '⚡ ' : ''}{ch.title || `Chapter ${chNumber}`}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
-              <span style={{ fontSize: "13px", color: "#fff", fontWeight: "600", flexShrink: 0 }}>
+              <span className="rt-ch-title" style={{ fontSize: "13px", color: "#fff", fontWeight: "600", flexShrink: 0 }}>
                 Chapter {id}
               </span>
             )}
 
             <div className="rt-sep"></div>
-            <span style={{ fontSize: "11px", color: "rgba(255,255,255,.3)", padding: "0 4px" }}>
+            <span className="rt-page-info">
               {page}/{TOTAL_PAGES}
             </span>
 
             <div className="rt-sep"></div>
-            <button className="rt-btn" onClick={goToPrevChapter} aria-label="Previous chapter" disabled={!mappedChapters.some(c => c.chNum === parseInt(id) - 1)}>
+            <button
+              className="rt-btn"
+              onClick={goToPrevChapter}
+              aria-label="Previous chapter"
+              disabled={parseInt(id) <= 1 || (!mappedChapters.some(c => c.chNum === parseInt(id) - 1) && !savedOfflineChapters.has(parseInt(id) - 1))}
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                 <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button className="rt-btn" onClick={goToNextChapter} aria-label="Next chapter" disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1)}>
+            <button
+              className="rt-btn"
+              onClick={goToNextChapter}
+              aria-label="Next chapter"
+              disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1) && !savedOfflineChapters.has(parseInt(id) + 1)}
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                 <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
-
+            <div className="rt-sep"></div>
+            {isOfflineMode || savedOfflineChapters.has(parseInt(id)) ? (
+              <span
+                className="rt-offline-badge"
+                title="Reading offline from local storage (saved 24h, 0 data)"
+              >
+                ⚡<span className="rt-offline-txt"> Offline (24h)</span>
+              </span>
+            ) : (
+              <button
+                onClick={handleStartDownload}
+                className="rt-btn rt-save-btn"
+                title="Save this chapter for 24 hours of offline reading"
+                aria-label="Save this chapter for 24 hours of offline reading"
+              >
+                ⚡<span className="rt-offline-txt"> Save (24h)</span>
+              </button>
+            )}
 
             <div className="rt-sep"></div>
             <button className="rt-btn" onClick={() => setBrightnessPop(!brightnessPop)} aria-label="Adjust brightness">
@@ -506,7 +735,7 @@ function ReaderContent({ params }) {
         <div className="reader-pages" ref={readerPagesRef} style={{ display: "flex", flexDirection: "column", gap: 0, alignItems: "center", width: "100%", cursor: "pointer", maxWidth: "800px", margin: "0 auto", padding: 0 }}>
           {images.map((imgUrl, i) => {
             if (viewMode === "paged" && i !== page - 1) return null;
-            const fileName = imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`;
+            const fileName = imgUrl.startsWith('data:') ? `Page ${i + 1}` : (imgUrl.split('/').pop().split('?')[0] || `Page ${i + 1}`);
             const hasError = imgErrors[i];
             return (
               <Fragment key={i}>
@@ -515,8 +744,9 @@ function ReaderContent({ params }) {
                 style={{
                   position: "relative",
                   width: "100%",
+                  minHeight: viewMode === "paged" ? "100vh" : (loadedImages[i] ? "auto" : "550px"),
                   height: viewMode === "paged" ? "100vh" : "auto",
-                  background: "none",
+                  background: loadedImages[i] ? "none" : "#0d0714",
                   display: "flex",
                   justifyContent: viewMode === "paged" ? "center" : (zoomedImage === i ? "flex-start" : "center"),
                   alignItems: viewMode === "paged" ? "center" : "flex-start",
@@ -524,8 +754,39 @@ function ReaderContent({ params }) {
                   overflowY: zoomedImage === i && viewMode === "paged" ? "auto" : "hidden"
                 }}
               >
+                {!loadedImages[i] && !hasError && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "10px",
+                      pointerEvents: "none",
+                      zIndex: 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "50%",
+                        border: "2px solid rgba(168,85,247,0.25)",
+                        borderTopColor: "var(--p)",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
+                    <span>Loading Page {i + 1}...</span>
+                  </div>
+                )}
                 {hasError ? (
-                  <div onClick={() => { setImgErrors(prev => { const n = {...prev}; delete n[i]; return n; }); setImgRetries(prev => { const n = {...prev}; delete n[i]; return n; }); }} style={{
+                  <div onClick={() => { setImgErrors(prev => { const n = {...prev}; delete n[i]; return n; }); setImgRetries(prev => { const n = {...prev}; delete n[i]; return n; }); setLoadedImages(prev => { const n = {...prev}; delete n[i]; return n; }); }} style={{
                     width: "100%", cursor: "pointer",
                     aspectRatio: "2/3",
                     background: "var(--bg2)",
@@ -537,7 +798,8 @@ function ReaderContent({ params }) {
                     justifyContent: "center",
                     gap: "12px",
                     padding: "24px",
-                    textAlign: "center"
+                    textAlign: "center",
+                    zIndex: 2,
                   }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
@@ -552,11 +814,13 @@ function ReaderContent({ params }) {
                     </div>
                   </div>
                 ) : (
-                  <Image
+                  <img
                     src={proxyImage(imgUrl)}
                     alt={`Page ${i + 1}`}
-                    width={800}
-                    height={1200}
+                    loading={isOfflineMode || imgUrl.startsWith('data:') ? "eager" : (i < 2 || (viewMode === "paged" && i === page - 1) ? "eager" : "lazy")}
+                    decoding={isOfflineMode || imgUrl.startsWith('data:') ? "sync" : "async"}
+                    fetchPriority={isOfflineMode || imgUrl.startsWith('data:') ? "high" : (i < 2 ? "high" : "auto")}
+                    onLoad={() => setLoadedImages(prev => ({ ...prev, [i]: true }))}
                     style={{
                       width: viewMode === "paged" ? "auto" : (zoomedImage === i ? "150%" : "100%"),
                       height: viewMode === "paged" ? (zoomedImage === i ? "200vh" : "100%") : "auto",
@@ -565,14 +829,21 @@ function ReaderContent({ params }) {
                       transform: "none",
                       transformOrigin: "center center",
                       transition: "width 0.2s ease, height 0.2s ease",
-                      cursor: zoomedImage === i ? "zoom-out" : "zoom-in"
+                      cursor: zoomedImage === i ? "zoom-out" : "zoom-in",
+                      display: "block",
+                      margin: "0 auto",
+                      position: "relative",
+                      zIndex: 2,
                     }}
-                    priority={i < 2 || (viewMode === "paged" && i === page - 1)}
-                    unoptimized={true}
                     onError={(e) => {
+                      setLoadedImages(prev => ({ ...prev, [i]: true }));
                       const img = e.currentTarget || e.target;
                       if (img) {
                         try {
+                          if (imgUrl.startsWith('data:') || imgUrl.startsWith('blob:')) {
+                            setImgErrors(prev => ({ ...prev, [i]: true }));
+                            return;
+                          }
                           const u = new URL(img.src);
                           const rawUrl = u.searchParams.get('url') || imgUrl;
                           const API = API_BASE || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SCRAPER_URL || '';
@@ -592,7 +863,7 @@ function ReaderContent({ params }) {
                   />
                 )}
                 {viewMode === "webtoon" && (
-                  <div className="reader-page-num" aria-live="polite" style={{ position: "absolute", bottom: "10px", right: "10px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "2px 8px", borderRadius: "10px", fontSize: "10px" }}>
+                  <div className="reader-page-num" aria-live="polite" style={{ position: "absolute", bottom: "10px", right: "10px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "2px 8px", borderRadius: "10px", fontSize: "10px", zIndex: 3 }}>
                     {i + 1}/{TOTAL_PAGES}
                   </div>
                 )}
@@ -617,21 +888,75 @@ function ReaderContent({ params }) {
               End of Chapter {id}
             </div>
             <AAdsBanner style={{ marginTop: 0 }} />
-            <div className="reader-footer-btns" style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: 0 }}>
+            <div className="reader-footer-btns" style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: 0, flexWrap: "wrap", maxWidth: "100%", padding: "0 10px" }}>
               <button
                 className="rt-btn"
-                style={{ padding: "8px 16px", height: "auto" }}
+                style={{ padding: "8px 14px", height: "auto" }}
                 onClick={() => router.back()}
               >
-                ← Back to Detail
+                ← Back
               </button>
+              {isOfflineMode || savedOfflineChapters.has(parseInt(id)) ? (
+                <div
+                  style={{
+                    padding: "8px 14px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "#4ade80",
+                    background: "rgba(34, 197, 94, 0.15)",
+                    border: "1px solid rgba(34, 197, 94, 0.3)",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                  }}
+                  title="Stored on device for 24 hours (0 data used)"
+                >
+                  <span>⚡ Saved Offline (24h)</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleStartDownload}
+                  className="rt-btn"
+                  style={{
+                    padding: "8px 14px",
+                    height: "auto",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "#c084fc",
+                    background: "rgba(168, 85, 247, 0.12)",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                  }}
+                  title="Save this chapter for 24 hours of offline reading"
+                  aria-label="Save this chapter for 24 hours of offline reading"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Save Offline (24h)</span>
+                </button>
+              )}
               <button
                 className="rt-btn"
-                style={{ padding: "8px 16px", height: "auto", background: "var(--accent)", color: "#fff", opacity: chapters.findIndex(ch => ch.href === url) <= 0 ? 0.5 : 1 }}
+                style={{
+                  padding: "8px 16px",
+                  height: "auto",
+                  background: "var(--accent)",
+                  color: "#fff",
+                  opacity: (!mappedChapters.some(c => c.chNum === parseInt(id) + 1) && !savedOfflineChapters.has(parseInt(id) + 1)) ? 0.5 : 1
+                }}
                 onClick={goToNextChapter}
-                disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1)}
+                disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1) && !savedOfflineChapters.has(parseInt(id) + 1)}
               >
-                Next Chapter →
+                {savedOfflineChapters.has(parseInt(id) + 1)
+                  ? `Next Chapter (Ch ${parseInt(id) + 1} Offline ⚡) →`
+                  : "Next Chapter →"}
               </button>
             </div>
           </div>
@@ -664,6 +989,16 @@ function ReaderContent({ params }) {
             </button>
           </div>
         )}
+
+        <RewardedAdModal
+          isOpen={showRewardedModal}
+          onClose={() => setShowRewardedModal(false)}
+          onReward={() => {
+            // Download finishes via JSZip in background
+          }}
+          chapterTitle={`${title ? title + ' - ' : ''}Chapter ${id}`}
+          packProgress={packProgress}
+        />
       </div>
     </div>
   );

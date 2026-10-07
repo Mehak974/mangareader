@@ -12,19 +12,22 @@ export default function MaintenanceGuard({ children }) {
   const isAdmin = pathname?.startsWith("/admin");
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/maintenance`)
-      .then((r) => r.json())
-      .then((data) => setMaintenanceMode(data.maintenanceMode === true))
-      .catch(() => {});
-
-    // Poll every 60s in case admin toggles it
-    const interval = setInterval(() => {
+    const checkMaintenance = () => {
       fetch(`${API_BASE}/api/settings/maintenance`)
         .then((r) => r.json())
         .then((data) => setMaintenanceMode(data.maintenanceMode === true))
         .catch(() => {});
-    }, 60000);
-    return () => clearInterval(interval);
+    };
+
+    // Defer initial check slightly so it does not contend with page hydration
+    const timer = setTimeout(checkMaintenance, 2000);
+
+    // Poll every 60s in case admin toggles it
+    const interval = setInterval(checkMaintenance, 60000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, []);
 
   const showOverlay = maintenanceMode && !isAdmin && !dismissed;

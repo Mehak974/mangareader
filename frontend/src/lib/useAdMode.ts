@@ -26,7 +26,8 @@ function getOrUpdateAdMode(pathname: string | null): 'sticky' | 'inline' {
 
 export function useAdMode(): 'sticky' | 'inline' {
   const pathname = usePathname();
-  const [adMode, setAdMode] = useState<'sticky' | 'inline'>(() => getOrUpdateAdMode(pathname));
+  // Always initialize to 'sticky' to match SSR HTML and eliminate hydration mismatches
+  const [adMode, setAdMode] = useState<'sticky' | 'inline'>('sticky');
 
   useEffect(() => {
     setAdMode(getOrUpdateAdMode(pathname));

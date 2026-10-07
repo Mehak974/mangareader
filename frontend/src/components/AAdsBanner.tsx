@@ -66,6 +66,7 @@ function AAdsBannerInner() {
                 key={key}
                 data-aa={aadsUnitId}
                 src={src}
+                loading="lazy"
                 style={{
                   border: 0,
                   padding: 0,

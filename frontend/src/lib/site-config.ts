@@ -33,6 +33,10 @@ export type AdConfig = {
   bingVerification: string;
   /** Hilltop Ads site verification meta tag */
   hilltopVerification?: string;
+  /** Hilltop Ads direct link (for download/offline triggers) */
+  hilltopDirectLink?: string;
+  /** Hilltop Ads VAST 3.0 video tag URL */
+  hilltopVastUrl?: string;
 };
 
 export type SeoConfig = {
@@ -93,6 +97,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
       title:       'MangaReader — Read Manga Free Online',
@@ -126,6 +132,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',
@@ -159,6 +167,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
       title:       'ManiReader — Discover Manga & Manhwa',
@@ -215,4 +225,10 @@ export const AADS_FLOAT_ENABLED = Boolean(siteConfig.ads.aadsFloatUnitId && site
 
 /** True when the Hilltop script should be injected */
 export const HILLTOP_ENABLED = Boolean(siteConfig.ads.hilltopVerification);
+
+/** Hilltop direct link for download/offline triggers */
+export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/Rvsm31';
+
+/** Hilltop VAST 3.0 video tag URL */
+export const HILLTOP_VAST_URL = siteConfig.ads.hilltopVastUrl || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB';
 

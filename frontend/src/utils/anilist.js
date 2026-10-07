@@ -230,6 +230,13 @@ const HARD_NSFW_TERMS = [
 // not fire on "Middlesex" or "sexuality". "sex" and "18+" live here.
 const HARD_NSFW_WORDS = ["sex", "18+"];
 
+const HARD_TERMS_REGEX = new RegExp(
+  HARD_NSFW_TERMS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+  "i"
+);
+const HARD_WORDS_REGEX = /\b(sex|18\+)\b/i;
+const ADULT_MATURE_REGEX = /\b(adult|mature)\b/i;
+
 /**
  * Decide whether a title's cover must be hidden behind an explicit-content
  * warning.
@@ -244,33 +251,23 @@ const HARD_NSFW_WORDS = ["sex", "18+"];
  * @param {{ tags?: string[], isAdult?: boolean }} [extra]
  */
 export function isExplicitNSFW(genres = [], title = "", extra = {}) {
-  if (extra.isAdult) return true;
+  if (extra?.isAdult) return true;
 
   const genresArr = Array.isArray(genres) ? genres : typeof genres === "string" ? [genres] : [];
   const tagsArr = Array.isArray(extra?.tags) ? extra.tags : typeof extra?.tags === "string" ? [extra.tags] : [];
 
-  const haystack = [...genresArr, ...tagsArr].map((g) =>
-    String(g).toLowerCase().trim()
-  );
+  if (genresArr.length === 0 && tagsArr.length === 0 && !title) return false;
 
-  // Exact genre/tag matches for common scraper adult tags
-  if (haystack.includes("adult") || haystack.includes("mature")) {
-    return true;
-  }
+  const combined = `${genresArr.join(" ")} ${tagsArr.join(" ")}`.toLowerCase();
 
-  // Substring match for multi-word hard terms.
-  if (haystack.some((g) => HARD_NSFW_TERMS.some((term) => g.includes(term)))) {
-    return true;
-  }
+  // Common scraper adult/mature tags
+  if (ADULT_MATURE_REGEX.test(combined)) return true;
 
-  // Whole-word match for short ambiguous words, across genres/tags + title.
-  const words = new Set(
-    [...haystack, String(title || "").toLowerCase()]
-      .join(" ")
-      .split(/[^a-z0-9+]+/)
-      .filter(Boolean)
-  );
-  if (HARD_NSFW_WORDS.some((w) => words.has(w))) return true;
+  // Multi-word hard terms (hentai, ecchi, etc.)
+  if (HARD_TERMS_REGEX.test(combined)) return true;
+
+  // Whole-word match for "sex" and "18+"
+  if (HARD_WORDS_REGEX.test(combined) || (title && HARD_WORDS_REGEX.test(title))) return true;
 
   return false;
 }

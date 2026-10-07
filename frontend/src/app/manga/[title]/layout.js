@@ -23,7 +23,7 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export async function generateJsonLd({ params }) {
+async function generateJsonLd({ params }) {
   const { title: titleSlug } = await params;
   const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
   

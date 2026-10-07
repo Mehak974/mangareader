@@ -63,7 +63,7 @@ binding = "IMAGES"
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
 R2_CACHE = "on"
-# R2 writes (Class A ops) disabled for now; set "on" to re-enable.
+# R2 writes (Class A ops like PUT/DELETE/LIST) are strictly forbidden and disabled.
 R2_WRITE = "off"
 
 [observability.logs]

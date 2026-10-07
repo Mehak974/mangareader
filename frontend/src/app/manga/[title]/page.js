@@ -24,6 +24,11 @@ import {
   seedCover,
   markViewedOnce,
 } from "@/utils/detailCache";
+import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
+import { getOfflineChaptersForManga, deleteOfflineChapter, deleteOfflineManga, makeChapterAvailableOffline, preloadOfflineChapter } from "@/utils/offlineStorage";
+import RewardedAdModal from "@/components/RewardedAdModal";
+import { fetchChapterImagesThroughWorker } from "@/utils/api";
+import toast from "react-hot-toast";
 
 const apiBase = API_BASE;
 
@@ -105,7 +110,25 @@ const [chPage, setChPage] = useState(1);
    const [selectMode, setSelectMode] = useState(false);
    const [activeTab, setActiveTab] = useState('chapters');
    const [selected, setSelected] = useState(() => new Set()); // chapter numbers
-    const CHS_PER_PAGE = 20;
+   const [offlineChapters, setOfflineChapters] = useState(() => new Set());
+   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+   const [downloadTarget, setDownloadTarget] = useState(null);
+   const [downloadProgress, setDownloadProgress] = useState(null);
+   const [downloadingChapters, setDownloadingChapters] = useState({}); // { [chNum]: percent }
+   const CHS_PER_PAGE = 20;
+
+   useEffect(() => {
+     if (!mangaId && !manga?.title && !titleSlug) return;
+     const loadOffline = () => {
+       getOfflineChaptersForManga(mangaId, manga?.title || titleSlug).then((items) => {
+         const set = new Set(items.map((item) => Number(item.chapterNum) || item.chapterNum));
+         setOfflineChapters(set);
+       });
+     };
+     loadOffline();
+     window.addEventListener('offline-chapters-updated', loadOffline);
+     return () => window.removeEventListener('offline-chapters-updated', loadOffline);
+   }, [mangaId, manga?.title, titleSlug]);
 
     useEffect(() => {
       setChPage(1);
@@ -444,7 +467,60 @@ const [chPage, setChPage] = useState(1);
   const handleReadChapterClick = (ch, idx) => {
     const chNum = totalChapters - idx;
     addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum, ch.href, sourceId, mangaId, manga.cover);
+    preloadOfflineChapter(mangaId, chNum, manga.title);
     router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(manga.cover || "")}`);
+  };
+
+  const handleDownloadChapterClick = async (ch, idx) => {
+    const chNum = totalChapters - idx;
+    const chTitle = ch.title || `Chapter ${chNum}`;
+    
+    // 1. Show the inline progress loader on the chapter row
+    setDownloadingChapters((prev) => ({ ...prev, [chNum]: 5 }));
+    // 2. Open the Rewarded Ad Modal showing the live sponsor ad, countdown, and progress
+    setDownloadTarget({ chNum, title: chTitle, href: ch.href });
+    setDownloadProgress({ percent: 5, text: `Connecting to server for Chapter ${chNum}...` });
+    setDownloadModalOpen(true);
+
+    try {
+      // 1. Fetch images in background right here on the manga page
+      const res = await fetchChapterImagesThroughWorker(ch.href, sourceId);
+      const images = res?.data?.images || [];
+      if (!images || images.length === 0) {
+        throw new Error('No pages found for this chapter');
+      }
+
+      setDownloadingChapters((prev) => ({ ...prev, [chNum]: 15 }));
+      setDownloadProgress({ percent: 15, text: `Pre-caching ${images.length} pages for offline reading...` });
+
+      // 2. Pre-cache all page images into persistent IndexedDB (in-browser offline storage)
+      await makeChapterAvailableOffline({
+        images,
+        mangaTitle: manga?.title || 'Manga',
+        chapterNum: chNum,
+        chapterTitle: `${manga?.title || 'Manga'} - ${chTitle}`,
+        cover: manga?.cover || primaryCover,
+        mangaId,
+        onProgress: (percent, text) => {
+          setDownloadingChapters((prev) => ({ ...prev, [chNum]: percent }));
+          setDownloadProgress({ percent, text });
+        },
+      });
+
+      // Synchronously mark offline before clearing downloadingChapters to eliminate any UI flicker
+      setOfflineChapters((prev) => new Set([...prev, chNum]));
+      setDownloadProgress({ percent: 100, text: `Chapter ${chNum} ready offline for 24 hours! ⚡` });
+      toast.success(`Chapter ${chNum} saved offline for 24 hours! ⚡`);
+    } catch (err) {
+      console.warn('In-place offline save error:', err);
+      toast.error(`Save failed: ${err.message || 'Network error'}`);
+    } finally {
+      setDownloadingChapters((prev) => {
+        const next = { ...prev };
+        delete next[chNum];
+        return next;
+      });
+    }
   };
 
   // The tick beside a chapter toggles exactly that one chapter's read state.
@@ -487,6 +563,123 @@ const [chPage, setChPage] = useState(1);
       setChaptersReadState(mangaId, chaptersToMark, true);
     }
     clearSelection();
+  };
+
+  const applyBulkDownload = async () => {
+    if (selected.size === 0) return;
+    const selectedNums = [...selected].sort((a, b) => a - b);
+    const totalCount = selectedNums.length;
+    clearSelection();
+
+    const rangeLabel = totalCount === 1 
+      ? `Chapter ${selectedNums[0]}`
+      : `Chapters ${selectedNums[0]} - ${selectedNums[selectedNums.length - 1]}`;
+
+    setDownloadTarget({
+      chNum: selectedNums[0],
+      title: `${totalCount} Chapters (${rangeLabel})`,
+      href: '',
+    });
+    setDownloadModalOpen(true);
+    setDownloadProgress({
+      percent: 5,
+      text: `Preparing to save ${totalCount} chapters offline...`,
+    });
+
+    setDownloadingChapters((prev) => {
+      const next = { ...prev };
+      selectedNums.forEach((num) => {
+        next[num] = 0;
+      });
+      return next;
+    });
+
+    try {
+      for (let i = 0; i < totalCount; i++) {
+        const chNum = selectedNums[i];
+        const chIdx = chapters.findIndex((_, idx) => totalChapters - idx === chNum);
+        if (chIdx === -1) continue;
+        const ch = chapters[chIdx];
+        const chTitle = ch.title || `Chapter ${chNum}`;
+
+        const basePercent = Math.round((i / totalCount) * 90);
+        setDownloadProgress({
+          percent: basePercent + 2,
+          text: `Fetching Ch ${chNum} (${i + 1}/${totalCount})...`,
+        });
+        setDownloadingChapters((prev) => ({ ...prev, [chNum]: 5 }));
+
+        // 1. Fetch images for this chapter
+        const res = await fetchChapterImagesThroughWorker(ch.href, sourceId);
+        const images = res?.data?.images || [];
+        if (!images || images.length === 0) {
+          console.warn(`No pages found for chapter ${chNum}`);
+          setDownloadingChapters((prev) => {
+            const next = { ...prev };
+            delete next[chNum];
+            return next;
+          });
+          continue;
+        }
+
+        // 2. Pre-cache all images for this chapter
+        await makeChapterAvailableOffline({
+          images,
+          mangaTitle: manga?.title || 'Manga',
+          chapterNum: chNum,
+          chapterTitle: `${manga?.title || 'Manga'} - ${chTitle}`,
+          cover: manga?.cover || primaryCover,
+          mangaId,
+          onProgress: (chPct, chTxt) => {
+            const stepPercent = Math.min(95, Math.round(basePercent + (chPct / 100) * (90 / totalCount)));
+            setDownloadProgress({
+              percent: stepPercent,
+              text: `Ch ${chNum} (${i + 1}/${totalCount}): ${chTxt}`,
+            });
+            setDownloadingChapters((prev) => ({ ...prev, [chNum]: chPct }));
+          },
+        });
+
+        setDownloadingChapters((prev) => {
+          const next = { ...prev };
+          delete next[chNum];
+          return next;
+        });
+        setOfflineChapters((prev) => new Set(prev).add(chNum));
+      }
+
+      setDownloadProgress({
+        percent: 100,
+        text: `All ${totalCount} chapters are now available offline! ⚡`,
+      });
+      toast.success(`${totalCount} continuous chapters saved offline!`);
+    } catch (err) {
+      console.warn('Bulk offline caching error:', err);
+      toast.error(`Offline save error: ${err.message || 'Network error'}`);
+    } finally {
+      setDownloadingChapters({});
+    }
+  };
+
+  const applyBulkRemoveOffline = async () => {
+    const nums = Array.from(selected).filter(
+      (n) => offlineChapters.has(n) || offlineChapters.has(Number(n)) || offlineChapters.has(String(n))
+    );
+    if (!nums.length) return;
+    setOfflineChapters((prev) => {
+      const next = new Set(prev);
+      nums.forEach((n) => {
+        next.delete(n);
+        next.delete(Number(n));
+        next.delete(String(n));
+      });
+      return next;
+    });
+    clearSelection();
+    for (const n of nums) {
+      await deleteOfflineChapter(mangaId, n, manga?.title || titleSlug);
+    }
+    toast.success(`Removed ${nums.length} chapters from offline storage`);
   };
 
   const handleLongPressStart = (chNum) => {
@@ -655,6 +848,23 @@ const [chPage, setChPage] = useState(1);
                     </button>
                   );
                 })()}
+                <button
+                  className="btn btn-s"
+                  onClick={() => {
+                    const continueChNum = highestRead > 0 ? Math.min(highestRead, totalChapters) : 1;
+                    const continueIdx = totalChapters - continueChNum;
+                    handleDownloadChapterClick(chapters[continueIdx], continueIdx);
+                  }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+                  aria-label="Download Chapter (.cbz)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Download CBZ</span>
+                </button>
               </>
             ) : (
               <div style={{ fontSize: "13px", color: "var(--text3)", padding: "4px 0" }}>
@@ -768,6 +978,27 @@ const [chPage, setChPage] = useState(1);
                 >
                   ↧ Mark all below read
                 </button>
+                <button
+                  className="ch-bulk-btn"
+                  disabled={selected.size === 0}
+                  onClick={applyBulkDownload}
+                  title="Make all selected chapters available offline"
+                  style={{ background: selected.size > 0 ? "rgba(168, 85, 247, 0.2)" : undefined, color: selected.size > 0 ? "#c084fc" : undefined }}
+                >
+                  ⚡ Save Offline ({selected.size})
+                </button>
+                {Array.from(selected).some(
+                  (n) => offlineChapters.has(n) || offlineChapters.has(Number(n)) || offlineChapters.has(String(n))
+                ) && (
+                  <button
+                    className="ch-bulk-btn"
+                    onClick={applyBulkRemoveOffline}
+                    title="Remove selected chapters from offline storage"
+                    style={{ background: "rgba(239, 68, 68, 0.2)", color: "#f87171" }}
+                  >
+                    ✕ Remove Offline
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -845,6 +1076,109 @@ const [chPage, setChPage] = useState(1);
                               <path d="M8 5v14l11-7z" />
                             </svg>
                           </button>
+                          {downloadingChapters[chNum] !== undefined ? (
+                            <div
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                background: "rgba(168, 85, 247, 0.18)",
+                                border: "1px solid rgba(168, 85, 247, 0.45)",
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#d8b4fe",
+                                flexShrink: 0,
+                                boxShadow: "0 0 10px rgba(168, 85, 247, 0.2)",
+                              }}
+                              title={`Downloading Chapter ${chNum} for offline reading: ${downloadingChapters[chNum]}%`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <svg
+                                style={{ animation: "spin 0.8s linear infinite", width: "11px", height: "11px", flexShrink: 0 }}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                              >
+                                <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                              </svg>
+                              <span>{downloadingChapters[chNum]}%</span>
+                            </div>
+                          ) : (offlineChapters.has(chNum) || offlineChapters.has(Number(chNum)) || offlineChapters.has(String(chNum))) ? (
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  background: "rgba(34, 197, 94, 0.15)",
+                                  color: "#4ade80",
+                                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "2px",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title="Saved offline for 24 hours (0 data used). Tap ✕ to remove."
+                              >
+                                ⚡<span className="ch-offline-label"> 24h</span>
+                              </span>
+                              <button
+                                className="ch-play"
+                                style={{
+                                  cursor: "pointer",
+                                  background: "rgba(239, 68, 68, 0.15)",
+                                  color: "#f87171",
+                                  border: "none",
+                                  fontSize: "10px",
+                                  width: "22px",
+                                  height: "22px",
+                                  flexShrink: 0,
+                                }}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setOfflineChapters((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(chNum);
+                                    next.delete(Number(chNum));
+                                    next.delete(String(chNum));
+                                    return next;
+                                  });
+                                  try {
+                                    await deleteOfflineChapter(mangaId, chNum, manga?.title || titleSlug);
+                                    toast.success(`Removed Chapter ${chNum} from offline storage`);
+                                  } catch (err) {
+                                    console.warn("Delete offline chapter error:", err);
+                                  }
+                                }}
+                                title={`Delete offline cache for chapter ${chNum}`}
+                                aria-label={`Delete offline cache for chapter ${chNum}`}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              className="ch-play"
+                              style={{ cursor: "pointer", background: "rgba(255, 255, 255, 0.08)", width: "24px", height: "24px", flexShrink: 0 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadChapterClick(c, chIndex);
+                              }}
+                              title={`Save Chapter ${chNum} for 24 hours of offline reading`}
+                              aria-label={`Save chapter ${chNum} for 24 hours of offline reading`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                              </svg>
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -905,6 +1239,19 @@ const [chPage, setChPage] = useState(1);
           <CommentSection mangaId={mangaId} active={activeTab === 'discussion'} />
         </div>
       </div>
+
+      {/* In-place Rewarded Ad & Download Modal */}
+      <RewardedAdModal
+        isOpen={downloadModalOpen}
+        onClose={() => {
+          setDownloadModalOpen(false);
+          setDownloadTarget(null);
+          setDownloadProgress(null);
+        }}
+        onReward={() => {}}
+        chapterTitle={downloadTarget ? `${manga?.title || ''} - ${downloadTarget.title}` : 'Downloading Chapter'}
+        packProgress={downloadProgress}
+      />
 
       <Footer />
     </div>

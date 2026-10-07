@@ -5,9 +5,11 @@
  */
 
 export const API_BASE =
-  process.env.NEXT_PUBLIC_SCRAPER_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://api.mangareader.pro";
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+    ? 'http://localhost:3003'
+    : (process.env.NEXT_PUBLIC_SCRAPER_URL ||
+       process.env.NEXT_PUBLIC_API_URL ||
+       "https://api.mangareader.pro");
 
 // Image/scraper host. Deliberately NOT falling back to NEXT_PUBLIC_SCRAPER_URL:
 // that is the Express backend, which serves /api/proxy-image and has no
@@ -44,7 +46,7 @@ const SKIP_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'double
 
 export function proxyImage(url, width = null, quality = null) {
   if (!url) return "";
-  if (url.startsWith('/') || url.startsWith('data:')) return url;
+  if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) return url;
 
   const cleanUrl = url.split('#')[0];
 
@@ -62,7 +64,7 @@ export function proxyImage(url, width = null, quality = null) {
   const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co', 'waitst'].some(d => cleanUrl.includes(d));
   if (!isImageExt && !isKnownImageDomain) return url;
 
-  const isBypassWorkerImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
+  const isBypassWorkerImage = ['xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
   if (isBypassWorkerImage) {
     let target = `${API_BASE}/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
     if (width) target += `&w=${width}`;
@@ -78,6 +80,10 @@ export function proxyImage(url, width = null, quality = null) {
   if (width) target += `&w=${width}`;
   if (quality) target += `&q=${quality}`;
   return target;
+}
+
+if (typeof window !== 'undefined') {
+  window.__proxyImage = proxyImage;
 }
 
 const WORKER_SOURCE_MAP = {
@@ -99,16 +105,6 @@ function buildWorkerUrl(route) {
 }
 
 export async function fetchChapterImagesThroughWorker(url, source) {
-  // Mangakatana: JS-loaded images — route through the backend's scraper
-  // (Consumet API + DOM fallback), not the Worker's static HTML extraction.
-  const bypassWorker = source === 'mangakatana' || url.includes('mangakatana');
-
-  if (bypassWorker) {
-    const res = await fetch(`${API_BASE}/api/chapter/images?url=${encodeURIComponent(url)}&source=${source || ''}`);
-    if (!res.ok) throw new Error(`Failed to fetch chapter images: ${res.status}`);
-    return res.json();
-  }
-
   // If the worker URL is not configured or is unreachable, fall back to the
   // backend scraper directly. This handles the case where NEXT_PUBLIC_WORKER_URL
   // points to a domain that doesn't resolve (e.g. cdn.mangareader.pro in an
@@ -151,71 +147,128 @@ export async function fetchChapterImagesThroughWorker(url, source) {
 
   const result = await res.json();
   const html = result.html || '';
-  const images = [];
+  const SKIP_DOMAINS = ['gravatar.com', 's.w.org', 'wp-includes', 'emoji', 'avatar'];
+  const SKIP_PATTERNS = [
+    'sprite', 'logo', 'banner', 'analytics', 'adskeeper', 'doubleclick',
+    'gravatar', 'emoji', 'smilies', 'wp-emoji', 'avatar', 'thumb', 'screenshot',
+    'wp-discord', 'user-avatar'
+  ];
 
-  const SKIP_DOMAINS = ['gravatar.com', 's.w.org', 'wp-includes/images/smilies', 'emoji', 'avatar'];
-  const SKIP_PATTERNS = ['sprite', 'logo', 'banner', 'analytics', 'adskeeper', 'doubleclick', 'gravatar', 'emoji', 'smilies', 'wp-emoji', 'avatar'];
-
-  function shouldSkip(src) {
-    if (!src) return true;
-    const lower = src.toLowerCase();
+  function isInvalid(src) {
+    if (!src || typeof src !== 'string') return true;
+    const clean = src.trim();
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) return true;
+    const lower = clean.toLowerCase();
     if (SKIP_DOMAINS.some(d => lower.includes(d))) return true;
     if (SKIP_PATTERNS.some(p => lower.includes(p))) return true;
+    if (lower.includes('loading') || lower.includes('spinner') || lower.includes('placeholder')) return true;
+    // Discard thumbnails/widget crops like -150x150.jpg, -144x150.jpg, -300x300.png
+    if (/[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(clean)) return true;
+    if (lower.endsWith('.svg') || lower.endsWith('.gif')) return true;
     return false;
   }
 
-  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-  let match;
-  while ((match = imgRegex.exec(html)) !== null) {
-    const src = match[1].trim();
-    if (src && !shouldSkip(src)) {
-      images.push(src);
-    }
+  function cleanUrl(raw) {
+    return (raw || '').replace(/\s+/g, '').trim();
   }
 
+  function extractImgUrlFromTag(tag) {
+    if (!tag) return '';
+    // Prefer lazy loading attributes first as they contain the real chapter image
+    const lazyMatch = tag.match(/\b(?:data-src|data-lazy-src|data-original|data-url)=["']([^"']+)["']/i);
+    if (lazyMatch && lazyMatch[1]) {
+      const clean = cleanUrl(lazyMatch[1]);
+      if (!isInvalid(clean)) return clean;
+    }
+    const srcMatch = tag.match(/\bsrc=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      const clean = cleanUrl(srcMatch[1]);
+      if (!isInvalid(clean)) return clean;
+    }
+    return '';
+  }
+
+  let images = [];
+
+  // Strategy 1: Specific chapter image elements (e.g. Madara / MangaRead class wp-manga-chapter-img)
+  const madaraRegex = /<img\b[^>]*class=["'][^"']*(?:wp-manga-chapter-img|chapter-img)[^"']*[^>]*>/gi;
+  const madaraMatches = [...html.matchAll(madaraRegex)];
+  if (madaraMatches.length >= 2) {
+    const list = [];
+    for (const m of madaraMatches) {
+      const url = extractImgUrlFromTag(m[0]);
+      if (url && !list.includes(url)) {
+        list.push(url);
+      }
+    }
+    if (list.length >= 2) images = list;
+  }
+
+  // Strategy 2: Scoped reading container (stops before comments / related manga / footer)
+  if (images.length < 2) {
+    const rcIdx = html.search(/class=["'][^"']*(?:reading-content|container-chapter-reader|vung-doc|chapter-content)[^"']/i);
+    let searchHtml = html;
+    if (rcIdx !== -1) {
+      const endMatch = html.slice(rcIdx).search(/class=["'][^"']*(?:entry-footer|wpd-thread-list|comments-area|related-manga|chapter-footer|c-blog-post|footer-ads)[^"']/i);
+      const endIdx = endMatch !== -1 ? rcIdx + endMatch : rcIdx + 300000;
+      searchHtml = html.slice(rcIdx, endIdx);
+    }
+
+    const containerImages = [];
+    const imgTagRegex = /<img\b([^>]*)>/gi;
+    let tagMatch;
+    while ((tagMatch = imgTagRegex.exec(searchHtml)) !== null) {
+      const url = extractImgUrlFromTag(tagMatch[0]);
+      if (url && !containerImages.includes(url)) {
+        containerImages.push(url);
+      }
+    }
+    if (containerImages.length >= 2) images = containerImages;
+  }
+
+  // Strategy 3: Embedded script arrays
   if (images.length === 0) {
     const cdnMatch = html.match(/(?:var|const|let)\s+cdns\s*=\s*\["([^"]+)"/i) || html.match(/cdns\s*=\s*\["([^"]+)"/i);
     const rawCdn = cdnMatch ? cdnMatch[1].replace(/\\/g, '') : '';
     const cdnBase = rawCdn ? (rawCdn.endsWith('/') ? rawCdn : rawCdn + '/') : '';
 
-    const varNames = ['chapterImages', 'chapter_images', 'ytaw', 'thzq', 'reader_data', 'image_list'];
+    const varNames = ['thzq', 'chapterImages', 'chapter_images', 'reader_data', 'image_list', 'ytaw'];
+    let bestScriptImages = [];
     for (const varName of varNames) {
       const scriptMatch = html.match(new RegExp(`(?:var|const|let|window\\.)\\s*${varName}\\s*=\\s*(\\[[^\\]]+\\])`, 'i'));
       if (scriptMatch) {
         try {
           const rawStr = scriptMatch[1].replace(/'/g, '"').replace(/,\s*]/, ']');
           const rawUrls = JSON.parse(rawStr);
+          const currentList = [];
           for (const u of rawUrls) {
-            if (u && typeof u === 'string' && !shouldSkip(u)) {
-              const cleanPath = u.replace(/\\/g, '').replace(/^\/+/, '');
+            if (u && typeof u === 'string') {
+              const cleanPath = cleanUrl(u).replace(/\\/g, '').replace(/^\/+/, '');
               const fullUrl = (/^https?:\/\//i.test(cleanPath)) ? cleanPath : (cdnBase ? `${cdnBase}${cleanPath}` : cleanPath);
-              images.push(fullUrl);
+              if (!isInvalid(fullUrl) && !currentList.includes(fullUrl)) {
+                currentList.push(fullUrl);
+              }
             }
+          }
+          if (currentList.length > bestScriptImages.length) {
+            bestScriptImages = currentList;
           }
         } catch {}
       }
-      if (images.length > 0) break;
+    }
+    if (bestScriptImages.length > 0) {
+      images = bestScriptImages;
     }
   }
 
-  if (images.length === 0) {
-    const urlRegex = /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif|bmp|avif)/gi;
-    let urlMatch;
-    while ((urlMatch = urlRegex.exec(html)) !== null) {
-      const src = urlMatch[0].trim();
-      if (!shouldSkip(src)) {
-        images.push(src);
-      }
-    }
-  }
-
+  // Strategy 4: Fallback direct manga image path pattern
   if (images.length === 0) {
     const directImgRegex = /https?:\/\/[^\s"'<>]+manga_[a-f0-9]+\/[a-f0-9]+\/\d+\.(webp|jpg|jpeg|png)/gi;
     let directMatch;
     while ((directMatch = directImgRegex.exec(html)) !== null) {
-      const src = directMatch[0].trim();
-      if (!shouldSkip(src)) {
-        images.push(src);
+      const url = cleanUrl(directMatch[0]);
+      if (!isInvalid(url) && !images.includes(url)) {
+        images.push(url);
       }
     }
   }

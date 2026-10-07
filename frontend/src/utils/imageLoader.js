@@ -3,12 +3,21 @@ import { isWorkerAvailable, WORKER_URL, API_BASE } from './api';
 export default function myImageLoader({ src, width, quality }) {
   if (src.startsWith('/')) return src;
 
-  if (WORKER_URL && src.startsWith(WORKER_URL)) return src;
+  if (WORKER_URL && src.startsWith(WORKER_URL)) {
+    if (!src.includes('w=') && width) return `${src}${src.includes('?') ? '&' : '?'}w=${width}`;
+    return src;
+  }
 
-  if (src.includes('/img-proxy?') || src.includes('/api/proxy-image?')) return src;
+  if (src.includes('/img-proxy?') || src.includes('/api/proxy-image?')) {
+    if (!src.includes('w=') && width) return `${src}&w=${width}`;
+    return src;
+  }
 
   const ANILIST_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
-  if (ANILIST_DOMAINS.some(d => src.includes(d))) return src;
+  if (ANILIST_DOMAINS.some(d => src.includes(d))) {
+    const sep = src.includes('?') ? '&' : '?';
+    return `${src}${sep}w=${width || 400}`;
+  }
 
   const TRACKING_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];
   if (TRACKING_DOMAINS.some(d => src.includes(d))) return src;
@@ -24,7 +33,7 @@ export default function myImageLoader({ src, width, quality }) {
     // If it's not a valid URL (e.g. relative path), keep it
   }
 
-  const isBypassWorkerImage = ['mangakatana', 'mkklcdnv', 'xfs'].some(d => actualUrl.includes(d));
+  const isBypassWorkerImage = ['xfs'].some(d => actualUrl.includes(d));
   if (isBypassWorkerImage) {
     return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(actualUrl)}&w=${width}${quality ? `&q=${quality}` : ''}`;
   }

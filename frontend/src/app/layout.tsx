@@ -80,6 +80,7 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
+const FeatureBroadcast = dynamic(() => import('@/components/FeatureBroadcast'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -148,6 +149,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       className={`${activeFont.variable}`}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <head>
@@ -157,53 +159,51 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="//untimely-promotion.com" />
         <link rel="dns-prefetch" href="//elderly-craft.com" />
 
-        {/* CSS custom properties — resolved at runtime by hostname */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){
-            var h = location.hostname;
-            var t = {
-              'mangaread.pro':      { a:'#38BDF8', ah:'#0EA5E9', bd:'#0C1220', bc:'#111827' },
-              'manireader.online':  { a:'#F97316', ah:'#EA580C', bd:'#0E0F14', bc:'#16171F' },
-            };
-            var c = t[h] || { a:'#A855F7', ah:'#9333EA', bd:'#0A0612', bc:'#13091E' };
-            var s = document.documentElement.style;
-            s.setProperty('--accent',       c.a);
-            s.setProperty('--accent-hover', c.ah);
-            s.setProperty('--bg-dark',      c.bd);
-            s.setProperty('--bg-card',      c.bc);
-          })();
-        `}} />
+        {/* Structured data */}
+        <JsonLd data={organizationSchema()} />
+        <JsonLd data={websiteSchema()} />
 
-        {/* Google Analytics 4 (Works on both Railway and Vercel) */}
-        {(() => {
+        {/* CSS custom properties — statically rendered to prevent flash of unstyled content */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --accent: ${siteConfig.theme.accentColor};
+            --accent-hover: ${siteConfig.theme.accentHover};
+            --bg-dark: ${siteConfig.theme.bgDark};
+            --bg-card: ${siteConfig.theme.bgCard};
+          }
+        `}} />
+      </head>
+
+      <body className={`${activeFont.className} antialiased`} suppressHydrationWarning>
+        {/* Google Analytics 4 (Production only — avoids localhost connection refused on port 80) */}
+        {process.env.NODE_ENV === 'production' && (() => {
           const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-XX0H13PM0H';
           return (
             <>
               <Script
                 src={`/a/s.js?id=${gaId}`}
-                strategy="beforeInteractive"
+                strategy="lazyOnload"
               />
               <Script
                 id="gtag-init"
-                strategy="beforeInteractive"
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-                    gtag('config', '${gaId}', {
-                      send_page_view: false,
-                      transport_url: location.origin + '/a',
-                      first_party_collection: true,
-                    });
-                    window.__gaLast = location.pathname + location.search;
-                    gtag('event', 'page_view', {
-                      page_location: window.location.href,
-                      page_title: document.title,
-                    });
-                  `,
-                }}
-              />
+                strategy="lazyOnload"
+              >
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', {
+                    send_page_view: false,
+                    transport_url: location.origin + '/a',
+                    first_party_collection: true,
+                  });
+                  window.__gaLast = location.pathname + location.search;
+                  gtag('event', 'page_view', {
+                    page_location: window.location.href,
+                    page_title: document.title,
+                  });
+                `}
+              </Script>
             </>
           );
         })()}
@@ -212,22 +212,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script
           src="https://umami-production-f50d.up.railway.app/script.js"
           data-website-id="21b5b514-456a-478b-ab8d-f0931ca7b250"
-          strategy="afterInteractive"
+          strategy="beforeInteractive"
         />
 
-        {/* Cloudflare Web Analytics */}
-        <Script
-          src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon='{"token": "3d1e523ea68c46bc8be8ad71ac5a0a6c", "spa": true}'
-          strategy="afterInteractive"
-        />
-
-        {/* Structured data */}
-        <JsonLd data={organizationSchema()} />
-        <JsonLd data={websiteSchema()} />
-      </head>
-
-      <body className={`${activeFont.className} antialiased`} suppressHydrationWarning>
+        {/* Cloudflare Web Analytics (Production only — avoids CORS errors on localhost:3000) */}
+        {process.env.NODE_ENV === 'production' && (
+          <Script
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon='{"token": "3d1e523ea68c46bc8be8ad71ac5a0a6c", "spa": true}'
+            strategy="lazyOnload"
+          />
+        )}
         <AppProvider>
           <MaintenanceGuard>
             <Header />
@@ -237,6 +232,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AchievementToast />
             <PWAInstall />
             <LibraryPicker />
+            <FeatureBroadcast />
 
             {/* Hilltop script (purple-text.com) — domain-specific */}
             <AdScriptLoader />
