@@ -533,8 +533,17 @@ function ReaderContent({ params }) {
   }
 
   const handleReaderClick = (e) => {
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.brightness-slider') || e.target.closest('.brightness-pop')) return;
-    setShowNav(!showNav);
+    if (
+      e.target.closest('button') || 
+      e.target.closest('select') || 
+      e.target.closest('.brightness-slider') || 
+      e.target.closest('.brightness-pop') ||
+      e.target.closest('.reader-toolbar') ||
+      e.target.closest('.reader-float') ||
+      e.target.closest('.aads-inline') ||
+      e.target.closest('iframe')
+    ) return;
+    setShowNav((prev) => !prev);
   };
 
   return (
@@ -886,8 +895,7 @@ function ReaderContent({ params }) {
         </div>
 
         {/* Bottom Footer Actions */}
-        {showNav && (
-          <div className="reader-footer">
+        <div className="reader-footer">
             <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: 0 }}>
               End of Chapter {id}
             </div>
@@ -966,35 +974,32 @@ function ReaderContent({ params }) {
               </button>
             </div>
           </div>
-        )}
 
-        {/* Floating Scroll Controls */}
-        {showNav && (
-          <div className="reader-float" id="reader-float" style={{ display: "flex" }}>
-            <button className="rf-btn" onClick={handleScrollTop} aria-label="Scroll to top">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 19V5M5 12l7-7 7 7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button className="rf-btn" onClick={handleScrollBot} aria-label="Scroll to bottom">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 5v14M19 12l-7 7-7-7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Floating Scroll Controls — always visible */}
+        <div className="reader-float" id="reader-float" style={{ display: "flex" }}>
+          <button className="rf-btn" onClick={handleScrollTop} aria-label="Scroll to top">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 19V5M5 12l7-7 7 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button className="rf-btn" onClick={handleScrollBot} aria-label="Scroll to bottom">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 5v14M19 12l-7 7-7-7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
 
 
       </div>
