@@ -223,6 +223,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             strategy="lazyOnload"
           />
         )}
+
+        {/* AdMaven In-Page Push */}
+        <Script
+          src="https://dcbbwymp1bhlf.cloudfront.net/?wbbcd=1725799"
+          data-cfasync="false"
+          strategy="afterInteractive"
+        />
         <AppProvider>
           <MaintenanceGuard>
             <Header />

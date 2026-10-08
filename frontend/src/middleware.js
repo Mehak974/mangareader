@@ -86,6 +86,8 @@ export function middleware(request) {
     'https://static.cloudflareinsights.com',
     'https://cloudflareinsights.com',
     'https://umami-production-f50d.up.railway.app',
+    'https://dcbbwymp1bhlf.cloudfront.net',
+    'https://*.cloudfront.net',
   ];
 
   const cspHeader = `
