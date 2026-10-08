@@ -10,7 +10,7 @@ import { API_BASE, proxyImage, fetchChapterImagesThroughWorker } from "@/utils/a
 import { useDrag } from "@use-gesture/react";
 import dynamic from "next/dynamic";
 import AAdsInline from "@/components/AAdsInline";
-import RewardedAdModal from "@/components/RewardedAdModal";
+import toast from "react-hot-toast";
 import { 
   getOfflineChapter, 
   makeChapterAvailableOffline, 
@@ -79,7 +79,7 @@ function ReaderContent({ params }) {
   const [viewMode, setViewMode] = useState("webtoon");
   const [showNav, setShowNav] = useState(true);
   const [zoomedImage, setZoomedImage] = useState(null);
-  const [showRewardedModal, setShowRewardedModal] = useState(false);
+  const [downloadingOffline, setDownloadingOffline] = useState(false);
   const [packProgress, setPackProgress] = useState(null);
   const [isOfflineMode, setIsOfflineMode] = useState(() => initialImages.length > 0);
   const [savedOfflineChapters, setSavedOfflineChapters] = useState(() => new Set());
@@ -102,9 +102,9 @@ function ReaderContent({ params }) {
   }
 
   const handleStartDownload = async () => {
-    if (!images || images.length === 0) return;
-    setShowRewardedModal(true);
-    setPackProgress({ percent: 5, text: `Pre-caching Chapter ${id} for offline reading...` });
+    if (!images || images.length === 0 || downloadingOffline) return;
+    setDownloadingOffline(true);
+    const toastId = toast.loading(`Pre-caching Chapter ${id} for offline reading...`);
 
     try {
       await makeChapterAvailableOffline({
@@ -119,8 +119,12 @@ function ReaderContent({ params }) {
         },
       });
       setIsOfflineMode(true);
+      toast.success(`Chapter ${id} saved offline for 24 hours! ⚡`, { id: toastId });
     } catch (err) {
       console.warn('Offline caching error in reader:', err);
+      toast.error(`Save failed: ${err.message || 'Error'}`, { id: toastId });
+    } finally {
+      setDownloadingOffline(false);
     }
   };
 
@@ -917,6 +921,7 @@ function ReaderContent({ params }) {
               ) : (
                 <button
                   onClick={handleStartDownload}
+                  disabled={downloadingOffline}
                   className="rt-btn"
                   style={{
                     padding: "8px 14px",
@@ -927,7 +932,8 @@ function ReaderContent({ params }) {
                     color: "#c084fc",
                     background: "rgba(168, 85, 247, 0.12)",
                     border: "1px solid rgba(168, 85, 247, 0.3)",
-                    cursor: "pointer",
+                    cursor: downloadingOffline ? "default" : "pointer",
+                    opacity: downloadingOffline ? 0.7 : 1,
                     fontSize: "12px",
                     fontWeight: 600,
                   }}
@@ -939,7 +945,7 @@ function ReaderContent({ params }) {
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Save Offline (24h)</span>
+                  <span>{downloadingOffline ? `Saving (${packProgress?.percent || 5}%)...` : "Save Offline (24h)"}</span>
                 </button>
               )}
               <button
@@ -990,15 +996,7 @@ function ReaderContent({ params }) {
           </div>
         )}
 
-        <RewardedAdModal
-          isOpen={showRewardedModal}
-          onClose={() => setShowRewardedModal(false)}
-          onReward={() => {
-            // Download finishes via JSZip in background
-          }}
-          chapterTitle={`${title ? title + ' - ' : ''}Chapter ${id}`}
-          packProgress={packProgress}
-        />
+
       </div>
     </div>
   );

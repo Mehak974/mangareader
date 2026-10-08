@@ -26,7 +26,6 @@ import {
 } from "@/utils/detailCache";
 import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
 import { getOfflineChaptersForManga, deleteOfflineChapter, deleteOfflineManga, makeChapterAvailableOffline, preloadOfflineChapter } from "@/utils/offlineStorage";
-import RewardedAdModal from "@/components/RewardedAdModal";
 import { fetchChapterImagesThroughWorker } from "@/utils/api";
 import toast from "react-hot-toast";
 
@@ -111,9 +110,6 @@ const [chPage, setChPage] = useState(1);
    const [activeTab, setActiveTab] = useState('chapters');
    const [selected, setSelected] = useState(() => new Set()); // chapter numbers
    const [offlineChapters, setOfflineChapters] = useState(() => new Set());
-   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
-   const [downloadTarget, setDownloadTarget] = useState(null);
-   const [downloadProgress, setDownloadProgress] = useState(null);
    const [downloadingChapters, setDownloadingChapters] = useState({}); // { [chNum]: percent }
    const CHS_PER_PAGE = 20;
 
@@ -477,10 +473,6 @@ const [chPage, setChPage] = useState(1);
     
     // 1. Show the inline progress loader on the chapter row
     setDownloadingChapters((prev) => ({ ...prev, [chNum]: 5 }));
-    // 2. Open the Rewarded Ad Modal showing the live sponsor ad, countdown, and progress
-    setDownloadTarget({ chNum, title: chTitle, href: ch.href });
-    setDownloadProgress({ percent: 5, text: `Connecting to server for Chapter ${chNum}...` });
-    setDownloadModalOpen(true);
 
     try {
       // 1. Fetch images in background right here on the manga page
@@ -491,7 +483,6 @@ const [chPage, setChPage] = useState(1);
       }
 
       setDownloadingChapters((prev) => ({ ...prev, [chNum]: 15 }));
-      setDownloadProgress({ percent: 15, text: `Pre-caching ${images.length} pages for offline reading...` });
 
       // 2. Pre-cache all page images into persistent IndexedDB (in-browser offline storage)
       await makeChapterAvailableOffline({
@@ -501,15 +492,13 @@ const [chPage, setChPage] = useState(1);
         chapterTitle: `${manga?.title || 'Manga'} - ${chTitle}`,
         cover: manga?.cover || primaryCover,
         mangaId,
-        onProgress: (percent, text) => {
+        onProgress: (percent) => {
           setDownloadingChapters((prev) => ({ ...prev, [chNum]: percent }));
-          setDownloadProgress({ percent, text });
         },
       });
 
       // Synchronously mark offline before clearing downloadingChapters to eliminate any UI flicker
       setOfflineChapters((prev) => new Set([...prev, chNum]));
-      setDownloadProgress({ percent: 100, text: `Chapter ${chNum} ready offline for 24 hours! ⚡` });
       toast.success(`Chapter ${chNum} saved offline for 24 hours! ⚡`);
     } catch (err) {
       console.warn('In-place offline save error:', err);
@@ -571,20 +560,7 @@ const [chPage, setChPage] = useState(1);
     const totalCount = selectedNums.length;
     clearSelection();
 
-    const rangeLabel = totalCount === 1 
-      ? `Chapter ${selectedNums[0]}`
-      : `Chapters ${selectedNums[0]} - ${selectedNums[selectedNums.length - 1]}`;
-
-    setDownloadTarget({
-      chNum: selectedNums[0],
-      title: `${totalCount} Chapters (${rangeLabel})`,
-      href: '',
-    });
-    setDownloadModalOpen(true);
-    setDownloadProgress({
-      percent: 5,
-      text: `Preparing to save ${totalCount} chapters offline...`,
-    });
+    const toastId = toast.loading(`Saving ${totalCount} chapters offline...`);
 
     setDownloadingChapters((prev) => {
       const next = { ...prev };
@@ -602,11 +578,6 @@ const [chPage, setChPage] = useState(1);
         const ch = chapters[chIdx];
         const chTitle = ch.title || `Chapter ${chNum}`;
 
-        const basePercent = Math.round((i / totalCount) * 90);
-        setDownloadProgress({
-          percent: basePercent + 2,
-          text: `Fetching Ch ${chNum} (${i + 1}/${totalCount})...`,
-        });
         setDownloadingChapters((prev) => ({ ...prev, [chNum]: 5 }));
 
         // 1. Fetch images for this chapter
@@ -630,12 +601,7 @@ const [chPage, setChPage] = useState(1);
           chapterTitle: `${manga?.title || 'Manga'} - ${chTitle}`,
           cover: manga?.cover || primaryCover,
           mangaId,
-          onProgress: (chPct, chTxt) => {
-            const stepPercent = Math.min(95, Math.round(basePercent + (chPct / 100) * (90 / totalCount)));
-            setDownloadProgress({
-              percent: stepPercent,
-              text: `Ch ${chNum} (${i + 1}/${totalCount}): ${chTxt}`,
-            });
+          onProgress: (chPct) => {
             setDownloadingChapters((prev) => ({ ...prev, [chNum]: chPct }));
           },
         });
@@ -648,14 +614,10 @@ const [chPage, setChPage] = useState(1);
         setOfflineChapters((prev) => new Set(prev).add(chNum));
       }
 
-      setDownloadProgress({
-        percent: 100,
-        text: `All ${totalCount} chapters are now available offline! ⚡`,
-      });
-      toast.success(`${totalCount} continuous chapters saved offline!`);
+      toast.success(`All ${totalCount} chapters saved offline! ⚡`, { id: toastId });
     } catch (err) {
       console.warn('Bulk offline caching error:', err);
-      toast.error(`Offline save error: ${err.message || 'Network error'}`);
+      toast.error(`Offline save error: ${err.message || 'Network error'}`, { id: toastId });
     } finally {
       setDownloadingChapters({});
     }
@@ -1240,18 +1202,7 @@ const [chPage, setChPage] = useState(1);
         </div>
       </div>
 
-      {/* In-place Rewarded Ad & Download Modal */}
-      <RewardedAdModal
-        isOpen={downloadModalOpen}
-        onClose={() => {
-          setDownloadModalOpen(false);
-          setDownloadTarget(null);
-          setDownloadProgress(null);
-        }}
-        onReward={() => {}}
-        chapterTitle={downloadTarget ? `${manga?.title || ''} - ${downloadTarget.title}` : 'Downloading Chapter'}
-        packProgress={downloadProgress}
-      />
+
 
       <Footer />
     </div>
