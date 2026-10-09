@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AD_CONFIG, siteConfig } from '@/lib/site-config';
-import { useAdMode } from '@/lib/useAdMode';
-import AAdsInline from './AAdsInline';
 
 const { aadsUnitId, aadsBgColor, aadsTitleColor } = AD_CONFIG;
 
@@ -98,24 +96,9 @@ function AAdsBannerInner() {
 
 export default function AAdsBanner({ hideOnReader = false }) {
   const pathname = usePathname();
-  const adMode = useAdMode();
 
   const isReaderPage = pathname?.startsWith('/reader/');
-  const isCryptoPage = pathname === '/crypto';
   if (hideOnReader && isReaderPage) return null;
-
-  if (adMode === 'inline') {
-    if (isReaderPage) return null;
-    // /crypto renders its own in-flow 300x250 (force), so the
-    // banner's inline fallback must stay off there or the page
-    // serves two 300x250 units.
-    if (isCryptoPage) return null;
-    return (
-      <div style={{ width: '100%', margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
-        <AAdsInline />
-      </div>
-    );
-  }
 
   return <AAdsBannerInner />;
 }

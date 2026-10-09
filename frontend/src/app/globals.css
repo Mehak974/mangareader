@@ -2893,6 +2893,13 @@ body:not(.logged-in) .guest-flex {
   top: 0;
   z-index: 50;
   flex-wrap: wrap;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.reader-toolbar.rt-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .rt-btn {
@@ -3014,7 +3021,14 @@ body:not(.logged-in) .guest-flex {
   background: rgba(255, 255, 255, .06);
   position: sticky;
   top: 52px;
-  z-index: 49
+  z-index: 49;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.reader-prog-bar.rt-hidden {
+  transform: translateY(-55px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reader-prog-fill {
@@ -5818,17 +5832,87 @@ body:not(.logged-in) .guest-flex {
   color: var(--accent2);
 }
 
+/* ── Hilltop In-Page Push (Mobile Optimization) ─────────────────────────────
+ * Prevents in-page push notification from occupying half the screen on mobile.
+ * Constrains the popup to a compact, non-intrusive notification card and
+ * ensures the close button is fully clickable and functional.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/* Only show one push notification at a time, never stack them */
+[class*="__push"] ~ [class*="__push"] {
+  display: none !important;
+}
+
+/* Close button must always be on top and clickable */
+[class*="__close"] {
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+}
+
 @media (max-width: 768px) {
-  .crypto-page .legal-container {
-    padding: 2rem 1.25rem;
+  /* Parent container centered cleanly without breaking child layout */
+  div:has(> [class*="__push"]),
+  div[class*="▭"] {
+    max-width: min(94vw, 420px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
   }
 
-  .crypto-widget {
-    padding: 1.1rem;
+  [class*="__push"] {
+    border-radius: 12px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
   }
 
-  .crypto-countdown span {
-    font-size: 1.1rem;
+  /* When hidden or dismissed, allow max-height to transition to 0 */
+  [class*="__push"][class*="_hidden"] {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    transition: max-height 0.25s ease-out, opacity 0.2s ease !important;
+  }
+
+  /* Shrink giant 40vh promo image so it's a sleek native push */
+  [class*="__push"] [class*="__image"] {
+    max-height: 48px !important;
+    object-fit: cover !important;
+    margin-top: 4px !important;
+    border-radius: 6px !important;
+  }
+
+  [class*="__push"] [class*="__header"] {
+    height: 22px !important;
+    padding: 6px 10px 0 !important;
+  }
+
+  [class*="__push"] [class*="__body"] {
+    padding: 3px 10px 6px !important;
+  }
+
+  [class*="__push"] [class*="__footer"] {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+  }
+
+  [class*="__push"] [class*="__title"] {
+    font-size: 13px !important;
+    line-height: 16px !important;
+  }
+
+  [class*="__push"] [class*="__desc"] {
+    font-size: 11px !important;
+    line-height: 14px !important;
+    max-height: 15px !important;
+    -webkit-line-clamp: 1 !important;
+  }
+
+  [class*="__push"] [class*="__icon"] {
+    width: 28px !important;
+    height: 28px !important;
   }
 }
 
@@ -5856,11 +5940,5 @@ body:not(.logged-in) .guest-flex {
   border: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
-}
-
-/* Text pages need more air around the block than the reader's page-to-page
-   gaps give — there is no black gutter to disappear into. */
-.crypto-page .aads-inline {
-  margin: 34px auto;
 }
 

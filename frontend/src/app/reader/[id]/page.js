@@ -160,7 +160,40 @@ function ReaderContent({ params }) {
     setPage(1);
     setImgErrors({});
     setLoadedImages({});
+    setShowNav(true);
   }, [id]);
+
+  // Auto hide/show top navbar on scroll (appear on scroll-up / top, disappear on scroll-down)
+  useEffect(() => {
+    let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const diff = currentScrollY - lastScrollY;
+
+          if (currentScrollY < 60) {
+            setShowNav(true);
+          } else if (diff > 12) {
+            // Scrolling down -> hide navbar
+            setShowNav(false);
+          } else if (diff < -12) {
+            // Scrolling up -> show navbar
+            setShowNav(true);
+          }
+
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Fetch chapters list on mount
   useEffect(() => {
@@ -550,155 +583,151 @@ function ReaderContent({ params }) {
     <div role="region" aria-label="Manga reader" onKeyDown={handleKeyDown} tabIndex={0} {...bindSwipe()} style={{ touchAction: zoomedImage !== null ? "pan-x pan-y" : "pan-y" }}>
       <div className="reader-wrap" style={{ background: "#000" }} onClick={handleReaderClick}>
         {/* Top Toolbar */}
-        {showNav && (
-          <div className="reader-toolbar">
-            <button className="rt-btn" onClick={() => router.back()} aria-label="Go back">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M19 12H5M12 5l-7 7 7 7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="rt-btn-text">Back</span>
-            </button>
-            <button className="rt-btn rt-desktop-only" onClick={() => router.push("/")} aria-label="Go to home">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M3 12L12 3l9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <path
-                  d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button className="rt-btn rt-desktop-only" onClick={() => window.location.reload()} aria-label="Reload chapter">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M4 4v5h5M20 20v-5h-5M4.93 19.07A10 10 0 102.12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
+        <div className={`reader-toolbar ${showNav ? "rt-visible" : "rt-hidden"}`}>
+          <button className="rt-btn" onClick={() => router.back()} aria-label="Go back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M19 12H5M12 5l-7 7 7 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="rt-btn-text">Back</span>
+          </button>
+          <button className="rt-btn" onClick={() => router.push("/")} aria-label="Go to home">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M3 12L12 3l9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path
+                d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button className="rt-btn rt-desktop-only" onClick={() => window.location.reload()} aria-label="Reload chapter">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M4 4v5h5M20 20v-5h-5M4.93 19.07A10 10 0 102.12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
 
-            <div className="rt-sep"></div>
-            {chapters.length > 0 ? (
-              <select
-                className="rt-ch-select"
-                value={(() => {
-                  const idx = chapters.findIndex(ch => ch.href === url);
-                  if (idx !== -1) return idx;
-                  if (id) return chapters.length - parseInt(id);
-                  return 0;
-                })()}
-                onChange={handleChapterSelect}
-                aria-expanded="false"
-                aria-label="Select chapter"
-              >
-                {chapters.map((ch, idx) => {
-                  const chNumber = ch.chNum ?? (chapters.length - idx);
-                  const isOff = savedOfflineChapters.has(Number(chNumber));
-                  return (
-                    <option key={idx} value={idx} style={{ background: "#180e25", color: "#fff" }}>
-                      {isOff ? '⚡ ' : ''}{ch.title || `Chapter ${chNumber}`}
-                    </option>
-                  );
-                })}
-              </select>
-            ) : (
-              <span className="rt-ch-title" style={{ fontSize: "13px", color: "#fff", fontWeight: "600", flexShrink: 0 }}>
-                Chapter {id}
-              </span>
-            )}
-
-            <div className="rt-sep"></div>
-            <span className="rt-page-info">
-              {page}/{TOTAL_PAGES}
+          <div className="rt-sep"></div>
+          {chapters.length > 0 ? (
+            <select
+              className="rt-ch-select"
+              value={(() => {
+                const idx = chapters.findIndex(ch => ch.href === url);
+                if (idx !== -1) return idx;
+                if (id) return chapters.length - parseInt(id);
+                return 0;
+              })()}
+              onChange={handleChapterSelect}
+              aria-expanded="false"
+              aria-label="Select chapter"
+            >
+              {chapters.map((ch, idx) => {
+                const chNumber = ch.chNum ?? (chapters.length - idx);
+                const isOff = savedOfflineChapters.has(Number(chNumber));
+                return (
+                  <option key={idx} value={idx} style={{ background: "#180e25", color: "#fff" }}>
+                    {isOff ? '⚡ ' : ''}{ch.title || `Chapter ${chNumber}`}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            <span className="rt-ch-title" style={{ fontSize: "13px", color: "#fff", fontWeight: "600", flexShrink: 0 }}>
+              Chapter {id}
             </span>
+          )}
 
-            <div className="rt-sep"></div>
-            <button
-              className="rt-btn"
-              onClick={goToPrevChapter}
-              aria-label="Previous chapter"
-              disabled={parseInt(id) <= 1 || (!mappedChapters.some(c => c.chNum === parseInt(id) - 1) && !savedOfflineChapters.has(parseInt(id) - 1))}
+          <div className="rt-sep"></div>
+          <span className="rt-page-info">
+            {page}/{TOTAL_PAGES}
+          </span>
+
+          <div className="rt-sep"></div>
+          <button
+            className="rt-btn"
+            onClick={goToPrevChapter}
+            aria-label="Previous chapter"
+            disabled={parseInt(id) <= 1 || (!mappedChapters.some(c => c.chNum === parseInt(id) - 1) && !savedOfflineChapters.has(parseInt(id) - 1))}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            className="rt-btn"
+            onClick={goToNextChapter}
+            aria-label="Next chapter"
+            disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1) && !savedOfflineChapters.has(parseInt(id) + 1)}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <div className="rt-sep"></div>
+          {isOfflineMode || savedOfflineChapters.has(parseInt(id)) ? (
+            <span
+              className="rt-offline-badge"
+              title="Reading offline from local storage (saved 24h, 0 data)"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+              ⚡<span className="rt-offline-txt"> Offline (24h)</span>
+            </span>
+          ) : (
             <button
-              className="rt-btn"
-              onClick={goToNextChapter}
-              aria-label="Next chapter"
-              disabled={!mappedChapters.some(c => c.chNum === parseInt(id) + 1) && !savedOfflineChapters.has(parseInt(id) + 1)}
+              onClick={handleStartDownload}
+              className="rt-btn rt-save-btn"
+              title="Save this chapter for 24 hours of offline reading"
+              aria-label="Save this chapter for 24 hours of offline reading"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              ⚡<span className="rt-offline-txt"> Save (24h)</span>
             </button>
+          )}
 
-            <div className="rt-sep"></div>
-            {isOfflineMode || savedOfflineChapters.has(parseInt(id)) ? (
-              <span
-                className="rt-offline-badge"
-                title="Reading offline from local storage (saved 24h, 0 data)"
-              >
-                ⚡<span className="rt-offline-txt"> Offline (24h)</span>
-              </span>
-            ) : (
-              <button
-                onClick={handleStartDownload}
-                className="rt-btn rt-save-btn"
-                title="Save this chapter for 24 hours of offline reading"
-                aria-label="Save this chapter for 24 hours of offline reading"
-              >
-                ⚡<span className="rt-offline-txt"> Save (24h)</span>
-              </button>
-            )}
-
-            <div className="rt-sep"></div>
-            <button className="rt-btn" onClick={() => setBrightnessPop(!brightnessPop)} aria-label="Adjust brightness">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" />
-                <path
-                  d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+          <div className="rt-sep"></div>
+          <button className="rt-btn" onClick={() => setBrightnessPop(!brightnessPop)} aria-label="Adjust brightness">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
 
         {/* Progress Bar */}
-        {showNav && (
-          <div
-            className="reader-prog-bar"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const percent = clickX / rect.width;
-              const targetPage = Math.max(1, Math.ceil(percent * TOTAL_PAGES));
-              if (viewMode === "paged") {
-                setPage(targetPage);
-              } else {
-                const pageEls = readerPagesRef.current?.querySelectorAll(".reader-page");
-                if (pageEls && pageEls[targetPage - 1]) {
-                  pageEls[targetPage - 1].scrollIntoView({ behavior: "smooth" });
-                }
+        <div
+          className={`reader-prog-bar ${showNav ? "rt-visible" : "rt-hidden"}`}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percent = clickX / rect.width;
+            const targetPage = Math.max(1, Math.ceil(percent * TOTAL_PAGES));
+            if (viewMode === "paged") {
+              setPage(targetPage);
+            } else {
+              const pageEls = readerPagesRef.current?.querySelectorAll(".reader-page");
+              if (pageEls && pageEls[targetPage - 1]) {
+                pageEls[targetPage - 1].scrollIntoView({ behavior: "smooth" });
               }
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            <div
-              className="reader-prog-fill"
-              style={{ width: `${(page / TOTAL_PAGES) * 100}%` }}
-            ></div>
-          </div>
-        )}
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <div
+            className="reader-prog-fill"
+            style={{ width: `${(page / TOTAL_PAGES) * 100}%` }}
+          ></div>
+        </div>
 
         {/* Brightness filter overlay */}
         <div

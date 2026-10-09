@@ -1,3 +1,5 @@
+import AAdsInline from "@/components/AAdsInline";
+
 export const metadata = {
   title: "Advertisements",
   robots: {
@@ -7,14 +9,24 @@ export const metadata = {
 };
 
 export default function AadsPage() {
-  // The sticky 728x90 banner comes from the root layout (AAdsBanner),
-  // which already renders on every non-reader page including /aads.
-  // useAdMode() pins /aads to 'sticky', so the layout banner is
-  // guaranteed here — rendering a second AAdsBanner in this page
-  // would stack two fixed 728x90 units and fire two ad requests.
+  // Sticky 728x90 banner is rendered at the bottom via root layout (AAdsBanner).
+  // The 300x250 inline unit is rendered here in the center of the page all the time.
   return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "#0A0612" }}>
-      <div style={{ height: "40vh" }} />
+    <div
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        background: "#0A0612",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 20px 120px",
+      }}
+    >
+      <div style={{ margin: "auto 0" }}>
+        <AAdsInline force={true} />
+      </div>
     </div>
   );
 }

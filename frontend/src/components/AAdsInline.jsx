@@ -1,44 +1,23 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { AADS_FLOAT_ENABLED, AD_CONFIG } from '@/lib/site-config';
 import { useAdMode } from '@/lib/useAdMode';
-
-/**
- * AAdsInline — the 300x250 A-ADS unit that sits in the flow of a chapter,
- * between page images.
- *
- * This is deliberately the simplest possible ad slot: a plain block in the
- * document, no fixed positioning, no z-index, no scroll logic, no dismissal
- * state. Everything it does NOT do is the point — an in-content unit must not
- * overlay artwork, must not intercept a tap meant for the page above or below
- * it, and must not move when the reader scrolls.
- *
- * Rendering it inside .reader-pages (a flex column) keeps the 300px box centred
- * between two full-width pages. It is a sibling of .reader-page, never a child,
- * so the reader's `document.querySelectorAll('.reader-page img')[i]` indexing in
- * the image-retry handler stays aligned — nesting it would shift every index
- * after the first ad and make retries patch the wrong image.
- *
- * loading="lazy" keeps the ad request from competing with the chapter images for
- * bandwidth on load. The iframe only mounts as it approaches the viewport, which
- * is also the only time it can be seen, so impressions are unaffected.
- */
 
 const { aadsFloatUnitId } = AD_CONFIG;
 
 const UNIT_SRC = `//ad.a-ads.com/${aadsFloatUnitId}/?size=300x250&background_color=transparent`;
 
 /**
- * Renders only in 'inline' ad mode. useAdMode() assigns /crypto
- * 'inline' deterministically, so that page always carries its
- * in-flow 300x250 with no prop. Every other route stays on the
- * 50/50 sticky/inline split, which is why the mode gate lives
- * here rather than at the call site.
+ * Renders in 'inline' ad mode, or forced (e.g. on /aads).
  */
-export default function AAdsInline() {
+export default function AAdsInline({ force = false }) {
+  const pathname = usePathname();
   const adMode = useAdMode();
 
-  if (!AADS_FLOAT_ENABLED || !aadsFloatUnitId || adMode !== 'inline') return null;
+  if (!AADS_FLOAT_ENABLED || !aadsFloatUnitId) return null;
+  const isAadsPage = pathname === '/aads' || pathname?.startsWith('/aads/');
+  if (!force && !isAadsPage && adMode !== 'inline') return null;
 
   return (
     <div className="aads-inline">
