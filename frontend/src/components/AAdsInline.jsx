@@ -16,8 +16,8 @@ export default function AAdsInline({ force = false }) {
   const adMode = useAdMode();
 
   if (!AADS_FLOAT_ENABLED || !aadsFloatUnitId) return null;
-  const isAadsPage = pathname === '/aads' || pathname?.startsWith('/aads/');
-  if (!force && !isAadsPage && adMode !== 'inline') return null;
+  const isAads300Page = pathname === '/aads300' || pathname?.startsWith('/aads300/');
+  if (!force && !isAads300Page && adMode !== 'inline') return null;
 
   return (
     <div className="aads-inline">

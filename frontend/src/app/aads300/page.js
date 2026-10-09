@@ -1,13 +1,15 @@
+import AAdsInline from "@/components/AAdsInline";
+
 export const metadata = {
-  title: "Advertisements",
+  title: "Advertisements (300x250)",
   robots: {
     index: true,
     follow: true,
   },
 };
 
-export default function AadsPage() {
-  // Only the sticky banner appears on this page (rendered via root layout)
+export default function Aads300Page() {
+  // Renders only the 300x250 banner ad in the center of the screen
   return (
     <div
       style={{
@@ -18,8 +20,12 @@ export default function AadsPage() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "40px 20px 120px",
+        padding: "40px 20px",
       }}
-    />
+    >
+      <div style={{ margin: "auto 0" }}>
+        <AAdsInline force={true} />
+      </div>
+    </div>
   );
 }

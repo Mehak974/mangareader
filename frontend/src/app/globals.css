@@ -5832,10 +5832,10 @@ body:not(.logged-in) .guest-flex {
   color: var(--accent2);
 }
 
-/* ── Hilltop In-Page Push (Mobile Optimization) ─────────────────────────────
- * Prevents in-page push notification from occupying half the screen on mobile.
- * Constrains the popup to a compact, non-intrusive notification card and
- * ensures the close button is fully clickable and functional.
+/* ── Hilltop In-Page Push (Desktop & Mobile Compact Optimization) ───────────
+ * Keeps in-page push notification compact, unobtrusive and sleek on both
+ * desktop and mobile screens. Ensures the close button is immediately
+ * clickable and dismissible.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 /* Only show one push notification at a time, never stack them */
@@ -5843,76 +5843,88 @@ body:not(.logged-in) .guest-flex {
   display: none !important;
 }
 
-/* Close button must always be on top and clickable */
+/* Parent container: compact and nicely positioned */
+div:has(> [class*="__push"]),
+div[class*="▭"] {
+  max-width: 320px !important;
+  width: auto !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  box-sizing: border-box !important;
+  z-index: 2147483647 !important;
+}
+
+[class*="__push"] {
+  max-width: 320px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
+  overflow: hidden !important;
+}
+
+/* When hidden or dismissed, allow max-height to transition to 0 */
+[class*="__push"][class*="_hidden"] {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  transition: max-height 0.25s ease-out, opacity 0.2s ease !important;
+}
+
+/* Close button must always be on top, prominent, and clickable */
 [class*="__close"] {
   z-index: 2147483647 !important;
   pointer-events: auto !important;
   cursor: pointer !important;
-  min-width: 24px !important;
-  min-height: 24px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+}
+
+/* Shrink giant promo image so it's a sleek native push */
+[class*="__push"] [class*="__image"] {
+  max-height: 48px !important;
+  object-fit: cover !important;
+  margin-top: 4px !important;
+  border-radius: 6px !important;
+}
+
+[class*="__push"] [class*="__header"] {
+  height: 22px !important;
+  padding: 6px 10px 0 !important;
+}
+
+[class*="__push"] [class*="__body"] {
+  padding: 3px 10px 6px !important;
+}
+
+[class*="__push"] [class*="__footer"] {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+}
+
+[class*="__push"] [class*="__title"] {
+  font-size: 13px !important;
+  line-height: 16px !important;
+}
+
+[class*="__push"] [class*="__desc"] {
+  font-size: 11px !important;
+  line-height: 14px !important;
+  max-height: 15px !important;
+  -webkit-line-clamp: 1 !important;
+}
+
+[class*="__push"] [class*="__icon"] {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 @media (max-width: 768px) {
-  /* Parent container centered cleanly without breaking child layout */
+  /* On mobile: centered horizontally */
   div:has(> [class*="__push"]),
   div[class*="▭"] {
-    max-width: min(94vw, 420px) !important;
+    max-width: min(92vw, 360px) !important;
     left: 0 !important;
     right: 0 !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    box-sizing: border-box !important;
-  }
-
-  [class*="__push"] {
-    border-radius: 12px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
-  }
-
-  /* When hidden or dismissed, allow max-height to transition to 0 */
-  [class*="__push"][class*="_hidden"] {
-    max-height: 0 !important;
-    opacity: 0 !important;
-    transition: max-height 0.25s ease-out, opacity 0.2s ease !important;
-  }
-
-  /* Shrink giant 40vh promo image so it's a sleek native push */
-  [class*="__push"] [class*="__image"] {
-    max-height: 48px !important;
-    object-fit: cover !important;
-    margin-top: 4px !important;
-    border-radius: 6px !important;
-  }
-
-  [class*="__push"] [class*="__header"] {
-    height: 22px !important;
-    padding: 6px 10px 0 !important;
-  }
-
-  [class*="__push"] [class*="__body"] {
-    padding: 3px 10px 6px !important;
-  }
-
-  [class*="__push"] [class*="__footer"] {
-    padding: 4px 10px !important;
-    font-size: 11px !important;
-  }
-
-  [class*="__push"] [class*="__title"] {
-    font-size: 13px !important;
-    line-height: 16px !important;
-  }
-
-  [class*="__push"] [class*="__desc"] {
-    font-size: 11px !important;
-    line-height: 14px !important;
-    max-height: 15px !important;
-    -webkit-line-clamp: 1 !important;
-  }
-
-  [class*="__push"] [class*="__icon"] {
-    width: 28px !important;
-    height: 28px !important;
   }
 }
 

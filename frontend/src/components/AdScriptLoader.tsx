@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Routes where ads (popunder & in-page push) must never fire.
-// Strictly blocks /aads and admin routes.
-const EXCLUDED_PATHS = ['/aads', '/admin', '/login', '/signup'];
+// Strictly blocks /aads, /aads300, and admin routes.
+const EXCLUDED_PATHS = ['/aads', '/aads300', '/admin', '/login', '/signup'];
 
 // ── Hilltop Ads (served from purple-text.com) ────────────────────────────────
 const HILLTOP_POPUNDER_SRC = 'https://purple-text.com/c.DB9/6Cbj2W5VlOSkW-QR9/NAzQM/y/MnDiUkyTOXS/0B3SMNzDIAw-NxTgMszu';
@@ -149,22 +149,59 @@ export default function AdScriptLoader() {
       inpagePushNode = s;
     };
 
+    // Pre-configure Hilltop popunder engine to ignore clicks on push elements and close buttons
+    if (typeof window !== 'undefined') {
+      (window as any).__htapop = {
+        misc: {
+          ignoreTo: [
+            '[class*="__close"]',
+            '[class*="close"]',
+            '[class*="▭"]',
+            '[class*="__push"]',
+            'div[class*="▭"]',
+            'button[class*="__close"]',
+            'div[class*="__close"]',
+            '[data-button]',
+          ],
+        },
+      };
+    }
+
     // Ensure close button clicks dismiss immediately without opening ad redirect tabs
+    let isDismissing = false;
     const handleCloseTrigger = (e: Event) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      const closeBtn = target.closest('[class*="__close"], [class*="close"]');
+      const closeBtn = target.closest('[class*="__close"], [class*="close"], [data-button]');
       if (closeBtn) {
         // Target strictly the notification card element, never body or html
         const pushItem = closeBtn.closest('div[class*="__push"]') as HTMLElement | null;
         if (!pushItem || pushItem === document.body || pushItem.tagName === 'BODY') return;
 
+        // Block all propagation to prevent popunders and parent click handlers
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        // Dismiss immediately on click or touchend
-        if (e.type === 'click' || e.type === 'touchend') {
+        // Temporarily intercept window.open for 500ms so no popup can open from closing the push
+        if (typeof window !== 'undefined' && !isDismissing) {
+          isDismissing = true;
+          const origOpen = window.open;
+          try {
+            window.open = function() {
+              return null;
+            } as any;
+          } catch {}
+          setTimeout(() => {
+            try {
+              window.open = origOpen;
+            } catch {}
+            isDismissing = false;
+          }, 500);
+        }
+
+        // Dismiss immediately on pointer/mouse/touch release or click
+        if (e.type === 'click' || e.type === 'mouseup' || e.type === 'pointerup' || e.type === 'touchend') {
           pushItem.style.transition = 'max-height 0.2s ease, opacity 0.2s ease, transform 0.2s ease';
           pushItem.style.maxHeight = '0px';
           pushItem.style.opacity = '0';
@@ -200,11 +237,12 @@ export default function AdScriptLoader() {
       injectInPagePush();
     };
 
+    const CLOSE_EVENTS = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'touchstart', 'touchend'];
+
     window.addEventListener('popstate', handlePopState);
-    document.addEventListener('pointerdown', handleCloseTrigger, true);
-    document.addEventListener('mousedown', handleCloseTrigger, true);
-    document.addEventListener('click', handleCloseTrigger, true);
-    document.addEventListener('touchend', handleCloseTrigger, true);
+    CLOSE_EVENTS.forEach((evt) => {
+      document.addEventListener(evt, handleCloseTrigger, true);
+    });
 
     const timer = setTimeout(injectInPagePush, 250);
 
@@ -212,10 +250,9 @@ export default function AdScriptLoader() {
       clearTimeout(timer);
       if (cancelReinjectTimer) clearTimeout(cancelReinjectTimer);
       window.removeEventListener('popstate', handlePopState);
-      document.removeEventListener('pointerdown', handleCloseTrigger, true);
-      document.removeEventListener('mousedown', handleCloseTrigger, true);
-      document.removeEventListener('click', handleCloseTrigger, true);
-      document.removeEventListener('touchend', handleCloseTrigger, true);
+      CLOSE_EVENTS.forEach((evt) => {
+        document.removeEventListener(evt, handleCloseTrigger, true);
+      });
     };
   }, [pathname]);
 

@@ -99,6 +99,7 @@ export default function AAdsBanner({ hideOnReader = false }) {
 
   const isReaderPage = pathname?.startsWith('/reader/');
   if (hideOnReader && isReaderPage) return null;
+  if (pathname === '/aads300' || pathname?.startsWith('/aads300/')) return null;
 
   return <AAdsBannerInner />;
 }
