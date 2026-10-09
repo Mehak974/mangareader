@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AD_CONFIG, siteConfig } from '@/lib/site-config';
+import { useAdMode } from '@/lib/useAdMode';
+import AAdsInline from './AAdsInline';
 
 const { aadsUnitId, aadsBgColor, aadsTitleColor } = AD_CONFIG;
 
@@ -94,12 +96,22 @@ function AAdsBannerInner() {
   );
 }
 
-export default function AAdsBanner({ hideOnReader = false }) {
+export default function AAdsBanner({ hideOnReader = false }: { hideOnReader?: boolean; style?: React.CSSProperties }) {
   const pathname = usePathname();
+  const adMode = useAdMode();
 
   const isReaderPage = pathname?.startsWith('/reader/');
   if (hideOnReader && isReaderPage) return null;
   if (pathname === '/aads300' || pathname?.startsWith('/aads300/')) return null;
+
+  if (adMode === 'inline') {
+    if (isReaderPage) return null;
+    return (
+      <div style={{ width: '100%', margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
+        <AAdsInline />
+      </div>
+    );
+  }
 
   return <AAdsBannerInner />;
 }
