@@ -210,7 +210,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Umami Analytics (Self-Hosted on Railway) */}
         <Script
           src="https://umami-production-f50d.up.railway.app/script.js"
-          data-website-id="21b5b514-456a-478b-ab8d-f0931ca7b250"
+          data-website-id="8a1b7e69-8899-4383-a9aa-c6f61f930a0a"
           strategy="beforeInteractive"
         />
 
