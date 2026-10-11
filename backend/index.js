@@ -1568,13 +1568,24 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ── SYSTEM SETTINGS & MAINTENANCE ────────────────────────────────────────────────
+let cachedMaintenanceMode = false;
+let lastMaintenanceCheck = 0;
+const MAINTENANCE_CACHE_TTL = 30000; // 30 seconds
+
 app.get('/api/settings/maintenance', async (req, res) => {
+  const now = Date.now();
+  if (now - lastMaintenanceCheck < MAINTENANCE_CACHE_TTL) {
+    return res.json({ maintenanceMode: cachedMaintenanceMode });
+  }
+
   try {
     const result = await db.query("SELECT value FROM site_settings WHERE key = 'maintenance_mode'");
-    const maintenanceMode = result.rows.length > 0 && result.rows[0].value === 'true';
-    res.json({ maintenanceMode });
+    cachedMaintenanceMode = result.rows.length > 0 && result.rows[0].value === 'true';
+    lastMaintenanceCheck = now;
+    res.json({ maintenanceMode: cachedMaintenanceMode });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // If DB is busy or down, fallback to cached status instead of crashing with 500/timeout
+    res.json({ maintenanceMode: cachedMaintenanceMode });
   }
 });
 
@@ -1585,7 +1596,9 @@ app.post('/api/admin/settings/maintenance', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Value must be 'true' or 'false'" });
     }
     await db.query("UPDATE site_settings SET value = $1 WHERE key = 'maintenance_mode'", [value]);
-    res.json({ success: true, maintenanceMode: value === 'true' });
+    cachedMaintenanceMode = value === 'true';
+    lastMaintenanceCheck = Date.now();
+    res.json({ success: true, maintenanceMode: cachedMaintenanceMode });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -13,9 +13,19 @@ export default function MaintenanceGuard({ children }) {
 
   useEffect(() => {
     const checkMaintenance = () => {
-      fetch(`${API_BASE}/api/settings/maintenance`)
-        .then((r) => r.json())
-        .then((data) => setMaintenanceMode(data.maintenanceMode === true))
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      fetch(`${API_BASE}/api/settings/maintenance`, { signal: controller.signal })
+        .then((r) => {
+          clearTimeout(timeoutId);
+          if (!r.ok) return null;
+          return r.json();
+        })
+        .then((data) => {
+          if (data && typeof data.maintenanceMode === "boolean") {
+            setMaintenanceMode(data.maintenanceMode === true);
+          }
+        })
         .catch(() => {});
     };
 

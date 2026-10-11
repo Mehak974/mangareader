@@ -23,11 +23,30 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
   return promise;
 }
 
-async function fetchAnilistInner(query, variables, retries, delay) {
+async function fetchDirectAnilist(query, variables) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const url = `${API_BASE.replace(/\/$/, '')}/api/anilist`;
       const res = await fetch(url, {
@@ -40,10 +59,11 @@ async function fetchAnilistInner(query, variables, retries, delay) {
       clearTimeout(timeoutId);
 
       if (res.status === 429) {
-        // A 429 from our own proxy means the shared budget is drained. Retrying
-        // after 1-3s lands inside the same window and keeps it drained, so the
-        // ladder is what turned a transient limit into a permanent one. Retry
-        // only when the server told us when to come back, and only once.
+        // A 429 from our own proxy means the shared budget is drained.
+        // Try direct fallback before giving up.
+        const directData = await fetchDirectAnilist(query, variables);
+        if (directData) return directData;
+
         if (i === retries - 1) {
           console.warn("AniList rate limited — giving up until the limit resets.");
           return null;
@@ -62,6 +82,11 @@ async function fetchAnilistInner(query, variables, retries, delay) {
       }
 
       if (!res.ok) {
+        if (res.status >= 500) {
+          // Backend proxy is down / 502 Bad Gateway — fallback directly to AniList
+          const directData = await fetchDirectAnilist(query, variables);
+          if (directData) return directData;
+        }
         const text = await res.text();
         throw new Error(`Anilist API failure: ${res.status} - ${text}`);
       }
@@ -69,6 +94,10 @@ async function fetchAnilistInner(query, variables, retries, delay) {
       const json = await res.json();
       return json.data;
     } catch (err) {
+      // If backend proxy timed out or failed to connect, try direct AniList before retrying
+      const directData = await fetchDirectAnilist(query, variables);
+      if (directData) return directData;
+
       if (i === retries - 1) {
         console.warn("AniList request failed completely:", err.message);
         return null;
