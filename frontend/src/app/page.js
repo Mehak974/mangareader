@@ -8,6 +8,7 @@ import { proxyImage, fetchHomeSection } from "@/utils/api";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
+import PartnerMangaCard from "@/components/PartnerMangaCard";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
@@ -269,6 +270,7 @@ export default async function Home() {
             </Link>
           </div>
           <div className="manga-grid">
+            <PartnerMangaCard />
             {finalPopularOverall.map((m, idx) => (
               <MangaCard key={m.id} manga={m} index={idx} />
             ))}

@@ -953,6 +953,46 @@ const [chPage, setChPage] = useState(1);
             <MiniLoader />
           ) : (
             <div className="ch-list">
+              {/* Pinned Partner Chapter / Bonus Release */}
+              <a
+                href={HILLTOP_DIRECT_LINK || 'https://purple-text.com/Rvsm31'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ch-row"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(19, 9, 30, 0.6) 100%)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  marginBottom: '6px',
+                }}
+              >
+                <div className="ch-read-toggle" style={{ color: '#fbbf24', borderColor: '#fbbf24' }}>
+                  ★
+                </div>
+                <div className="ch-num" style={{ color: '#c084fc', fontWeight: 700 }}>
+                  Special
+                </div>
+                <div className="ch-title-txt" style={{ color: '#f3f4f6', fontWeight: 600 }}>
+                  [Bonus] Popular Anime Games & Releases 🎮
+                </div>
+                <div className="ch-actions">
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#c084fc',
+                      background: 'rgba(168, 85, 247, 0.2)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Play Free ↗
+                  </span>
+                </div>
+              </a>
               {currentChapters.map((c, index) => {
                 const chIndex = startIndex + index;
                 const chNum = totalChapters - chIndex;

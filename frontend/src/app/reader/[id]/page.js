@@ -20,6 +20,7 @@ import {
   preloadOfflineChapter 
 } from "@/utils/offlineStorage";
 import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
+import PartnerSpotlight from "@/components/PartnerSpotlight";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
 
@@ -691,6 +692,27 @@ function ReaderContent({ params }) {
           )}
 
           <div className="rt-sep"></div>
+          <a
+            href={HILLTOP_DIRECT_LINK || 'https://purple-text.com/Rvsm31'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rt-btn"
+            title="Fast VIP Server (Sponsored Partner)"
+            style={{
+              color: "#fbbf24",
+              textDecoration: "none",
+              fontSize: "11px",
+              fontWeight: 600,
+              padding: "0 8px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+          >
+            <span>🚀 Turbo CDN</span>
+          </a>
+
+          <div className="rt-sep"></div>
           <button className="rt-btn" onClick={() => setBrightnessPop(!brightnessPop)} aria-label="Adjust brightness">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" />
@@ -925,11 +947,11 @@ function ReaderContent({ params }) {
 
         {/* Bottom Footer Actions */}
         <div className="reader-footer">
-            <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: 0 }}>
+            <div style={{ color: "rgba(255,255,255,.4)", fontSize: "14px", marginBottom: "6px" }}>
               End of Chapter {id}
             </div>
-            <AAdsBanner style={{ marginTop: 0 }} />
-            <div className="reader-footer-btns" style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: 0, flexWrap: "wrap", maxWidth: "100%", padding: "0 10px" }}>
+            <PartnerSpotlight />
+            <div className="reader-footer-btns" style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px", flexWrap: "wrap", maxWidth: "100%", padding: "0 10px" }}>
               <button
                 className="rt-btn"
                 style={{ padding: "8px 14px", height: "auto" }}
@@ -977,7 +999,7 @@ function ReaderContent({ params }) {
                   title="Save this chapter for 24 hours of offline reading"
                   aria-label="Save this chapter for 24 hours of offline reading"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
@@ -1002,7 +1024,8 @@ function ReaderContent({ params }) {
                   : "Next Chapter →"}
               </button>
             </div>
-          </div>
+            <AAdsBanner style={{ marginTop: 12 }} />
+        </div>
 
         {/* Floating Scroll Controls — always visible */}
         <div className="reader-float" id="reader-float" style={{ display: "flex" }}>

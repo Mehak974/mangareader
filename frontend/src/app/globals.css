@@ -2889,9 +2889,13 @@ body:not(.logged-in) .guest-flex {
   background: rgba(0, 0, 0, .92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, .07);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 50;
+  left: 0;
+  right: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 999;
   flex-wrap: wrap;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
@@ -3019,9 +3023,12 @@ body:not(.logged-in) .guest-flex {
 .reader-prog-bar {
   height: 3px;
   background: rgba(255, 255, 255, .06);
-  position: sticky;
+  position: fixed;
   top: 52px;
-  z-index: 49;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 998;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
 
@@ -3051,7 +3058,7 @@ body:not(.logged-in) .guest-flex {
 .reader-pages {
   max-width: 800px;
   margin: 0 auto;
-  padding: 16px 0;
+  padding: 56px 0 16px 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -3091,6 +3098,18 @@ body:not(.logged-in) .guest-flex {
   justify-content: center;
   gap: 12px;
   margin-top: 12px
+}
+
+.spotlight-card-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(168, 85, 247, 0.55) !important;
+  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.25) !important;
+}
+
+@media (max-width: 480px) {
+  .spotlight-card-link {
+    padding: 10px 12px !important;
+  }
 }
 
 /* Floating scroll buttons */
