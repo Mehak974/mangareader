@@ -43,6 +43,13 @@ const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false
  */
 const AD_AFTER_PAGE = 3;
 
+const SERVER_NAMES = {
+  mangaread: "Server 1",
+  mangakatana: "Server 2",
+  manganato: "Server 3",
+};
+const getServerName = (s) => SERVER_NAMES[s] || "Server 1";
+
 function ReaderContent({ params }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -502,6 +509,38 @@ function ReaderContent({ params }) {
     }
   };
 
+  const handleSourceChange = async (newSource) => {
+    if (newSource === source) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${newSource}`);
+      const data = await res.json();
+      if (data.data && data.data.chapters?.length > 0) {
+        const newChaps = data.data.chapters;
+        setChapters(newChaps);
+        const currentNum = parseInt(id) || 1;
+        const targetCh = newChaps.find(c => {
+          const num = typeof c.chNum !== 'undefined' ? c.chNum : null;
+          if (num === currentNum) return true;
+          return c.title?.includes(` ${currentNum}`) || c.title?.includes(`Chapter ${currentNum}`);
+        }) || newChaps[0];
+        const targetIdx = newChaps.indexOf(targetCh);
+        const chNum = targetCh.chNum ?? (newChaps.length - targetIdx);
+        if (typeof window !== "undefined" && mangaId) {
+          localStorage.setItem(`preferred_source_${mangaId}`, newSource);
+        }
+        router.push(`/reader/${chNum}?url=${encodeURIComponent(targetCh.href || "")}&source=${newSource}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+      } else {
+        toast.error(`No chapters found on ${getServerName(newSource)}`);
+      }
+    } catch (err) {
+      console.warn("Failed to switch source:", err);
+      toast.error("Failed to switch server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (brightnessPop) return;
     switch (e.key) {
@@ -644,6 +683,20 @@ function ReaderContent({ params }) {
               Chapter {id}
             </span>
           )}
+
+          <div className="rt-sep"></div>
+          <select
+            className="rt-ch-select"
+            style={{ maxWidth: "110px", background: "rgba(255,255,255,0.06)", borderRadius: "6px" }}
+            value={source || "manganato"}
+            onChange={(e) => handleSourceChange(e.target.value)}
+            aria-label="Select server"
+            title="Switch server"
+          >
+            <option value="mangaread" style={{ background: "#180e25", color: "#fff" }}>Server 1</option>
+            <option value="mangakatana" style={{ background: "#180e25", color: "#fff" }}>Server 2</option>
+            <option value="manganato" style={{ background: "#180e25", color: "#fff" }}>Server 3</option>
+          </select>
 
           <div className="rt-sep"></div>
           <span className="rt-page-info">
@@ -850,8 +903,8 @@ function ReaderContent({ params }) {
                   </div>
                 )}
                 {hasError ? (
-                  <div onClick={() => { setImgErrors(prev => { const n = {...prev}; delete n[i]; return n; }); setImgRetries(prev => { const n = {...prev}; delete n[i]; return n; }); setLoadedImages(prev => { const n = {...prev}; delete n[i]; return n; }); }} style={{
-                    width: "100%", cursor: "pointer",
+                  <div style={{
+                    width: "100%",
                     aspectRatio: "2/3",
                     background: "var(--bg2)",
                     border: "1px solid var(--border2)",
@@ -873,8 +926,44 @@ function ReaderContent({ params }) {
                     <div style={{ color: "var(--text)", fontSize: "14px", fontWeight: 600 }}>
                       Failed to load &quot;{fileName}&quot;
                     </div>
-                    <div style={{ color: "var(--text2)", fontSize: "12px", lineHeight: 1.5 }}>
-                      Image unavailable. Tap to retry.
+                    <div style={{ color: "var(--text2)", fontSize: "12px", lineHeight: 1.5, maxWidth: "340px" }}>
+                      {getServerName(source)} is temporarily busy. Tap below to retry or switch server.
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center", marginTop: "4px" }}>
+                      <button
+                        className="btn btn-s"
+                        onClick={() => { setImgErrors(prev => { const n = {...prev}; delete n[i]; return n; }); setImgRetries(prev => { const n = {...prev}; delete n[i]; return n; }); setLoadedImages(prev => { const n = {...prev}; delete n[i]; return n; }); }}
+                        style={{ fontSize: "12px", padding: "6px 14px" }}
+                      >
+                        ↻ Retry
+                      </button>
+                      {source !== "mangaread" && (
+                        <button
+                          className="btn btn-p"
+                          onClick={() => handleSourceChange("mangaread")}
+                          style={{ fontSize: "12px", padding: "6px 14px" }}
+                        >
+                          Switch to Server 1
+                        </button>
+                      )}
+                      {source !== "mangakatana" && (
+                        <button
+                          className="btn btn-p"
+                          onClick={() => handleSourceChange("mangakatana")}
+                          style={{ fontSize: "12px", padding: "6px 14px" }}
+                        >
+                          Switch to Server 2
+                        </button>
+                      )}
+                      {source !== "manganato" && (
+                        <button
+                          className="btn btn-p"
+                          onClick={() => handleSourceChange("manganato")}
+                          style={{ fontSize: "12px", padding: "6px 14px" }}
+                        >
+                          Switch to Server 3
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -999,7 +1088,7 @@ function ReaderContent({ params }) {
                   title="Save this chapter for 24 hours of offline reading"
                   aria-label="Save this chapter for 24 hours of offline reading"
                 >
-                  <svg width="14" height="14" viewBox="0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
