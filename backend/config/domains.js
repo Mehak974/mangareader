@@ -10,16 +10,25 @@
 
 'use strict';
 
+const SISTER_DOMAINS = [
+  'https://mangareader.pro',
+  'https://www.mangareader.pro',
+  'https://*.mangareader.pro',
+  'https://mangaread.pro',
+  'https://www.mangaread.pro',
+  'https://*.mangaread.pro',
+  'https://manireader.online',
+  'https://www.manireader.online',
+  'https://*.manireader.online',
+];
+
 const DOMAIN_CONFIGS = {
 
   // ── mangareader.pro ───────────────────────────────────────────────────────
   'mangareader.pro': {
     siteName: 'MangaReader',
     tagline: 'Read manga free online — the premier experience',
-    allowedOrigins: [
-      'https://mangareader.pro',
-      'https://www.mangareader.pro',
-    ],
+    allowedOrigins: [...SISTER_DOMAINS],
     // Scraper source preference order for this domain
     preferredSources: ['manganato', 'mangaread', 'mangakatana'],
     // Cache TTL multipliers (1.0 = default, higher = cache longer)
@@ -37,10 +46,7 @@ const DOMAIN_CONFIGS = {
   'mangaread.pro': {
     siteName: 'MangaRead',
     tagline: 'Fast manga reading — blazing speed, zero fuss',
-    allowedOrigins: [
-      'https://mangaread.pro',
-      'https://www.mangaread.pro',
-    ],
+    allowedOrigins: [...SISTER_DOMAINS],
     preferredSources: ['mangaread', 'manganato', 'mangakatana'],
     cacheTtlMultiplier: 1.2,  // cache slightly longer — "speed" UX focus
     rateLimit: {
@@ -54,10 +60,7 @@ const DOMAIN_CONFIGS = {
   'manireader.online': {
     siteName: 'ManiReader',
     tagline: 'Discover your next manga obsession',
-    allowedOrigins: [
-      'https://manireader.online',
-      'https://www.manireader.online',
-    ],
+    allowedOrigins: [...SISTER_DOMAINS],
     preferredSources: ['mangakatana', 'manganato', 'mangaread'],
     cacheTtlMultiplier: 0.8,  // fresher content — discovery focus
     rateLimit: {
@@ -72,7 +75,7 @@ const DOMAIN_CONFIGS = {
 const DEV_CONFIG = {
   siteName: 'MangaReader (Dev)',
   tagline: 'Development mode',
-  allowedOrigins: ['http://localhost:3000', 'http://localhost:3001'],
+  allowedOrigins: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', ...SISTER_DOMAINS],
   preferredSources: ['manganato', 'mangaread', 'mangakatana'],
   cacheTtlMultiplier: 0.1,  // short cache in dev
   rateLimit: { windowMs: 60000, max: 1000 },
@@ -113,11 +116,25 @@ function getPreferredSources() {
  */
 function getAllowedOrigins() {
   const cfg = getConfig();
+  const origins = new Set([
+    ...SISTER_DOMAINS,
+    ...(cfg.allowedOrigins || []),
+  ]);
+
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .forEach(o => origins.add(o));
+  }
+
   // Always include localhost for dev
   if (process.env.NODE_ENV !== 'production') {
-    return [...cfg.allowedOrigins, 'http://localhost:3000', 'http://localhost:3001'];
+    origins.add('http://localhost:3000');
+    origins.add('http://localhost:3001');
+    origins.add('http://localhost:3003');
   }
-  return cfg.allowedOrigins;
+  return Array.from(origins);
 }
 
-module.exports = { getConfig, getPreferredSources, getAllowedOrigins, DOMAIN_CONFIGS };
+module.exports = { getConfig, getPreferredSources, getAllowedOrigins, DOMAIN_CONFIGS, SISTER_DOMAINS };

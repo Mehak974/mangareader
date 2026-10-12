@@ -4,12 +4,30 @@
  * Use API_BASE for client-side fetch calls to the Express scraper backend.
  */
 
-export const API_BASE =
-  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-    ? 'http://localhost:3003'
-    : (process.env.NEXT_PUBLIC_SCRAPER_URL ||
-       process.env.NEXT_PUBLIC_API_URL ||
-       "https://api.mangareader.pro");
+export const API_BASE = (() => {
+  if (typeof window !== 'undefined') {
+    const h = (window.location.hostname || '').toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3003';
+    if (h.includes('mangaread.pro')) return 'https://api.mangaread.pro';
+    if (h.includes('manireader.online')) return 'https://api.manireader.online';
+    if (h.includes('mangareader.pro')) return 'https://api.mangareader.pro';
+  } else {
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').toLowerCase();
+    const profile = (process.env.DOMAIN_PROFILE || '').toLowerCase();
+    if (siteUrl.includes('mangaread.pro') || profile.includes('mangaread.pro')) {
+      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangaread.pro';
+    }
+    if (siteUrl.includes('manireader.online') || profile.includes('manireader.online')) {
+      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.manireader.online';
+    }
+  }
+  return (
+    process.env.NEXT_PUBLIC_SCRAPER_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.API_URL ||
+    "https://api.mangareader.pro"
+  );
+})();
 
 // Image/scraper host. Deliberately NOT falling back to NEXT_PUBLIC_SCRAPER_URL:
 // that is the Express backend, which serves /api/proxy-image and has no
