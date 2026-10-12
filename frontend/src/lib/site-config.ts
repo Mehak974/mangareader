@@ -103,9 +103,9 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
-      popunderSrc:         '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ',
+      popunderSrc:         '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
       umamiSrc:            'https://umami-production-f50d.up.railway.app/script.js',
       umamiWebsiteId:      '8a1b7e69-8899-4383-a9aa-c6f61f930a0a',
     },
@@ -271,14 +271,14 @@ export function getDirectLink(): string {
       return 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt';
     }
     if (h.includes('mangareader.pro')) {
-      return 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+      return 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
     }
   }
-  return siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+  return siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
 }
 
 /** Hilltop direct link for download/offline triggers (defaults to active config) */
-export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
 
 /** Hilltop VAST 3.0 video tag URL */
 export const HILLTOP_VAST_URL = siteConfig.ads.hilltopVastUrl || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB';

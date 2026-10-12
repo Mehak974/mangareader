@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation';
 const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-300', '/admin', '/login', '/signup'];
 
 // ── Hilltop Ads (served from purple-text.com) per domain ─────────────────────
-const MANGAREADER_POPUNDER = '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ';
+const MANGAREADER_POPUNDER = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
 const MANGAREAD_POPUNDER    = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
 
 function getPopunderSrc(): string {
