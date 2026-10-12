@@ -24,7 +24,7 @@ import {
   seedCover,
   markViewedOnce,
 } from "@/utils/detailCache";
-import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
+import { HILLTOP_DIRECT_LINK, getDirectLink } from "@/lib/site-config";
 import { getOfflineChaptersForManga, deleteOfflineChapter, deleteOfflineManga, makeChapterAvailableOffline, preloadOfflineChapter } from "@/utils/offlineStorage";
 import { fetchChapterImagesThroughWorker } from "@/utils/api";
 import toast from "react-hot-toast";
@@ -955,7 +955,7 @@ const [chPage, setChPage] = useState(1);
             <div className="ch-list">
               {/* Pinned Partner Chapter / Bonus Release */}
               <a
-                href={HILLTOP_DIRECT_LINK || 'https://purple-text.com/Rvsm31'}
+                href={getDirectLink() || HILLTOP_DIRECT_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ch-row"

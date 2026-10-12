@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { HILLTOP_DIRECT_LINK } from '@/lib/site-config';
+import { getDirectLink } from '@/lib/site-config';
 
 interface PartnerMangaCardProps {
   directUrl?: string;
 }
 
 export default function PartnerMangaCard({ directUrl }: PartnerMangaCardProps) {
-  const targetUrl = directUrl || HILLTOP_DIRECT_LINK || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+  const targetUrl = directUrl || getDirectLink();
 
   const handleClick = () => {
     window.open(targetUrl, '_blank', 'noopener,noreferrer');

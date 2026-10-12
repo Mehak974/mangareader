@@ -37,6 +37,12 @@ export type AdConfig = {
   hilltopDirectLink?: string;
   /** Hilltop Ads VAST 3.0 video tag URL */
   hilltopVastUrl?: string;
+  /** Hilltop Popunder script URL */
+  popunderSrc?: string;
+  /** Umami Analytics script source */
+  umamiSrc?: string;
+  /** Umami Analytics website ID */
+  umamiWebsiteId?: string;
 };
 
 export type SeoConfig = {
@@ -99,6 +105,9 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
+      popunderSrc:         '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ',
+      umamiSrc:            'https://umami-production-f50d.up.railway.app/script.js',
+      umamiWebsiteId:      '8a1b7e69-8899-4383-a9aa-c6f61f930a0a',
     },
     seo: {
       title:       'MangaReader — Read Manga Free Online',
@@ -126,14 +135,17 @@ const CONFIGS: Record<string, SiteConfig> = {
     url: 'https://mangaread.pro',
     ads: {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455860',
-      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2457490',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2458319',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0C1220',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || '38BDF8',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
+      popunderSrc:         '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F',
+      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
+      umamiWebsiteId:      'e86694e7-14e4-419e-91dc-acbc20c501de',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',
@@ -169,6 +181,9 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
+      popunderSrc:         '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ',
+      umamiSrc:            'https://umami-production-f50d.up.railway.app/script.js',
+      umamiWebsiteId:      '8a1b7e69-8899-4383-a9aa-c6f61f930a0a',
     },
     seo: {
       title:       'ManiReader — Discover Manga & Manhwa',
@@ -191,24 +206,46 @@ const CONFIGS: Record<string, SiteConfig> = {
 // ── Config resolution ────────────────────────────────────────────────────────
 
 function resolveProfile(): string {
-  // 1. Explicit DOMAIN_PROFILE env var (most reliable in Vercel)
-  const explicit = process.env.DOMAIN_PROFILE;
+  // 1. Client-side browser hostname detection (ensures zero mismatch even if same build)
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    for (const p of Object.keys(CONFIGS)) {
+      if (host.includes(p)) return p;
+    }
+  }
+
+  // 2. Explicit DOMAIN_PROFILE env var (most reliable in Vercel/Railway)
+  const explicit = process.env.DOMAIN_PROFILE || process.env.NEXT_PUBLIC_DOMAIN_PROFILE;
   if (explicit && CONFIGS[explicit]) return explicit;
 
-  // 2. Derive from NEXT_PUBLIC_SITE_URL
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+  // 3. Derive from NEXT_PUBLIC_SITE_URL or SITE_URL
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '';
   for (const profile of Object.keys(CONFIGS)) {
     if (siteUrl.includes(profile)) return profile;
   }
 
-  // 3. Dev fallback
-  if (process.env.NODE_ENV !== 'production') return 'mangareader.pro';
-
+  // 4. Fallback
   return 'mangareader.pro';
 }
 
 const profile = resolveProfile();
 export const siteConfig: SiteConfig = CONFIGS[profile] ?? CONFIGS['mangareader.pro'];
+
+/** Helper to get config dynamically with optional hostname override */
+export function getSiteConfig(host?: string): SiteConfig {
+  if (host) {
+    for (const p of Object.keys(CONFIGS)) {
+      if (host.toLowerCase().includes(p)) return CONFIGS[p];
+    }
+  }
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    for (const p of Object.keys(CONFIGS)) {
+      if (h.includes(p)) return CONFIGS[p];
+    }
+  }
+  return siteConfig;
+}
 
 // ── Convenience re-exports ───────────────────────────────────────────────────
 export const SITE_NAME = siteConfig.name;
@@ -226,7 +263,21 @@ export const AADS_FLOAT_ENABLED = Boolean(siteConfig.ads.aadsFloatUnitId && site
 /** True when the Hilltop script should be injected */
 export const HILLTOP_ENABLED = Boolean(siteConfig.ads.hilltopVerification);
 
-/** Hilltop direct link for download/offline triggers */
+/** Returns the active domain's voluntary direct link URL (runtime-aware) */
+export function getDirectLink(): string {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    if (h.includes('mangaread.pro')) {
+      return 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt';
+    }
+    if (h.includes('mangareader.pro')) {
+      return 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+    }
+  }
+  return siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+}
+
+/** Hilltop direct link for download/offline triggers (defaults to active config) */
 export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
 
 /** Hilltop VAST 3.0 video tag URL */

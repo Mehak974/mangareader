@@ -4,11 +4,22 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 // Routes where the popunder must never fire.
-// Strictly blocks /aads, /aads300, and admin routes.
-const EXCLUDED_PATHS = ['/aads', '/aads300', '/admin', '/login', '/signup'];
+// Strictly blocks /aads, /aads300, /mangaread-sticky, /mangaread-300, and admin routes.
+const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-300', '/admin', '/login', '/signup'];
 
-// ── Hilltop Ads (served from purple-text.com) ────────────────────────────────
-const HILLTOP_SRC = '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ';
+// ── Hilltop Ads (served from purple-text.com) per domain ─────────────────────
+const MANGAREADER_POPUNDER = '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ';
+const MANGAREAD_POPUNDER    = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
+
+function getPopunderSrc(): string {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    if (h.includes('mangaread.pro')) {
+      return MANGAREAD_POPUNDER;
+    }
+  }
+  return MANGAREADER_POPUNDER;
+}
 
 let hilltopInjected = false;
 let hilltopNode: HTMLScriptElement | null = null;
@@ -38,7 +49,7 @@ export default function AdScriptLoader() {
     const inject = () => {
       const s = document.createElement('script');
       (s as any).settings = {};
-      s.src = HILLTOP_SRC;
+      s.src = getPopunderSrc();
       s.async = true;
       s.referrerPolicy = 'no-referrer-when-downgrade';
       s.onerror = () => {

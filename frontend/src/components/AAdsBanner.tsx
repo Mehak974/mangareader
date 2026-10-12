@@ -17,14 +17,20 @@ function AAdsBannerInner() {
 
   if (!aadsUnitId || isHidden) return null;
 
-  let src = `//acceptable.a-ads.com/${aadsUnitId}/?size=Adaptive`;
-  if (siteConfig.profile === 'manireader.online') {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const isMangaRead = hostname.includes('mangaread.pro');
+  const unitId = isMangaRead ? '2455860' : aadsUnitId;
+
+  let src = `//acceptable.a-ads.com/${unitId}/?size=Adaptive`;
+  if (isMangaRead) {
+    src += '&background_color=transparent';
+  } else if (siteConfig.profile === 'manireader.online') {
     src += '&background_color=transparent';
   } else if (siteConfig.profile === 'mangareader.pro') {
     src += `&background_color=${aadsBgColor}&title_color=${aadsTitleColor}&title_hover_color=${aadsTitleColor}`;
   }
 
-  const closeId = `aadssticky-${aadsUnitId}`;
+  const closeId = `aadssticky-${unitId}`;
 
   return (
     <>
@@ -102,7 +108,11 @@ export default function AAdsBanner({ hideOnReader = false }: { hideOnReader?: bo
 
   const isReaderPage = pathname?.startsWith('/reader/');
   if (hideOnReader && isReaderPage) return null;
-  if (pathname === '/aads300' || pathname?.startsWith('/aads300/')) return null;
+  if (
+    pathname === '/aads300' || pathname?.startsWith('/aads300/') ||
+    pathname === '/mangaread-300' || pathname?.startsWith('/mangaread-300/') ||
+    pathname === '/mangaread-sticky' || pathname?.startsWith('/mangaread-sticky/')
+  ) return null;
 
   if (adMode === 'inline') {
     if (isReaderPage) return null;

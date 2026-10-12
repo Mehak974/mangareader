@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { HILLTOP_DIRECT_LINK } from '@/lib/site-config';
+import { getDirectLink } from '@/lib/site-config';
 
 interface PartnerSpotlightProps {
   directUrl?: string;
@@ -9,7 +9,7 @@ interface PartnerSpotlightProps {
 }
 
 export default function PartnerSpotlight({ directUrl, style }: PartnerSpotlightProps) {
-  const targetUrl = directUrl || HILLTOP_DIRECT_LINK || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
+  const targetUrl = directUrl || getDirectLink();
 
   return (
     <div

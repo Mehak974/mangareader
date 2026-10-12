@@ -80,6 +80,7 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
+const UmamiAnalytics  = dynamic(() => import('@/components/UmamiAnalytics'), { ssr: false });
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -207,12 +208,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
-        {/* Umami Analytics (Self-Hosted on Railway) */}
-        <Script
-          src="https://umami-production-f50d.up.railway.app/script.js"
-          data-website-id="8a1b7e69-8899-4383-a9aa-c6f61f930a0a"
-          strategy="beforeInteractive"
-        />
+        {/* Umami Analytics (Domain-specific: mangaread.pro vs mangareader.pro) */}
+        <UmamiAnalytics />
 
         {/* Cloudflare Web Analytics (Production only — avoids CORS errors on localhost:3000) */}
         {process.env.NODE_ENV === 'production' && (

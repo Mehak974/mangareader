@@ -19,7 +19,7 @@ import {
   getMemoryOfflineChapter, 
   preloadOfflineChapter 
 } from "@/utils/offlineStorage";
-import { HILLTOP_DIRECT_LINK } from "@/lib/site-config";
+import { HILLTOP_DIRECT_LINK, getDirectLink } from "@/lib/site-config";
 import PartnerSpotlight from "@/components/PartnerSpotlight";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
@@ -746,7 +746,7 @@ function ReaderContent({ params }) {
 
           <div className="rt-sep"></div>
           <a
-            href={HILLTOP_DIRECT_LINK || 'https://purple-text.com/Rvsm31'}
+            href={getDirectLink() || HILLTOP_DIRECT_LINK}
             target="_blank"
             rel="noopener noreferrer"
             className="rt-btn"
