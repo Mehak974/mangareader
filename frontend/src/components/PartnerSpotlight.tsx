@@ -9,7 +9,7 @@ interface PartnerSpotlightProps {
 }
 
 export default function PartnerSpotlight({ directUrl, style }: PartnerSpotlightProps) {
-  const targetUrl = directUrl || HILLTOP_DIRECT_LINK || 'https://purple-text.com/Rvsm31';
+  const targetUrl = directUrl || HILLTOP_DIRECT_LINK || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
 
   return (
     <div

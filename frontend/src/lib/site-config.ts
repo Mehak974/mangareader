@@ -97,7 +97,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
@@ -132,7 +132,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
@@ -167,7 +167,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/Rvsm31',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
     },
     seo: {
@@ -227,7 +227,7 @@ export const AADS_FLOAT_ENABLED = Boolean(siteConfig.ads.aadsFloatUnitId && site
 export const HILLTOP_ENABLED = Boolean(siteConfig.ads.hilltopVerification);
 
 /** Hilltop direct link for download/offline triggers */
-export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/Rvsm31';
+export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr';
 
 /** Hilltop VAST 3.0 video tag URL */
 export const HILLTOP_VAST_URL = siteConfig.ads.hilltopVastUrl || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB';
