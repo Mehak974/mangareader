@@ -80,7 +80,7 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
-const UmamiAnalytics  = dynamic(() => import('@/components/UmamiAnalytics'), { ssr: false });
+const UmamiAnalytics  = dynamic(() => import('@/components/UmamiAnalytics'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
