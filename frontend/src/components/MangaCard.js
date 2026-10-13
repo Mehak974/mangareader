@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { COVER_GRADS, abbr } from "@/data/mockData";
 import { isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
+import { getMangaHref } from "@/lib/dmcaBlacklist";
 import { proxyImage } from "@/utils/api";
 
 const MangaCard = React.memo(function MangaCard({ manga, index, priority = false }) {
@@ -34,7 +35,7 @@ const MangaCard = React.memo(function MangaCard({ manga, index, priority = false
   const bg = COVER_GRADS[index % COVER_GRADS.length];
   const handleCardClick = () => {
     if (!isHidden && !shouldBlur) {
-      router.push(`/manga/${slugify(manga.t || manga.title)}${manga.cover ? `?cover=${encodeURIComponent(manga.cover)}` : ''}`);
+      router.push(getMangaHref(manga.t || manga.title, manga.cover));
     }
   };
   const imageUrl = proxyImage(manga.cover || null, 120);

@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { MANGA, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
+import { getMangaHref } from "@/lib/dmcaBlacklist";
 import { fetchAnilist, MANGA_QUERY } from "@/utils/anilist";
 import { proxyImage } from "@/utils/api";
 
@@ -293,7 +294,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     className="sr-item"
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      router.push(`/manga/${slugify(m.t)}${m.cover ? `?cover=${encodeURIComponent(m.cover)}` : ''}`);
+                      router.push(getMangaHref(m.t, m.cover));
                       setSearchQuery("");
                     }}
                   >

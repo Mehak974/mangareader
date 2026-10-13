@@ -27,6 +27,7 @@ export default function robots(): MetadataRoute.Robots {
         '/library',
         '/history',
         '/reader/',   // reader pages are duplicate content — no index value
+        '/series/',   // unindexed/protected series route
       ],
       crawlDelay: 2,
     },

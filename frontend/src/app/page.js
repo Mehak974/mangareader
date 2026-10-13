@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
+import { getMangaHref } from "@/lib/dmcaBlacklist";
 import { proxyImage, fetchHomeSection } from "@/utils/api";
 import { getMangaList, getRecentMangaList } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
@@ -83,7 +84,7 @@ export default async function Home() {
       {/* MOBILE HERO VIEWPORT */}
       <div className="mob-hero">
         {featuredHero ? (
-          <Link href={`/manga/${slugify(featuredHero.t || featuredHero.title)}${featuredHero.cover ? `?cover=${encodeURIComponent(featuredHero.cover)}` : ''}`} className="mob-resume" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link href={getMangaHref(featuredHero.t || featuredHero.title, featuredHero.cover)} className="mob-resume" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div
               className="mob-cov"
               style={
@@ -162,7 +163,7 @@ export default async function Home() {
         </div>
 
         {desktopHero && (
-          <Link href={`/manga/${slugify(desktopHero.t || desktopHero.title)}${desktopHero.cover ? `?cover=${encodeURIComponent(desktopHero.cover)}` : ''}`} className="hero-stack" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link href={getMangaHref(desktopHero.t || desktopHero.title, desktopHero.cover)} className="hero-stack" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="hc-back"></div>
             <div className="hc-mid"></div>
             <div className="hc-front">
@@ -203,7 +204,7 @@ export default async function Home() {
           <div className="bar-label">Popular Right Now</div>
           <div className="reading-list">
             {finalPopularNow.map((r) => (
-              <Link href={`/manga/${slugify(r.t || r.title)}${r.cover ? `?cover=${encodeURIComponent(r.cover)}` : ''}`} key={r.id} className="r-item" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={getMangaHref(r.t || r.title, r.cover)} key={r.id} className="r-item" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="r-cov"
                   style={
@@ -307,7 +308,7 @@ export default async function Home() {
           </div>
           <div className="recent-list">
             {finalRecentlyAdded.map((r, idx) => (
-              <Link href={`/manga/${slugify(r.t || r.title)}${r.cover ? `?cover=${encodeURIComponent(r.cover)}` : ''}`} key={r.id} className="rc-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={getMangaHref(r.t || r.title, r.cover)} key={r.id} className="rc-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div
                   className="rc-cov"
                   style={
