@@ -5,19 +5,19 @@ import { useEffect, useState } from 'react';
 
 const UMAMI_CONFIGS: Record<string, { src: string; id: string }> = {
   'mangaread.pro': {
-    src: 'https://umami-production-30dc.up.railway.app/script.js',
-    id: 'ef155174-2e98-4b40-8186-12fe716c14ba',
+    src: 'https://analytics.mangareader.pro/script.js',
+    id: 'cd14dced-150c-4379-bfc2-d4d3b856cba8',
   },
   'mangareader.pro': {
-    src: 'https://umami-production-30dc.up.railway.app/script.js',
-    id: 'ef155174-2e98-4b40-8186-12fe716c14ba',
+    src: 'https://analytics.mangareader.pro/script.js',
+    id: 'cd14dced-150c-4379-bfc2-d4d3b856cba8',
   },
 };
 
 export default function UmamiAnalytics() {
   const [cfg, setCfg] = useState<{ src: string; id: string }>({
-    src: 'https://umami-production-30dc.up.railway.app/script.js',
-    id: 'ef155174-2e98-4b40-8186-12fe716c14ba',
+    src: 'https://analytics.mangareader.pro/script.js',
+    id: 'cd14dced-150c-4379-bfc2-d4d3b856cba8',
   });
 
   useEffect(() => {
