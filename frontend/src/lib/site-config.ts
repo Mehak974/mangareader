@@ -106,8 +106,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
-      umamiSrc:            'https://umami-production-f50d.up.railway.app/script.js',
-      umamiWebsiteId:      '8a1b7e69-8899-4383-a9aa-c6f61f930a0a',
+      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
+      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
     },
     seo: {
       title:       'MangaReader — Read Manga Free Online',
@@ -182,8 +182,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ',
-      umamiSrc:            'https://umami-production-f50d.up.railway.app/script.js',
-      umamiWebsiteId:      '8a1b7e69-8899-4383-a9aa-c6f61f930a0a',
+      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
+      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
     },
     seo: {
       title:       'ManiReader — Discover Manga & Manhwa',

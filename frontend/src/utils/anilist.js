@@ -42,11 +42,20 @@ async function fetchDirectAnilist(query, variables) {
   }
 }
 
+let backendProxyBroken = false;
+let lastProxyCheck = 0;
+
 async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
+  // If backend proxy is currently down (e.g. 502 Bad Gateway), bypass directly to AniList
+  if (backendProxyBroken && (Date.now() - lastProxyCheck) < 60000) {
+    const directData = await fetchDirectAnilist(query, variables);
+    if (directData) return directData;
+  }
+
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       const url = `${API_BASE.replace(/\/$/, '')}/api/anilist`;
       const res = await fetch(url, {
@@ -59,8 +68,8 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
       clearTimeout(timeoutId);
 
       if (res.status === 429) {
-        // A 429 from our own proxy means the shared budget is drained.
-        // Try direct fallback before giving up.
+        backendProxyBroken = true;
+        lastProxyCheck = Date.now();
         const directData = await fetchDirectAnilist(query, variables);
         if (directData) return directData;
 
@@ -68,33 +77,29 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
           console.warn("AniList rate limited — giving up until the limit resets.");
           return null;
         }
-        const retryAfter = res.headers.get("Retry-After");
-        const reset = res.headers.get("RateLimit-Reset");
-        const waitSec = parseInt(retryAfter || reset || "0", 10);
-        if (!waitSec) {
-          console.warn("AniList rate limited with no reset hint — not retrying.");
-          return null;
-        }
-        const waitTime = Math.min(waitSec * 1000, 10000);
-        console.warn(`AniList rate limited. Waiting ${waitTime}ms before retry...`);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
 
       if (!res.ok) {
-        if (res.status >= 500) {
-          // Backend proxy is down / 502 Bad Gateway — fallback directly to AniList
-          const directData = await fetchDirectAnilist(query, variables);
-          if (directData) return directData;
-        }
+        backendProxyBroken = true;
+        lastProxyCheck = Date.now();
+        // Any proxy error (502, 500, 404) immediately falls back to direct AniList
+        const directData = await fetchDirectAnilist(query, variables);
+        if (directData) return directData;
+
         const text = await res.text();
         throw new Error(`Anilist API failure: ${res.status} - ${text}`);
       }
 
+      backendProxyBroken = false;
       const json = await res.json();
       return json.data;
     } catch (err) {
-      // If backend proxy timed out or failed to connect, try direct AniList before retrying
+      backendProxyBroken = true;
+      lastProxyCheck = Date.now();
+
+      // If backend proxy timed out or failed to connect, instantly try direct AniList
       const directData = await fetchDirectAnilist(query, variables);
       if (directData) return directData;
 
@@ -103,7 +108,6 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
         return null;
       }
       const waitTime = delay * Math.pow(2, i);
-      console.warn(`Request failed: ${err.message}. Retrying in ${waitTime}ms...`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
   }
