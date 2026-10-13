@@ -42,22 +42,27 @@ for (const profile of HREFLANG_PROFILES) {
   HREFLANG_ALTERNATES[profile] = `https://${profile}`;
 }
 
-// ── Google Font per domain ────────────────────────────────────────────────────
-import { DM_Sans, Inter, Plus_Jakarta_Sans } from 'next/font/google';
+// ── Self-hosted fonts per domain ──────────────────────────────────────────────
+// Local files (not next/font/google): the Docker build on the VPS intermittently
+// timed out fetching Google Fonts and failed the whole deploy.
+import localFont from 'next/font/local';
 
-const dmSans = DM_Sans({
+const dmSans = localFont({
+  src: '../../node_modules/@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2',
   variable: '--font-dm-sans',
-  subsets: ['latin'],
+  weight: '100 1000',
   display: 'swap',
 });
-const inter = Inter({
+const inter = localFont({
+  src: '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
   variable: '--font-inter',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
 });
-const plusJakarta = Plus_Jakarta_Sans({
+const plusJakarta = localFont({
+  src: '../../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2',
   variable: '--font-plus-jakarta',
-  subsets: ['latin'],
+  weight: '200 800',
   display: 'swap',
 });
 
