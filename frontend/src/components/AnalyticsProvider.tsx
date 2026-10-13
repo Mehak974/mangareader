@@ -56,6 +56,20 @@ function AnalyticsTracker() {
           });
         } catch (_) {}
       }
+
+      // 3. Umami Analytics SPA Beacon
+      if (typeof (window as any).umami !== "undefined" && typeof (window as any).umami.track === "function") {
+        if ((window as any).__umamiLast && (window as any).__umamiLast !== fullPath) {
+          try {
+            (window as any).umami.track((props: any) => ({
+              ...props,
+              url: fullPath,
+              title: title,
+            }));
+          } catch (_) {}
+        }
+        (window as any).__umamiLast = fullPath;
+      }
     }
   }, [pathname, searchParams]);
 

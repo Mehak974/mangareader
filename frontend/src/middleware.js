@@ -103,6 +103,8 @@ export function middleware(request) {
     'https://*.elderly-craft.com',
     'https://static.cloudflareinsights.com',
     'https://cloudflareinsights.com',
+    'https://analytics.mangareader.pro',
+    'https://*.mangareader.pro',
     'https://umami-production-30dc.up.railway.app',
     'https://*.up.railway.app',
     'https://dcbbwymp1bhlf.cloudfront.net',
