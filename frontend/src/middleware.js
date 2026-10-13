@@ -45,9 +45,7 @@ export function middleware(request) {
     return url;
   };
 
-  if (host.startsWith("www.")) {
-    return NextResponse.redirect(buildRedirectUrl(), { status: 301 });
-  }
+  // (Canonical www -> apex redirect is handled at Cloudflare edge)
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
