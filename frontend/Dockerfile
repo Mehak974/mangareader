@@ -1,12 +1,12 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
-ENV NODE_ENV=development
 COPY package*.json .npmrc* ./
 COPY prisma ./prisma
 # Prisma query engine binary target for Alpine (musl). Without this, the
 # default linux dynamic binary fails to load on musl-based images.
 RUN npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
 COPY . .
+ENV NODE_ENV=production
 RUN npm run build
 
 FROM node:22-alpine AS runner
