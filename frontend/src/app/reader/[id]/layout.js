@@ -28,28 +28,6 @@ export async function generateMetadata({ params }) {
   });
 }
 
-export async function generateJsonLd({ params }) {
-  const { id } = await params;
-  const mangaTitle = "Manga";
-  const mangaSlug = "";
-  
-  const chapter = chapterSchema({
-    chapterNumber: id,
-    mangaTitle,
-    mangaSlug,
-    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
-  });
-  
-  const breadcrumbs = breadcrumbSchema([
-    { name: "Home", url: "/" },
-    { name: "Browse", url: "/browse" },
-    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
-    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
-  ]);
-
-  return [chapter, breadcrumbs];
-}
-
 export default async function ReaderLayout({ children, params }) {
   const { id } = await params;
   const mangaTitle = "Manga";

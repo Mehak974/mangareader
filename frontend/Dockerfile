@@ -4,7 +4,7 @@ COPY package*.json .npmrc* ./
 COPY prisma ./prisma
 # Prisma query engine binary target for Alpine (musl).
 # Cache mount speeds up npm installs across builds by reusing downloaded tarballs.
-RUN --mount=type=cache,target=/root/.npm npm ci && npx prisma generate --schema=prisma/schema.prisma
+RUN --mount=type=cache,target=/root/.npm npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
 COPY . .
 ENV NODE_ENV=production
 RUN npm run build
