@@ -1,7 +1,8 @@
 "use client";
 
 import React, { Fragment, use, useState, useEffect, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, notFound } from "next/navigation";
+import { isBlockedManga } from "@/lib/dmcaBlacklist";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Loader from "@/components/Loader";
 import { useApp } from "@/context/AppContext";
@@ -61,6 +62,10 @@ function ReaderContent({ params }) {
   const title = searchParams.get("title") || "";
   const mangaId = searchParams.get("mangaId") || "";
   const cover = searchParams.get("cover") || "";
+
+  if (isBlockedManga(title) || isBlockedManga(url)) {
+    notFound();
+  }
 
   const isNotChapterImage = (img) => typeof img === 'string' && (
     /[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(img) ||

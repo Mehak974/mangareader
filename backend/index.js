@@ -318,10 +318,30 @@ initAuth();
 app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
 app.use('/api/auth', require('./routes/anilistAuth'));
 
+// ── DMCA / Copyright Blacklist ──────────────────────────────────────────────
+const BLOCKED_MANGA_TITLES = new Set(['hypnotist-security-guard']);
+function isBlockedManga(str) {
+  if (!str) return false;
+  const n = String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return BLOCKED_MANGA_TITLES.has(n);
+}
+
+// Purge any reported DMCA manga on startup
+setTimeout(async () => {
+  try {
+    await db.query("DELETE FROM discovered_manga WHERE slug = ANY($1)", [Array.from(BLOCKED_MANGA_TITLES)]);
+    await db.query("DELETE FROM manga WHERE LOWER(title) LIKE '%hypnotist%security%guard%'");
+    console.log('[DMCA] Purged blacklisted titles from database');
+  } catch (err) {
+    // Non-fatal if tables do not exist yet
+  }
+}, 5000);
+
 // ── MANGA API (preserved + secured) ──────────────────────────────────────────
 app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
   const title = helpers.san(req.query.title, 200);
   if (!title) return res.status(400).json({ error: 'title required' });
+  if (isBlockedManga(title)) return res.status(404).json({ error: 'Content unavailable due to copyright request' });
   try {
     const mangaId = await getOrFetchMangaMetadata(title);
     const mData = (await db.query('SELECT country, preferred_source_id, preferred_source_slug, last_source_check FROM manga WHERE id=$1', [mangaId])).rows[0] || {};
@@ -446,6 +466,7 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
 app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => {
   const { title, source: sid } = req.query;
   if (!title || !sid) return res.status(400).json({ error: 'title and source required' });
+  if (isBlockedManga(title)) return res.status(404).json({ error: 'Content unavailable due to copyright request' });
   try {
     const mangaId = await getOrFetchMangaMetadata(helpers.san(title, 200));
     const redisKey = `chapcache:${mangaId}:${sid}`;
@@ -489,6 +510,7 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
 app.get('/api/manga/track-view', rateLimit(60000, 60), async (req, res) => {
   const { slug, title, chapterCount } = req.query;
   if (!slug || !title) return res.status(400).json({ error: 'slug and title required' });
+  if (isBlockedManga(slug) || isBlockedManga(title)) return res.status(404).json({ error: 'Content unavailable due to copyright request' });
   try {
     await db.query(
       `INSERT INTO discovered_manga(slug, title, chapter_count, view_count, last_viewed_at)

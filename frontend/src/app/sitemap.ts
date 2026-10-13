@@ -12,6 +12,7 @@
 import type { MetadataRoute } from 'next';
 import { prisma }   from '@/lib/prisma';
 import { SITE_URL } from '@/lib/site-config';
+import { isBlockedManga } from '@/lib/dmcaBlacklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +77,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       LIMIT ${SITEMAP_TOP_MANGA}
     `;
     const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
-    mangaEntries = discovered.map((m, i) => ({
+    mangaEntries = discovered
+      .filter((m) => !isBlockedManga(m.slug))
+      .map((m, i) => ({
       url:             `${SITE_URL}/manga/${m.slug}`,
       lastModified:    m.lastViewedAt,
       changeFrequency: 'weekly' as const,

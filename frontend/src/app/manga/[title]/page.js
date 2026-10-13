@@ -2,7 +2,8 @@
 
 import React, { use, useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, notFound } from "next/navigation";
+import { isBlockedManga } from "@/lib/dmcaBlacklist";
 import { useApp } from "@/context/AppContext";
 import { fetchAnilist, getMangaList, isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
@@ -70,6 +71,9 @@ const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || 
 export default function MangaDetail({ params }) {
   const router = useRouter();
   const { title: titleSlug } = use(params);
+  if (isBlockedManga(titleSlug)) {
+    notFound();
+  }
   const searchParams = useSearchParams();
   const queryCover = searchParams ? searchParams.get("cover") || "" : "";
   const {

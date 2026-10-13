@@ -2,6 +2,8 @@ export const revalidate = 86400;
 
 import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import { notFound } from "next/navigation";
+import { isBlockedManga } from "@/lib/dmcaBlacklist";
 
 function slugify(input) {
   return input
@@ -14,6 +16,9 @@ function slugify(input) {
 
 export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
+  if (isBlockedManga(titleSlug)) {
+    notFound();
+  }
   const fallbackTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
 
   return buildMetadata({
@@ -46,6 +51,9 @@ async function generateJsonLd({ params }) {
 
 export default async function MangaDetailLayout({ children, params }) {
   const { title: titleSlug } = await params;
+  if (isBlockedManga(titleSlug)) {
+    notFound();
+  }
   const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
   
   const manga = mangaSchema({
