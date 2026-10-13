@@ -145,7 +145,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F',
       umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
-      umamiWebsiteId:      'e86694e7-14e4-419e-91dc-acbc20c501de',
+      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',

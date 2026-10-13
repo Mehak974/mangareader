@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 const UMAMI_CONFIGS: Record<string, { src: string; id: string }> = {
   'mangaread.pro': {
     src: 'https://umami-production-30dc.up.railway.app/script.js',
-    id: 'e86694e7-14e4-419e-91dc-acbc20c501de',
+    id: 'ef155174-2e98-4b40-8186-12fe716c14ba',
   },
   'mangareader.pro': {
     src: 'https://umami-production-f50d.up.railway.app/script.js',
