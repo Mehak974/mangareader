@@ -2,7 +2,7 @@
 
 import React, { use, useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams, notFound } from "next/navigation";
+import { useRouter, useSearchParams, usePathname, notFound } from "next/navigation";
 import { isBlockedManga } from "@/lib/dmcaBlacklist";
 import { useApp } from "@/context/AppContext";
 import { fetchAnilist, getMangaList, isExplicitNSFW } from "@/utils/anilist";
@@ -68,10 +68,12 @@ const AVAILABLE_SOURCES = [
 
 const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
 
-export default function MangaDetail({ params, allowProtected = false }) {
+export default function MangaDetail({ params }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { title: titleSlug } = use(params);
-  if (!allowProtected && isBlockedManga(titleSlug)) {
+  const isSeriesRoute = pathname?.startsWith("/series");
+  if (!isSeriesRoute && isBlockedManga(titleSlug)) {
     notFound();
   }
   const searchParams = useSearchParams();
@@ -201,7 +203,7 @@ const [chPage, setChPage] = useState(1);
           // If the slug doesn't match exactly, redirect to the canonical slug
           const canonicalSlug = slugify(bestMatch.t);
           if (canonicalSlug && canonicalSlug !== titleSlug) {
-            router.replace(allowProtected ? `/series/${canonicalSlug}` : `/manga/${canonicalSlug}`);
+            router.replace(isSeriesRoute ? `/series/${canonicalSlug}` : `/manga/${canonicalSlug}`);
             return;
           }
 
@@ -284,7 +286,7 @@ const [chPage, setChPage] = useState(1);
 
         if (queryCover && !redirectDoneRef.current) {
           redirectDoneRef.current = true;
-          router.replace(allowProtected ? `/series/${titleSlug}` : `/manga/${titleSlug}`);
+          router.replace(isSeriesRoute ? `/series/${titleSlug}` : `/manga/${titleSlug}`);
         }
 
         // One view write per slug per session — previously every back-nav
