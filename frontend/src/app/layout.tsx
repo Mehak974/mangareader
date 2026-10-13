@@ -155,6 +155,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
+        {/* Self-healing guard: if any browser/PWA cached an internal :3000 URL, immediately bounce to clean apex */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if(typeof window!=="undefined"&&window.location.port==="3000"&&!window.location.hostname.includes("localhost")&&!window.location.hostname.includes("127.0.0.1")){window.location.replace("https://"+window.location.hostname+window.location.pathname+window.location.search+window.location.hash);}`,
+          }}
+        />
+
         {/* Ad network preconnects to eliminate popunder initialization delay (<5-10s) */}
         <link rel="dns-prefetch" href="//purple-text.com" />
         <link rel="preconnect" href="https://purple-text.com" />
