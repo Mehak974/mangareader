@@ -11,6 +11,7 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+RUN apk add --no-cache curl
 ENV NODE_ENV=production
 # Standalone Next.js server binds to 0.0.0.0 by default in containers, but
 # explicitly setting HOSTNAME avoids a warning and guarantees it listens on
