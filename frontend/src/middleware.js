@@ -32,14 +32,22 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
   // Canonical domain redirect: www.* -> root domain (unifies Umami analytics & SEO rank)
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-  if (host.startsWith("www.")) {
-    const nonWwwHost = host.replace(/^www\./, "");
-    const url = new URL(request.url);
-    url.host = nonWwwHost;
-    url.protocol = "https:";
-    return NextResponse.redirect(url, { status: 301 });
-  }
+  const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
 
+  const buildRedirectUrl = (destPath) => {
+    const url = new URL(request.url);
+    if (destPath) url.pathname = destPath;
+    if (!isLocal) {
+      url.protocol = "https:";
+      url.hostname = host.replace(/^www\./, "").split(":")[0];
+      url.port = "";
+    }
+    return url;
+  };
+
+  if (host.startsWith("www.")) {
+    return NextResponse.redirect(buildRedirectUrl(), { status: 301 });
+  }
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
@@ -57,13 +65,13 @@ export function middleware(request) {
     const match = pathname.match(pattern);
     if (match) {
       const dest = pathname.startsWith("/reading-guides") ? "/blog" : "/browse";
-      return NextResponse.redirect(new URL(dest, request.url), { status: 301 });
+      return NextResponse.redirect(buildRedirectUrl(dest), { status: 301 });
     }
   }
 
   // /manga (no title slug) → /browse
   if (pathname === "/manga" || pathname === "/manga/") {
-    return NextResponse.redirect(new URL("/browse", request.url), { status: 301 });
+    return NextResponse.redirect(buildRedirectUrl("/browse"), { status: 301 });
   }
 
   // Ad script origins. The Hilltop popunder is a three-stage loader: the inline
