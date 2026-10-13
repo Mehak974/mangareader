@@ -30,6 +30,16 @@ import { NextResponse } from "next/server";
  */
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  // Canonical domain redirect: www.* -> root domain (unifies Umami analytics & SEO rank)
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  if (host.startsWith("www.")) {
+    const nonWwwHost = host.replace(/^www\./, "");
+    const url = new URL(request.url);
+    url.host = nonWwwHost;
+    url.protocol = "https:";
+    return NextResponse.redirect(url, { status: 301 });
+  }
+
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
