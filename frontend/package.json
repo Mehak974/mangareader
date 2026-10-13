@@ -25,6 +25,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "jszip": "^3.10.2",
+    "lucide-react": "^1.56.0",
     "next": "16.2.12",
     "prisma": "6.19.3",
     "react": "19.2.4",
@@ -33,7 +34,8 @@
     "react-markdown": "9.1.0",
     "remark-gfm": "4.0.1",
     "sanitize-html": "^2.17.6",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
