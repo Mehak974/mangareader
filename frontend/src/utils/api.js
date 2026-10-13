@@ -304,15 +304,23 @@ export async function fetchChapterImagesThroughWorker(url, source) {
 let csrfToken = null;
 
 export async function fetchHomeSection(sectionKey) {
-  const res = await fetch(`${API_BASE}/api/home/sections/${encodeURIComponent(sectionKey)}`, {
-    headers: { Accept: 'application/json' },
-    credentials: 'omit',
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to fetch home section ${sectionKey}: ${res.status} - ${text}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+  try {
+    const res = await fetch(`${API_BASE}/api/home/sections/${encodeURIComponent(sectionKey)}`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'omit',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch home section ${sectionKey}: ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
   }
-  return res.json();
 }
 
 export async function fetchApi(endpoint, options = {}) {

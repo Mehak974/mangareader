@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { proxyImage, fetchHomeSection } from "@/utils/api";
+import { getMangaList, getRecentMangaList } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
 import HomeGenreFilter from "@/components/HomeGenreFilter";
 import HomeAuthNudge from "@/components/HomeAuthNudge";
@@ -42,7 +43,24 @@ export default async function Home() {
     trending = trendingRes?.data?.length > 0 ? trendingRes.data : [];
     recentlyAdded = recentRes?.data?.length > 0 ? recentRes.data.slice(0, 5) : [];
   } catch {
-    // leave empty — same behavior as /browse when AniList is unreachable
+    // leave empty — fallback below handles it
+  }
+
+  // If backend is unreachable or returned empty, populate directly from AniList!
+  if (popularNow.length === 0 || trending.length === 0) {
+    try {
+      const [trendData, popData, recentData] = await Promise.all([
+        getMangaList({ perPage: 15, sort: ["TRENDING_DESC", "POPULARITY_DESC"] }),
+        getMangaList({ perPage: 15, sort: ["POPULARITY_DESC", "SCORE_DESC"] }),
+        getRecentMangaList({ perPage: 6 }),
+      ]);
+      if (popularNow.length === 0) popularNow = trendData?.media || [];
+      if (trending.length === 0) trending = trendData?.media || [];
+      if (popularOverall.length === 0) popularOverall = popData?.media || [];
+      if (recentlyAdded.length === 0) recentlyAdded = recentData?.media || [];
+    } catch (e) {
+      console.warn("AniList direct fallback for home failed:", e);
+    }
   }
 
   let finalPopularNow = popularNow.slice(0, 9);
