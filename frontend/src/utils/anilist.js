@@ -259,25 +259,23 @@ const HARD_NSFW_TERMS = [
   "sexual abuse", "nsfw", "uncensored", "doujinshi",
 ];
 
-// Whole-word terms — matched against tokenised genres/tags/title so "sex" does
-// not fire on "Middlesex" or "sexuality". "sex" and "18+" live here.
-const HARD_NSFW_WORDS = ["sex", "18+"];
-
 const HARD_TERMS_REGEX = new RegExp(
   HARD_NSFW_TERMS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
   "i"
 );
-const HARD_WORDS_REGEX = /\b(sex|18\+)\b/i;
-const ADULT_MATURE_REGEX = /\b(adult|mature)\b/i;
+
+// Whole-word terms — matched against tokenised genres/tags/title so "sex" does
+// not fire on "Middlesex" or "sexuality".
+const HARD_WORDS_REGEX = /\b(sex|18\+|hentai|erotica|smut|porn)\b/i;
 
 /**
- * Decide whether a title's cover must be hidden behind an explicit-content
- * warning.
+ * Decide whether a title's cover must be hidden behind an explicit-content warning.
  *
  * Rules:
  *  - AniList's own `isAdult` flag → always hide.
- *  - Any hard term/word in genres or tags → always hide.
- *  - If the genre exactly matches "adult" or "mature" (common on scraper sites for smut) -> hide.
+ *  - Genuine explicit terms/words in genres or tags (hentai, smut, erotica, etc.) → hide.
+ *  - Note: Generic "mature" is NOT hidden because mainstream action series
+ *    (Solo Leveling, One Piece, Berserk) are tagged "mature" for violence/action.
  *
  * @param {string[]} genres
  * @param {string} title
@@ -293,13 +291,10 @@ export function isExplicitNSFW(genres = [], title = "", extra = {}) {
 
   const combined = `${genresArr.join(" ")} ${tagsArr.join(" ")}`.toLowerCase();
 
-  // Common scraper adult/mature tags
-  if (ADULT_MATURE_REGEX.test(combined)) return true;
-
-  // Multi-word hard terms (hentai, ecchi, etc.)
+  // Multi-word hard terms (hentai, ecchi, erotica, etc.)
   if (HARD_TERMS_REGEX.test(combined)) return true;
 
-  // Whole-word match for "sex" and "18+"
+  // Whole-word match for explicit terms
   if (HARD_WORDS_REGEX.test(combined) || (title && HARD_WORDS_REGEX.test(title))) return true;
 
   return false;
