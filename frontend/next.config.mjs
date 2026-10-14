@@ -74,6 +74,20 @@ const nextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      // Next.js static assets with content hashes: cache forever (1 year)
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      // HTML routes: revalidate so Cloudflare never serves stale HTML pointing to dead chunks across deploys
+      {
+        source: "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/).*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
       // Static pages - cache forever (1 year) since content rarely changes
       {
         source: "/about",
