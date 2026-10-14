@@ -82,7 +82,6 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
-const UmamiAnalytics  = dynamic(() => import('@/components/UmamiAnalytics'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -217,8 +216,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
-        {/* Umami Analytics (Domain-specific: mangaread.pro vs mangareader.pro) */}
-        <UmamiAnalytics />
+        {/* Umami Analytics — direct tag to ensure immediate execution on load */}
+        <Script
+          src="https://analytics.mangareader.pro/script.js"
+          data-website-id={siteConfig.profile === 'mangaread.pro' ? 'ef155174-2e98-4b40-8186-12fe716c14ba' : 'cd14dced-150c-4379-bfc2-d4d3b856cba8'}
+          strategy="afterInteractive"
+        />
 
         {/* Cloudflare Web Analytics (Production only — avoids CORS errors on localhost:3000) */}
         {process.env.NODE_ENV === 'production' && (

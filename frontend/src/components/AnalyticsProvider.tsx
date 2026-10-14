@@ -73,6 +73,21 @@ function AnalyticsTracker() {
     }
   }, [pathname, searchParams]);
 
+  // Active Reader Heartbeat: Keep sessions alive in Umami while reading long chapters
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible" && typeof (window as any).umami?.track === "function") {
+        try {
+          (window as any).umami.track("heartbeat");
+        } catch (_) {}
+      }
+    }, 120000); // Ping every 2 minutes while tab is active
+
+    return () => clearInterval(interval);
+  }, []);
+
   return null;
 }
 
