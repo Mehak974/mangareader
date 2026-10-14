@@ -219,9 +219,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Umami Analytics — domain-aware and executed after interactive */}
         {siteConfig.ads.umamiWebsiteId && (
           <Script
-            src={siteConfig.ads.umamiSrc || "/api/m-metrics"}
+            src={siteConfig.ads.umamiSrc || "https://analytics.mangareader.pro/script.js"}
             data-website-id={siteConfig.ads.umamiWebsiteId}
-            data-host-url={siteConfig.ads.umamiSrc?.startsWith("/") ? siteConfig.ads.umamiSrc : undefined}
             strategy="afterInteractive"
           />
         )}

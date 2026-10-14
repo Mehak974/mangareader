@@ -106,7 +106,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
-      umamiSrc:            '/api/m-metrics',
+      umamiSrc:            'https://analytics.mangareader.pro/script.js',
       umamiWebsiteId:      'cd14dced-150c-4379-bfc2-d4d3b856cba8',
     },
     seo: {
