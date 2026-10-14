@@ -216,12 +216,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
-        {/* Umami Analytics — direct tag to ensure immediate execution on load */}
-        <Script
-          src="https://analytics.mangareader.pro/script.js"
-          data-website-id={siteConfig.profile === 'mangaread.pro' ? 'ef155174-2e98-4b40-8186-12fe716c14ba' : 'cd14dced-150c-4379-bfc2-d4d3b856cba8'}
-          strategy="afterInteractive"
-        />
+        {/* Umami Analytics — domain-aware and executed after interactive */}
+        {siteConfig.ads.umamiWebsiteId && (
+          <Script
+            src={siteConfig.ads.umamiSrc || "https://analytics.mangareader.pro/script.js"}
+            data-website-id={siteConfig.ads.umamiWebsiteId}
+            strategy="afterInteractive"
+          />
+        )}
 
         {/* Cloudflare Web Analytics (Production only — avoids CORS errors on localhost:3000) */}
         {process.env.NODE_ENV === 'production' && (

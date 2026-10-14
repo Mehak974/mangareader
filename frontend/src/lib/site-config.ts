@@ -106,8 +106,8 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
-      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
-      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
+      umamiSrc:            'https://analytics.mangareader.pro/script.js',
+      umamiWebsiteId:      'cd14dced-150c-4379-bfc2-d4d3b856cba8',
     },
     seo: {
       title:       'MangaReader — Read Manga Free Online',
@@ -145,7 +145,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F',
       umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
-      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
+      umamiWebsiteId:      'e86694e7-14e4-419e-91dc-acbc20c501de',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',
