@@ -7,7 +7,9 @@
 export const API_BASE = (() => {
   if (typeof window !== 'undefined') {
     const h = (window.location.hostname || '').toLowerCase();
-    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3003';
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
+    }
     if (h.includes('mangaread.pro')) return 'https://api.mangaread.pro';
     if (h.includes('manireader.online')) return 'https://api.manireader.online';
     if (h.includes('mangareader.pro')) return 'https://api.mangareader.pro';

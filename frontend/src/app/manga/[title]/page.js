@@ -72,7 +72,7 @@ export default function MangaDetail({ params }) {
   const router = useRouter();
   const pathname = usePathname();
   const { title: titleSlug } = use(params);
-  const isSeriesRoute = pathname?.startsWith("/series");
+  const isSeriesRoute = pathname?.startsWith("/series") || pathname?.startsWith("/manga/series");
   if (!isSeriesRoute && isBlockedManga(titleSlug)) {
     notFound();
   }
@@ -203,7 +203,8 @@ const [chPage, setChPage] = useState(1);
           // If the slug doesn't match exactly, redirect to the canonical slug
           const canonicalSlug = slugify(bestMatch.t);
           if (canonicalSlug && canonicalSlug !== titleSlug) {
-            router.replace(isSeriesRoute ? `/series/${canonicalSlug}` : `/manga/${canonicalSlug}`);
+            const basePath = pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga");
+            router.replace(`${basePath}/${canonicalSlug}`);
             return;
           }
 
@@ -286,7 +287,8 @@ const [chPage, setChPage] = useState(1);
 
         if (queryCover && !redirectDoneRef.current) {
           redirectDoneRef.current = true;
-          router.replace(isSeriesRoute ? `/series/${titleSlug}` : `/manga/${titleSlug}`);
+          const basePath = pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga");
+          router.replace(`${basePath}/${titleSlug}`);
         }
 
         // One view write per slug per session — previously every back-nav

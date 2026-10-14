@@ -28,6 +28,7 @@ export default function robots(): MetadataRoute.Robots {
         '/history',
         '/reader/',   // reader pages are duplicate content — no index value
         '/series/',   // unindexed/protected series route
+        '/manga/series/', // unindexed/protected manga series route
       ],
       crawlDelay: 2,
     },

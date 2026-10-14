@@ -38,6 +38,12 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'that-secretive-sob',
   'to-the-one-without-virtue',
   'when-fate-finds-us',
+  'baby-light-my-fire',
+  'my-possession-became-a-ghost-story',
+  'to-tread-into-darkness',
+  'her-merry-obsession',
+  'trash-will-always-be-trash',
+  'meet-me-halfway',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
@@ -58,6 +64,6 @@ export function isBlockedManga(slugOrTitle?: string | null): boolean {
 export function getMangaHref(slugOrTitle?: string | null, cover?: string | null): string {
   if (!slugOrTitle) return '/';
   const slug = slugify(slugOrTitle);
-  const base = isBlockedManga(slug) ? `/series/${slug}` : `/manga/${slug}`;
+  const base = isBlockedManga(slug) ? `/manga/series/${slug}` : `/manga/${slug}`;
   return cover ? `${base}?cover=${encodeURIComponent(cover)}` : base;
 }

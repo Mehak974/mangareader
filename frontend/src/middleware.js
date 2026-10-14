@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isBlockedManga } from "./lib/dmcaBlacklist";
 
 /**
  * Applies the site Content-Security-Policy.
@@ -70,6 +71,12 @@ export function middleware(request) {
   // /manga (no title slug) → /browse
   if (pathname === "/manga" || pathname === "/manga/") {
     return NextResponse.redirect(buildRedirectUrl("/browse"), { status: 301 });
+  }
+
+  // ── Blocked / DMCA protected titles: return 404 page for /manga/:slug ─────
+  const mangaMatch = pathname.match(/^\/manga\/([^/]+)$/);
+  if (mangaMatch && isBlockedManga(mangaMatch[1])) {
+    return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
 
   // Ad script origins. The Hilltop popunder is a three-stage loader: the inline

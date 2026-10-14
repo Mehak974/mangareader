@@ -61,6 +61,7 @@ const nextConfig = {
   // First-party GA & Umami proxies so ad blockers don't drop hits (see layout.tsx).
   async rewrites() {
     return [
+      { source: "/series/:title*", destination: "/manga/series/:title*" },
       { source: "/a/s.js", destination: "https://www.googletagmanager.com/gtag/js" },
       { source: "/a/g/collect", destination: "https://www.google-analytics.com/g/collect" },
       { source: "/u/s.js", destination: "https://analytics.mangareader.pro/script.js" },
