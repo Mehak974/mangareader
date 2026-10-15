@@ -11,9 +11,15 @@
  */
 
 import dynamic from 'next/dynamic';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#a855f7',
+};
 import { AppProvider }       from '@/context/AppContext';
 import AnalyticsProvider   from '@/components/AnalyticsProvider';
 import { Toaster }          from 'react-hot-toast';
@@ -82,6 +88,7 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
+const FeatureBroadcast= dynamic(() => import('@/components/FeatureBroadcast'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -244,6 +251,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AppProvider>
           <MaintenanceGuard>
             <Header />
+            <FeatureBroadcast />
             <Sidebar />
             <MobileNav />
             <InkDots />

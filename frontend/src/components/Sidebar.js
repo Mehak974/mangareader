@@ -364,6 +364,37 @@ export default function Sidebar() {
           </svg>
           Settings
         </Link>
+        <Link
+          href="/messages"
+          className={`sb-item ${pathname?.startsWith("/messages") ? "active" : ""}`}
+          onClick={handleLinkClick}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Support Messages
+        </Link>
+        <button
+          className="sb-item"
+          style={{ width: "100%", background: "none", border: "none", textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
+          onClick={() => {
+            setSidebarOpen(false);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("open-feature-broadcast"));
+            }
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2l2.4 7.2h7.6l-6.1 4.5 2.3 7.3-6.2-4.6-6.2 4.6 2.3-7.3-6.1-4.5h7.6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+          What's New <span className="sb-badge" style={{ background: "var(--accent)", color: "#fff" }}>NEW</span>
+        </button>
 
         <div className="sb-divider"></div>
         <div className="sb-section-label">Info</div>

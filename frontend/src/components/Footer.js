@@ -28,6 +28,7 @@ export default function Footer() {
           <Link href="/library">Library</Link>
           <Link href="/history">History</Link>
           <Link href="/settings">Settings</Link>
+          <Link href="/messages">Support Messages</Link>
           <Link href="/about?tab=support">Support Us</Link>
         </div>
         <div>
@@ -41,6 +42,25 @@ export default function Footer() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/about?tab=contact">Contact</Link>
+          <Link href="/messages">Messages</Link>
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("open-feature-broadcast"));
+              }
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--accent2, #c084fc)",
+              cursor: "pointer",
+              font: "inherit",
+              padding: 0,
+              fontWeight: 500,
+            }}
+          >
+            What's New ✨
+          </button>
           <Link href="/dmca">DMCA</Link>
         </span>
       </div>
