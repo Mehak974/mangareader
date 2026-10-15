@@ -71,9 +71,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const discovered = await prisma.$queryRaw<
       { slug: string; lastViewedAt: Date; viewCount: number }[]
     >`
-      SELECT slug, last_viewed_at AS "lastViewedAt", view_count AS "viewCount"
-      FROM discovered_manga
-      ORDER BY view_count DESC, last_viewed_at DESC
+      SELECT d.slug, d.last_viewed_at AS "lastViewedAt", d.view_count AS "viewCount"
+      FROM discovered_manga d
+      LEFT JOIN manga m ON m.id = d.slug OR LOWER(REGEXP_REPLACE(m.title, '[^a-zA-Z0-9]+', '-', 'g')) = d.slug
+      WHERE (m.country IS NULL OR m.country != 'KR')
+      ORDER BY d.view_count DESC, d.last_viewed_at DESC
       LIMIT ${SITEMAP_TOP_MANGA}
     `;
     const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);

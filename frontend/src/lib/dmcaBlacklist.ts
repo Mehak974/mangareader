@@ -61,9 +61,9 @@ export function isBlockedManga(slugOrTitle?: string | null): boolean {
  * Protected/reported titles route to the unindexed `/series/` route.
  * Safe titles route to the standard `/manga/` route.
  */
-export function getMangaHref(slugOrTitle?: string | null, cover?: string | null): string {
+export function getMangaHref(slugOrTitle?: string | null, cover?: string | null, isKorean?: boolean): string {
   if (!slugOrTitle) return '/';
   const slug = slugify(slugOrTitle);
-  const base = isBlockedManga(slug) ? `/manga/series/${slug}` : `/manga/${slug}`;
+  const base = (isBlockedManga(slug) || isKorean) ? `/manga/series/${slug}` : `/manga/${slug}`;
   return cover ? `${base}?cover=${encodeURIComponent(cover)}` : base;
 }

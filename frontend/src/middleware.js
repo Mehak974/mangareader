@@ -143,10 +143,13 @@ export function middleware(request) {
   });
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
 
-   // Prevent search engines from indexing reader pages (duplicate content /
-   // chapter images that shouldn't be crawled).
-   if (request.nextUrl.pathname.startsWith("/reader/")) {
-     response.headers.set("X-Robots-Tag", "noindex, nofollow");
+   // Prevent search engines from indexing reader and protected/unindexed series pages.
+   if (
+     pathname.startsWith("/reader/") ||
+     pathname.startsWith("/manga/series/") ||
+     pathname.startsWith("/series/")
+   ) {
+     response.headers.set("X-Robots-Tag", "noindex, nofollow, noimageindex");
    }
 
    return response;

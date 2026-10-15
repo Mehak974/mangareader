@@ -14,7 +14,7 @@ import Loader, { MiniLoader } from "@/components/Loader";
 import CommentSection from "@/components/CommentSection";
 import MangaNote from "@/components/MangaNote";
 import { MANGA, abbr, COVER_GRADS } from "@/data/mockData";
-import { API_BASE, proxyImage } from "@/utils/api";
+import { API_BASE, proxyImage, fetchApi } from "@/utils/api";
 import {
   readDetail,
   writeDetail,
@@ -36,6 +36,7 @@ const SINGLE_MANGA_QUERY = `
   query ($id: Int) {
     Media (id: $id, type: MANGA) {
       id
+      countryOfOrigin
       title {
         english
         romaji
@@ -74,7 +75,8 @@ export default function MangaDetail({ params }) {
   const { title: titleSlug } = use(params);
   const isSeriesRoute = pathname?.startsWith("/series") || pathname?.startsWith("/manga/series");
   if (!isSeriesRoute && isBlockedManga(titleSlug)) {
-    notFound();
+    router.replace(`/manga/series/${titleSlug}`);
+    return null;
   }
   const searchParams = useSearchParams();
   const queryCover = searchParams ? searchParams.get("cover") || "" : "";
@@ -174,6 +176,11 @@ const [chPage, setChPage] = useState(1);
         setSourceUrl(cached.sourceUrl || "");
         setLoading(false);
         setCoverAlt(readCover(titleSlug));
+        const isKorean = currentManga?.countryOfOrigin === "KR" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
+        if (!isSeriesRoute && isKorean) {
+          router.replace(`/manga/series/${titleSlug}`);
+          return;
+        }
         if (isFresh(cached)) return; // recent enough — no revalidation needed
       } else {
         setLoading(true);
@@ -203,7 +210,8 @@ const [chPage, setChPage] = useState(1);
           // If the slug doesn't match exactly, redirect to the canonical slug
           const canonicalSlug = slugify(bestMatch.t);
           if (canonicalSlug && canonicalSlug !== titleSlug) {
-            const basePath = pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga");
+            const isBlockedOrKorean = isBlockedManga(canonicalSlug) || bestMatch?.countryOfOrigin === 'KR' || bestMatch?.country === 'KR' || bestMatch?.genres?.some(g => String(g).toLowerCase() === 'manhwa');
+            const basePath = isBlockedOrKorean ? "/manga/series" : (pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga"));
             router.replace(`${basePath}/${canonicalSlug}`);
             return;
           }
@@ -229,6 +237,7 @@ const [chPage, setChPage] = useState(1);
           normalizedManga = {
             id: String(media.id),
             title: aniTitle,
+            countryOfOrigin: media.countryOfOrigin || "",
             cover: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || cachedCover || queryCover || "",
             description: media.description || "No description available.",
             status: media.status === "RELEASING" ? "RELEASING" : "FINISHED",
@@ -238,6 +247,13 @@ const [chPage, setChPage] = useState(1);
             popularity: media.popularity || 0,
           };
           resolvedId = String(media.id);
+
+          const isKoreanManhwa = media.countryOfOrigin === "KR" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
+          if (!isSeriesRoute && isKoreanManhwa) {
+            router.replace(`/manga/series/${titleSlug}`);
+            return;
+          }
+
           // Cache the cover so it survives navigation back from the reader
           if (typeof window !== "undefined" && normalizedManga.cover) {
             writeCover(titleSlug, normalizedManga.cover);
@@ -287,14 +303,15 @@ const [chPage, setChPage] = useState(1);
 
         if (queryCover && !redirectDoneRef.current) {
           redirectDoneRef.current = true;
-          const basePath = pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga");
+          const isBlockedOrKorean = isBlockedManga(titleSlug) || normalizedManga?.countryOfOrigin === 'KR' || normalizedManga?.genres?.some(g => String(g).toLowerCase() === 'manhwa');
+          const basePath = isBlockedOrKorean ? "/manga/series" : (pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga"));
           router.replace(`${basePath}/${titleSlug}`);
         }
 
         // One view write per slug per session — previously every back-nav
         // from the reader added another Postgres write.
         if (typeof window !== 'undefined' && markViewedOnce(titleSlug)) {
-          fetch(`${apiBase}/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
+          fetchApi(`/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
             method: 'GET',
             keepalive: true,
           }).catch(() => {});
@@ -312,7 +329,7 @@ const [chPage, setChPage] = useState(1);
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000);
-          const mapRes = await fetch(prefSource ? `${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `${apiBase}/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`, {
+          const mapRes = await fetchApi(prefSource ? `/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`, {
             signal: controller.signal,
           });
           clearTimeout(timeoutId);
@@ -351,6 +368,30 @@ const [chPage, setChPage] = useState(1);
           console.warn("Backend chapter fetch failed:", mapErr.message);
         }
 
+        // Auto-fallback: if the preferred source had no chapters, query /api/manga/map to find a working source
+        if (!chaptersLoaded && prefSource) {
+          try {
+            const fallbackRes = await fetchApi(`/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
+            if (fallbackRes.ok) {
+              const fbData = await fallbackRes.json();
+              if (fbData.data && fbData.data.chapters?.length > 0) {
+                currentChapters = fbData.data.chapters || [];
+                currentSourceId = fbData.data.sourceId || "";
+                currentSourceUrl = fbData.data.url || "";
+                setChapters(currentChapters);
+                setSourceId(currentSourceId);
+                setSourceUrl(currentSourceUrl);
+                chaptersLoaded = true;
+                if (fbData.data.sourceId) {
+                  localStorage.setItem(`preferred_source_${resolvedId}`, fbData.data.sourceId);
+                }
+              }
+            }
+          } catch (fbErr) {
+            console.warn("Fallback chapter map failed:", fbErr.message);
+          }
+        }
+
         setLoadingChapters(false);
 
         // Persist the resolved payload so the next visit (especially the
@@ -387,7 +428,7 @@ const [chPage, setChPage] = useState(1);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const res = await fetch(`${apiBase}/api/manga/source-chapters?title=${encodeURIComponent(manga.title)}&source=${newSourceId}`, {
+      const res = await fetchApi(`/api/manga/source-chapters?title=${encodeURIComponent(manga.title)}&source=${newSourceId}`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

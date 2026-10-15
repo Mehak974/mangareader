@@ -4,6 +4,7 @@ import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema } f
 import JsonLd from "@/components/JsonLd";
 import { notFound } from "next/navigation";
 import { isBlockedManga } from "@/lib/dmcaBlacklist";
+import { prisma } from "@/lib/prisma";
 
 function slugify(input) {
   return input
@@ -21,10 +22,24 @@ export async function generateMetadata({ params }) {
   }
   const fallbackTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
 
+  let isKorean = false;
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT country FROM manga 
+      WHERE id = ${titleSlug} 
+         OR LOWER(REGEXP_REPLACE(title, '[^a-zA-Z0-9]+', '-', 'g')) = ${titleSlug}
+      LIMIT 1
+    `;
+    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.country === 'KR') {
+      isKorean = true;
+    }
+  } catch {}
+
   return buildMetadata({
     title: `${fallbackTitle} — Read Online`,
     path: `/manga/${titleSlug}`,
     type: "article",
+    noIndex: isKorean,
   });
 }
 

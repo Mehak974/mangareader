@@ -63,10 +63,6 @@ function ReaderContent({ params }) {
   const mangaId = searchParams.get("mangaId") || "";
   const cover = searchParams.get("cover") || "";
 
-  if (isBlockedManga(title) || isBlockedManga(url)) {
-    notFound();
-  }
-
   const isNotChapterImage = (img) => typeof img === 'string' && (
     /[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(img) ||
     /\b(?:avatar|logo|banner|icon|thumb)\b/i.test(img) ||

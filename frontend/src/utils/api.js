@@ -8,7 +8,10 @@ export const API_BASE = (() => {
   if (typeof window !== 'undefined') {
     const h = (window.location.hostname || '').toLowerCase();
     if (h === 'localhost' || h === '127.0.0.1') {
-      return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
+      const configured = process.env.NEXT_PUBLIC_API_URL || '';
+      if (configured && !configured.includes(':3003')) return configured;
+      if (typeof window !== 'undefined' && window.__USE_LOCAL_BACKEND__) return 'http://localhost:3003';
+      return 'https://api.mangareader.pro';
     }
     if (h.includes('mangaread.pro')) return 'https://api.mangaread.pro';
     if (h.includes('manireader.online')) return 'https://api.manireader.online';
@@ -23,13 +26,14 @@ export const API_BASE = (() => {
       return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.manireader.online';
     }
   }
-  return (
+  const fallback =
     process.env.NEXT_PUBLIC_SCRAPER_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.API_URL ||
-    "https://api.mangareader.pro"
-  );
+    "https://api.mangareader.pro";
+  return fallback.includes(':3003') ? "https://api.mangareader.pro" : fallback;
 })();
+
 
 // Image/scraper host. Deliberately NOT falling back to NEXT_PUBLIC_SCRAPER_URL:
 // that is the Express backend, which serves /api/proxy-image and has no
@@ -344,8 +348,32 @@ export async function fetchApi(endpoint, options = {}) {
     headers.set('X-CSRF-Token', csrfToken);
   }
 
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const primaryUrl = `${API_BASE.replace(/\/$/, '')}${cleanEndpoint}`;
+
+  try {
+    const res = await fetch(primaryUrl, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+    if (res.ok || res.status < 500) return res;
+  } catch (err) {
+    // API_BASE (e.g. localhost:3003) is offline or unreachable
+  }
+
+  const fallbackHost = 'https://api.mangareader.pro';
+  if (!primaryUrl.startsWith(fallbackHost)) {
+    try {
+      return await fetch(`${fallbackHost}${cleanEndpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch {}
+  }
+
   // Include credentials for CSRF cookies
-  return fetch(`${API_BASE}${endpoint}`, {
+  return fetch(primaryUrl, {
     ...options,
     headers,
     credentials: 'include',

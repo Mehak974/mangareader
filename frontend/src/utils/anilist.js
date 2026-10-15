@@ -126,6 +126,7 @@ export const MANGA_QUERY = `
       }
       media (type: MANGA, genre: $genre, search: $search, sort: $sort, status: $status, countryOfOrigin: $countryOfOrigin, startDate_greater: $startDate_greater, startDate_lesser: $startDate_lesser, averageScore_greater: $averageScore_greater) {
         id
+        countryOfOrigin
         title {
           english
           romaji
@@ -163,6 +164,7 @@ export const RECENT_MANGA_QUERY = `
       }
       media (type: MANGA, genre_in: $genre_in, sort: $sort, countryOfOrigin: $countryOfOrigin) {
         id
+        countryOfOrigin
         title {
           english
           romaji
@@ -194,6 +196,8 @@ export function mapAnilistMedia(media) {
   const tags = (media.tags || []).map((t) => t.name);
   return {
     id: String(media.id),
+    countryOfOrigin: media.countryOfOrigin || "",
+    country: media.countryOfOrigin || "",
     t: media.title.english || media.title.romaji || media.title.userPreferred,
     g: media.genres && media.genres.length ? media.genres[0] : "Action",
     ch: media.chapters ? `Ch ${media.chapters}` : "Ongoing",

@@ -33,9 +33,10 @@ const MangaCard = React.memo(function MangaCard({ manga, index, priority = false
   const isRead = readManga.includes(manga.t || manga.title);
   const bookmarked = isBookmarked(manga.id);
   const bg = COVER_GRADS[index % COVER_GRADS.length];
+  const isKorean = manga.country === 'KR' || manga.countryOfOrigin === 'KR' || manga.g === 'Manhwa' || manga.genres?.some(g => String(g).toLowerCase() === 'manhwa');
   const handleCardClick = () => {
     if (!isHidden && !shouldBlur) {
-      router.push(getMangaHref(manga.t || manga.title, manga.cover));
+      router.push(getMangaHref(manga.t || manga.title, manga.cover, isKorean));
     }
   };
   const imageUrl = proxyImage(manga.cover || null, 120);

@@ -95,9 +95,11 @@ return () => document.removeEventListener("keydown", handleKeyDown);
         if (resultsData) {
           const formatted = resultsData.map(media => {
             const title = media.title.english || media.title.romaji || media.title.userPreferred || media.title.native;
+            const isKorean = media.countryOfOrigin === 'KR' || media.genres?.some(g => String(g).toLowerCase() === 'manhwa');
             return {
               id: media.id,
               t: title,
+              isKorean,
               g: media.genres ? (Array.isArray(media.genres) ? media.genres.join(", ") : media.genres) : "Action",
               cover: media.coverImage?.medium || ""
             };
@@ -294,7 +296,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     className="sr-item"
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      router.push(getMangaHref(m.t, m.cover));
+                      router.push(getMangaHref(m.t, m.cover, m.isKorean));
                       setSearchQuery("");
                     }}
                   >

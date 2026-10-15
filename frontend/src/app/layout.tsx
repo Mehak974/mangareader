@@ -234,6 +234,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         )}
 
+        {/* Unregister service worker on localhost so stale production workers never intercept dev fetches */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if(typeof window!=='undefined'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&'serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){for(var i=0;i<regs.length;i++){regs[i].unregister();}});if('caches' in window){caches.keys().then(function(keys){for(var i=0;i<keys.length;i++){caches.delete(keys[i]);}});}}`,
+          }}
+        />
 
         <AppProvider>
           <MaintenanceGuard>
