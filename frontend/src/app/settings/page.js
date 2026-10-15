@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { ALL_GENRES } from "@/data/mockData";
 import Footer from "@/components/Footer";
+import toast from "react-hot-toast";
 
 export default function Settings() {
   const router = useRouter();
@@ -76,27 +77,68 @@ export default function Settings() {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   React.useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      localStorage.getItem('pwa_installed') === '1'
+    ) {
       setIsStandalone(true);
+      setIsInstalled(true);
+    }
+    if (typeof navigator !== 'undefined' && 'getInstalledRelatedApps' in navigator) {
+      navigator.getInstalledRelatedApps().then((apps) => {
+        if (apps && apps.length > 0) {
+          setIsInstalled(true);
+        }
+      }).catch(() => {});
+    }
+    if (typeof window !== 'undefined' && window.__deferredInstallPrompt) {
+      setDeferredPrompt(window.__deferredInstallPrompt);
     }
     const handler = (e) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      const promptEvent = e.detail || e;
+      setDeferredPrompt(promptEvent);
+      if (typeof window !== 'undefined') window.__deferredInstallPrompt = promptEvent;
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("pwa-prompt-available", handler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("pwa-prompt-available", handler);
+    };
   }, []);
 
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(() => {
+  const handleInstallClick = async () => {
+    if (isInstalled || isStandalone) {
+      toast.success("MangaReader is already installed! You can open it from your applications or browser menu.", { icon: "✅" });
+      return;
+    }
+    const prompt = deferredPrompt || (typeof window !== 'undefined' ? window.__deferredInstallPrompt : null);
+    if (prompt) {
+      try {
+        prompt.prompt();
+        const choice = await prompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          toast.success("MangaReader app installation started!");
+          setIsInstalled(true);
+          localStorage.setItem("pwa_installed", "1");
+        }
         setDeferredPrompt(null);
-      });
+        if (typeof window !== 'undefined') window.__deferredInstallPrompt = null;
+      } catch (err) {
+        console.error("Install prompt error:", err);
+      }
     } else {
-      alert("To install the app, tap the Share icon on your browser and select 'Add to Home Screen'.");
+      const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        toast("Tap the Share button (□↑) and select 'Add to Home Screen'.", { icon: "📱", duration: 5000 });
+      } else {
+        toast("To install, click the Install button in your browser address bar (top right) or browser menu (⋮).", { icon: "💻", duration: 6000 });
+      }
     }
   };
 
@@ -164,9 +206,9 @@ export default function Settings() {
                   <button
                     onClick={handleInstallClick}
                     className="btn btn-primary"
-                    style={{ fontSize: "13px", padding: "6px 14px" }}
+                    style={{ fontSize: "13px", padding: "6px 14px", opacity: isInstalled ? 0.75 : 1 }}
                   >
-                    Install App
+                    {isInstalled ? "App Installed ✓" : "Install App"}
                   </button>
                 </div>
               )}

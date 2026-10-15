@@ -137,7 +137,7 @@ export const metadata: Metadata = {
     },
   },
 
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon:  [{ url: '/icon.png' }],
     apple: [{ url: '/apple-icon.png' }],
@@ -154,6 +154,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
+        {/* Early PWA registration & beforeinstallprompt capture in <head> to never miss prompt */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if(typeof window!=='undefined'){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwa-prompt-available',{detail:e}));});if('serviceWorker' in navigator){function reg(){navigator.serviceWorker.register('/sw.js').catch(function(){});}if(document.readyState==='complete'){reg();}else{window.addEventListener('load',reg);}}if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){if(k.includes('precache')||k.includes('workbox')||k==='start-url'){caches.delete(k);}});});}}`,
+          }}
+        />
+
         {/* Self-healing guard: if any browser/PWA cached an internal :3000 URL, immediately bounce to clean apex */}
         <script
           dangerouslySetInnerHTML={{
@@ -233,13 +240,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             strategy="lazyOnload"
           />
         )}
-
-        {/* Unregister service worker on localhost so stale production workers never intercept dev fetches */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `if(typeof window!=='undefined'&&['localhost','127.0.0.1'].includes(window.location.hostname)&&'serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){for(var i=0;i<regs.length;i++){regs[i].unregister();}});if('caches' in window){caches.keys().then(function(keys){for(var i=0;i<keys.length;i++){caches.delete(keys[i]);}});}}`,
-          }}
-        />
 
         <AppProvider>
           <MaintenanceGuard>

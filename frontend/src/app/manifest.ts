@@ -11,19 +11,41 @@ import { SITE_NAME } from '@/lib/site-config';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name:        SITE_NAME,
-    short_name:  SITE_NAME,
+    id: '/',
+    name: SITE_NAME,
+    short_name: SITE_NAME,
     description:
       'Sync reading across devices. Bookmark chapters, track progress, discover new series — without ads.',
-    start_url:   '/',
-    display:     'standalone',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    orientation: 'portrait-primary',
     background_color: '#0a0612',
-    theme_color:       '#FFB300',
+    theme_color: '#a855f7',
     icons: [
       {
-        src:   '/favicon.ico',
-        sizes: 'any',
-        type:  'image/x-icon',
+        src: '/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   };

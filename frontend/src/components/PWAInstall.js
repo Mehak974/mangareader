@@ -11,9 +11,16 @@ export default function PWAInstall() {
     const dismissed = localStorage.getItem("pwa_dismissed");
     if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
 
+    if (typeof window !== "undefined" && window.__deferredInstallPrompt) {
+      setDeferredPrompt(window.__deferredInstallPrompt);
+      setTimeout(() => setShow(true), 2000);
+    }
+
     const handler = (e) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      const promptEvent = e.detail || e;
+      setDeferredPrompt(promptEvent);
+      if (typeof window !== "undefined") window.__deferredInstallPrompt = promptEvent;
       // Show after 3s instead of 30s so users actually see it
       setTimeout(() => setShow(true), 3000);
     };
@@ -24,10 +31,12 @@ export default function PWAInstall() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("pwa-prompt-available", handler);
     window.addEventListener("appinstalled", installedHandler);
     
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("pwa-prompt-available", handler);
       window.removeEventListener("appinstalled", installedHandler);
     };
   }, []);
