@@ -9,6 +9,7 @@ export default function LegalNav() {
     { name: "About", path: "/about" },
     { name: "Support", path: "/support" },
     { name: "Contact", path: "/contact" },
+    { name: "Messages", path: "/messages" },
     { name: "FAQ", path: "/faq" },
     { name: "Privacy", path: "/privacy" },
     { name: "Terms", path: "/terms" },
@@ -16,31 +17,14 @@ export default function LegalNav() {
   ];
 
   return (
-    <nav style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "10px",
-      marginBottom: "2rem",
-      borderBottom: "1px solid var(--border)",
-      paddingBottom: "1rem",
-      justifyContent: "center"
-    }}>
+    <nav className="legal-nav">
       {links.map(link => {
-        const isActive = pathname === link.path;
+        const isActive = pathname === link.path || (link.path === "/messages" && pathname?.startsWith("/messages"));
         return (
           <Link 
             key={link.name} 
             href={link.path}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "20px",
-              background: isActive ? "var(--primary)" : "var(--bg)",
-              color: isActive ? "#fff" : "var(--text2)",
-              textDecoration: "none",
-              fontWeight: isActive ? "bold" : "normal",
-              fontSize: "0.9rem",
-              transition: "all 0.2s"
-            }}
+            className={`legal-nav-link ${isActive ? "active" : ""}`}
           >
             {link.name}
           </Link>

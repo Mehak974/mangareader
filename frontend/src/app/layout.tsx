@@ -161,20 +161,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        {/* Early PWA registration & beforeinstallprompt capture in <head> to never miss prompt */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `if(typeof window!=='undefined'){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwa-prompt-available',{detail:e}));});if('serviceWorker' in navigator){function reg(){navigator.serviceWorker.register('/sw.js').catch(function(){});}if(document.readyState==='complete'){reg();}else{window.addEventListener('load',reg);}}if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){if(k.includes('precache')||k.includes('workbox')||k==='start-url'){caches.delete(k);}});});}}`,
-          }}
-        />
-
-        {/* Self-healing guard: if any browser/PWA cached an internal :3000 URL, immediately bounce to clean apex */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `if(typeof window!=="undefined"&&window.location.port==="3000"&&!window.location.hostname.includes("localhost")&&!window.location.hostname.includes("127.0.0.1")){window.location.replace("https://"+window.location.hostname+window.location.pathname+window.location.search+window.location.hash);}`,
-          }}
-        />
-
         {/* Ad network preconnects to eliminate popunder initialization delay (<5-10s) */}
         <link rel="dns-prefetch" href="//purple-text.com" />
         <link rel="preconnect" href="https://purple-text.com" />
@@ -197,6 +183,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
 
       <body className={`${activeFont.className} antialiased`} suppressHydrationWarning>
+        {/* Early PWA registration & beforeinstallprompt capture to never miss prompt */}
+        <Script
+          id="pwa-early-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `if(typeof window!=='undefined'){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwa-prompt-available',{detail:e}));});if('serviceWorker' in navigator){function reg(){navigator.serviceWorker.register('/sw.js').then(function(r){if(r)r.update().catch(function(){});}).catch(function(){});}if(document.readyState==='complete'){reg();}else{window.addEventListener('load',reg);}}}`,
+          }}
+        />
+
+        {/* Self-healing guard: if any browser/PWA cached an internal :3000 URL, immediately bounce to clean apex */}
+        <Script
+          id="port-bounce-guard"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `if(typeof window!=="undefined"&&window.location.port==="3000"&&!window.location.hostname.includes("localhost")&&!window.location.hostname.includes("127.0.0.1")){window.location.replace("https://"+window.location.hostname+window.location.pathname+window.location.search+window.location.hash);}`,
+          }}
+        />
         {/* Google Analytics 4 (Production only — avoids localhost connection refused on port 80) */}
         {process.env.NODE_ENV === 'production' && (() => {
           const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-XX0H13PM0H';

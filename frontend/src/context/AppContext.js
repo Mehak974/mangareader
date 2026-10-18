@@ -2,6 +2,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchApi } from "@/utils/api";
+import { toast } from "react-hot-toast";
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.__deferredInstallPrompt = e;
+    window.dispatchEvent(new CustomEvent("pwa-prompt-available", { detail: e }));
+  });
+}
 
 const AppContext = createContext(null);
 
@@ -63,6 +72,24 @@ export const AppProvider = ({ children }) => {
         if (legacy) {
           raw = legacy;
           localStorage.setItem(key, raw);
+        }
+      }
+      
+      if (!uid) {
+        try {
+          const rawLibs = localStorage.getItem("mr:guest:libraries");
+          if (rawLibs) {
+            const parsed = JSON.parse(rawLibs);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setLibraries(parsed);
+            } else {
+              setLibraries([{ id: "guest-default", name: "default", manga: [] }]);
+            }
+          } else {
+            setLibraries([{ id: "guest-default", name: "default", manga: [] }]);
+          }
+        } catch {
+          setLibraries([{ id: "guest-default", name: "default", manga: [] }]);
         }
       }
       
@@ -293,17 +320,11 @@ export const AppProvider = ({ children }) => {
     setReadingHistory([]);
   };
 
-  // Accepts a manga object {id, t, cover, ongoing, rating, g}. Toggles by id.
-  // Library requires an account — prompt sign-in instead of bookmarking when logged out.
   const toggleBookmark = async (manga) => {
-    if (!isLoggedIn) {
-      setSigninSheetOpen(true);
-      return;
-    }
     const item = typeof manga === "string" ? { id: manga, t: manga } : manga;
     
     // Check if it's already in any library
-    const inLibraries = libraries.filter(lib => lib.manga?.some(m => String(m.mangaId) === String(item.id)));
+    const inLibraries = (libraries || []).filter(lib => lib.manga?.some(m => String(m.mangaId) === String(item.id)));
     
     if (inLibraries.length > 0) {
       // If it is, remove it from all libraries (toggle off behavior)
@@ -321,35 +342,153 @@ export const AppProvider = ({ children }) => {
   // ── Multi-Library Actions ────────────────────────────────────────────────
   
   const createLibrary = async (name) => {
-    const res = await fetch("/api/library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    if (res.ok) await fetchLibraries();
+    const trimmed = (name || "").trim();
+    if (!trimmed) return false;
+
+    // Check if name already exists in current libraries
+    if (libraries.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error(`A collection named "${trimmed}" already exists`);
+      return false;
+    }
+
+    if (isLoggedIn) {
+      try {
+        const res = await fetch("/api/library", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        if (res.ok) {
+          await fetchLibraries();
+          toast.success(`Collection "${trimmed}" created!`);
+          return true;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          toast.error(errData.error || "Failed to create collection");
+          return false;
+        }
+      } catch (err) {
+        console.error("Failed to create server library:", err);
+        toast.error("Failed to create collection");
+        return false;
+      }
+    } else {
+      // Guest mode: save to localStorage
+      const newLib = {
+        id: `guest-${Date.now()}`,
+        name: trimmed,
+        manga: [],
+      };
+      const updated = [...libraries, newLib];
+      setLibraries(updated);
+      try {
+        localStorage.setItem("mr:guest:libraries", JSON.stringify(updated));
+      } catch {}
+      toast.success(`Collection "${trimmed}" created!`);
+      return true;
+    }
   };
 
   const deleteLibrary = async (id) => {
-    const res = await fetch(`/api/library/${id}`, { method: "DELETE" });
-    if (res.ok) await fetchLibraries();
+    if (isLoggedIn && !String(id).startsWith("guest-")) {
+      try {
+        const res = await fetch(`/api/library/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (res.ok) {
+          await fetchLibraries();
+          toast.success("Collection removed");
+        }
+      } catch (err) {
+        console.error("Failed to delete server library:", err);
+      }
+    } else {
+      const updated = libraries.filter((l) => l.id !== id);
+      setLibraries(updated);
+      try {
+        localStorage.setItem("mr:guest:libraries", JSON.stringify(updated));
+      } catch {}
+      toast.success("Collection removed");
+    }
   };
 
   const addToLibrary = async (libraryId, manga) => {
-    const res = await fetch("/api/library/manga", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ libraryId, manga }),
-    });
-    if (res.ok) await fetchLibraries();
+    if (isLoggedIn && !String(libraryId).startsWith("guest-")) {
+      try {
+        const res = await fetch("/api/library/manga", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ libraryId, manga }),
+        });
+        if (res.ok) {
+          await fetchLibraries();
+          toast.success("Added to collection");
+        }
+      } catch (err) {
+        console.error("Failed to add to server library:", err);
+      }
+    } else {
+      const mangaItem = {
+        mangaId: String(manga.id || manga.mangaId || manga.t || manga.title),
+        title: manga.t || manga.title || "Untitled Manga",
+        cover: manga.cover || "",
+        ongoing: manga.ongoing ?? true,
+        rating: manga.rating || null,
+        genre: manga.g || manga.genre || "",
+        addedAt: new Date().toISOString(),
+      };
+      const updated = libraries.map((lib) => {
+        if (lib.id === libraryId) {
+          const currentManga = lib.manga || [];
+          if (!currentManga.some((m) => String(m.mangaId) === String(mangaItem.mangaId))) {
+            return { ...lib, manga: [mangaItem, ...currentManga] };
+          }
+        }
+        return lib;
+      });
+      setLibraries(updated);
+      try {
+        localStorage.setItem("mr:guest:libraries", JSON.stringify(updated));
+      } catch {}
+      toast.success("Added to collection");
+    }
   };
 
   const removeFromLibrary = async (libraryId, mangaId) => {
-    const res = await fetch("/api/library/manga", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ libraryId, mangaId }),
-    });
-    if (res.ok) await fetchLibraries();
+    if (isLoggedIn && !String(libraryId).startsWith("guest-")) {
+      try {
+        const res = await fetch("/api/library/manga", {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ libraryId, mangaId }),
+        });
+        if (res.ok) {
+          await fetchLibraries();
+          toast.success("Removed from collection");
+        }
+      } catch (err) {
+        console.error("Failed to remove from server library:", err);
+      }
+    } else {
+      const updated = libraries.map((lib) => {
+        if (lib.id === libraryId) {
+          return {
+            ...lib,
+            manga: (lib.manga || []).filter((m) => String(m.mangaId) !== String(mangaId)),
+          };
+        }
+        return lib;
+      });
+      setLibraries(updated);
+      try {
+        localStorage.setItem("mr:guest:libraries", JSON.stringify(updated));
+      } catch {}
+      toast.success("Removed from collection");
+    }
   };
 
   // ── Per-chapter read state ───────────────────────────────────────────────

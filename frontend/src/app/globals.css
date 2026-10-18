@@ -6074,4 +6074,52 @@ div[class*="▭"] {
   }
 }
 
+/* ── LIBRARY COLLECTION SECTION GRID (Grid-like instead of horizontal scroll) ── */
+.lib-manga-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  gap: 16px !important;
+  overflow-x: visible !important;
+  scroll-snap-type: none !important;
+  padding-bottom: 0 !important;
+}
+
+.lib-manga-grid .m-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  scroll-snap-align: none !important;
+}
+
+.lib-manga-grid .m-cover {
+  width: 100% !important;
+  aspect-ratio: 2/3 !important;
+}
+
+@media (max-width: 768px) {
+  .lib-manga-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .lib-manga-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .lib-manga-grid .m-title {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .lib-manga-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+}
+
 

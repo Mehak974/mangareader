@@ -66,7 +66,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       replies: [...existingReplies, reply],
       status: "IN_PROGRESS",
     },
-    select: { id: true, replies: true, status: true },
+    select: {
+      id: true,
+      type: true,
+      subject: true,
+      message: true,
+      status: true,
+      replies: true,
+      createdAt: true,
+    },
   });
 
   return NextResponse.json({ thread: updated });

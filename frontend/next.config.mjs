@@ -144,6 +144,13 @@ const withPWA = withPWAInit({
   reloadOnOnline: true,
   workboxOptions: {
     disableDevLogs: true,
+    buildExcludes: [
+      /app-build-manifest\.json$/,
+      /_buildManifest\.js$/,
+      /_ssgManifest\.js$/,
+      /middleware-manifest\.json$/,
+      /\/server\//,
+    ],
   },
 });
 

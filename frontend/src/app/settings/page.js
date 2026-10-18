@@ -82,50 +82,54 @@ export default function Settings() {
   React.useEffect(() => {
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true ||
-      localStorage.getItem('pwa_installed') === '1'
+      window.navigator.standalone === true
     ) {
       setIsStandalone(true);
       setIsInstalled(true);
     }
-    if (typeof navigator !== 'undefined' && 'getInstalledRelatedApps' in navigator) {
-      navigator.getInstalledRelatedApps().then((apps) => {
-        if (apps && apps.length > 0) {
-          setIsInstalled(true);
-        }
-      }).catch(() => {});
-    }
+
     if (typeof window !== 'undefined' && window.__deferredInstallPrompt) {
       setDeferredPrompt(window.__deferredInstallPrompt);
+      setIsInstalled(false);
     }
     const handler = (e) => {
       e.preventDefault();
       const promptEvent = e.detail || e;
       setDeferredPrompt(promptEvent);
+      setIsInstalled(false);
+      setIsStandalone(false);
       if (typeof window !== 'undefined') window.__deferredInstallPrompt = promptEvent;
     };
+    const appInstalledHandler = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      if (typeof window !== 'undefined') window.__deferredInstallPrompt = null;
+      toast.success("MangaReader installed successfully!", { icon: "🎉" });
+    };
+
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("pwa-prompt-available", handler);
+    window.addEventListener("appinstalled", appInstalledHandler);
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
       window.removeEventListener("pwa-prompt-available", handler);
+      window.removeEventListener("appinstalled", appInstalledHandler);
     };
   }, []);
 
   const handleInstallClick = async () => {
-    if (isInstalled || isStandalone) {
-      toast.success("MangaReader is already installed! You can open it from your applications or browser menu.", { icon: "✅" });
+    if (isStandalone) {
+      toast.success("MangaReader is already running as a standalone app!", { icon: "✅" });
       return;
     }
     const prompt = deferredPrompt || (typeof window !== 'undefined' ? window.__deferredInstallPrompt : null);
     if (prompt) {
       try {
-        prompt.prompt();
+        await prompt.prompt();
         const choice = await prompt.userChoice;
         if (choice?.outcome === 'accepted') {
           toast.success("MangaReader app installation started!");
           setIsInstalled(true);
-          localStorage.setItem("pwa_installed", "1");
         }
         setDeferredPrompt(null);
         if (typeof window !== 'undefined') window.__deferredInstallPrompt = null;
@@ -133,11 +137,12 @@ export default function Settings() {
         console.error("Install prompt error:", err);
       }
     } else {
-      const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
-        toast("Tap the Share button (□↑) and select 'Add to Home Screen'.", { icon: "📱", duration: 5000 });
-      } else {
-        toast("To install, click the Install button in your browser address bar (top right) or browser menu (⋮).", { icon: "💻", duration: 6000 });
+      toast.loading("Preparing installation prompt...", { duration: 1500 });
+      // If prompt event hasn't been emitted by Chrome yet, trigger registration update
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg) reg.update().catch(() => {});
+        }).catch(() => {});
       }
     }
   };
@@ -576,6 +581,20 @@ export default function Settings() {
                   }}
                 >
                   {profileLoading ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+
+              <div className="setting-row">
+                <div className="s-label">
+                  <h4>Support Messages</h4>
+                  <p>View replies from MangaReader Support or continue a ticket</p>
+                </div>
+                <button
+                  className="btn btn-s"
+                  style={{ fontSize: "13px", padding: "6px 14px" }}
+                  onClick={() => router.push(email ? `/messages?email=${encodeURIComponent(email)}` : "/messages")}
+                >
+                  View Messages →
                 </button>
               </div>
 

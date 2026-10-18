@@ -36,10 +36,15 @@ export default function MessagesPage() {
   };
 
   useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
+    if (typeof window !== "undefined") {
+      const qEmail = new URLSearchParams(window.location.search).get("email");
+      const target = qEmail || user?.email;
+      if (target && !searched) {
+        setEmail(target);
+        search(target);
+      }
     }
-  }, [user?.email]);
+  }, [user?.email, searched]);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -47,15 +52,21 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="legal-page">
-      <div className="legal-container" style={{ maxWidth: 800 }}>
+    <>
+      <div className="legal-page">
+        <div className="legal-container" style={{ maxWidth: 800 }}>
         <LegalNav />
-        <h1>Your Messages</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+          <h1 style={{ margin: 0 }}>Support Messages</h1>
+          <button className="btn btn-s" onClick={() => router.push("/contact")} style={{ fontSize: 13 }}>
+            + New Message
+          </button>
+        </div>
         <p className="legal-subtitle">
-          Enter the email you used to contact us to view your conversation history.
+          View your messages, responses from MangaReader Support, and reply directly.
         </p>
 
-        <form onSubmit={onSubmit} style={{ marginBottom: 32, display: "flex", gap: 8 }}>
+        <form onSubmit={onSubmit} style={{ marginBottom: 28, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             type="email"
             value={email}
@@ -63,58 +74,70 @@ export default function MessagesPage() {
             placeholder="your@email.com"
             required
             className="form-input"
-            style={{ flex: 1 }}
+            style={{ flex: "1 1 220px", minHeight: 44, fontSize: 15 }}
           />
-          <button type="submit" className="btn btn-p" disabled={loading}>
-            {loading ? "Loading…" : "View Messages"}
+          <button type="submit" className="btn btn-p" disabled={loading} style={{ minHeight: 44, padding: "0 20px" }}>
+            {loading ? "Loading…" : "Find Messages"}
           </button>
         </form>
 
         {error && <p className="form-error">⚠️ {error}</p>}
 
         {searched && threads.length === 0 && !error && (
-          <p style={{ textAlign: "center", color: "var(--text3)", padding: "40px 0" }}>
-            No messages found for this email.
-          </p>
+          <div style={{ textAlign: "center", color: "var(--text3)", padding: "40px 0" }}>
+            <p style={{ fontSize: 16, marginBottom: 12 }}>No messages found for <b>{email}</b></p>
+            <button className="btn btn-p" onClick={() => router.push("/contact")}>
+              Send a Support Message
+            </button>
+          </div>
         )}
 
         {threads.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {threads.map((t) => {
-              const replyCount = Array.isArray(t.replies) ? t.replies.length : 0;
-              const lastReply = replyCount > 0 ? t.replies[t.replies.length - 1] : null;
+              const replyList = Array.isArray(t.replies) ? t.replies : [];
+              const replyCount = replyList.length;
+              const hasAdminReply = replyList.some((r) => r.sender === "admin");
+              const lastReply = replyCount > 0 ? replyList[replyList.length - 1] : null;
+
               return (
                 <div
                   key={t.id}
                   onClick={() => router.push(`/messages/${t.id}?email=${encodeURIComponent(email.trim().toLowerCase())}`)}
                   style={{
                     background: "var(--bg2)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    padding: 16,
+                    border: hasAdminReply ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    borderRadius: 14,
+                    padding: 14,
                     cursor: "pointer",
-                    transition: "border-color 0.2s",
+                    transition: "all 0.2s ease",
+                    boxShadow: hasAdminReply ? "0 2px 12px rgba(168,85,247,0.15)" : "none",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = hasAdminReply ? "var(--accent)" : "var(--border)")}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 15 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 200px" }}>
+                      <div style={{ fontWeight: 600, fontSize: "1rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         {t.subject || "No Subject"}
+                        {hasAdminReply && (
+                          <span style={{ fontSize: 10, background: "var(--accent)", color: "#fff", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>
+                            SUPPORT REPLIED
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
-                        {new Date(t.createdAt).toLocaleString()} · {t.type.replace("_", " ")}
+                      <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                        {new Date(t.createdAt).toLocaleString()} · {(t.type || "CONTACT").replace("_", " ")}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {replyCount > 0 && (
                         <span className="admin-badge admin-badge-published" style={{ fontSize: 11 }}>
-                          {replyCount} reply{replyCount > 1 ? "ies" : "y"}
+                          {replyCount} {replyCount === 1 ? "reply" : "replies"}
                         </span>
                       )}
-                      <span className={`admin-badge admin-badge-${t.status.toLowerCase()}`} style={{ fontSize: 11 }}>
-                        {t.status.replace("_", " ")}
+                      <span className={`admin-badge admin-badge-${(t.status || "NEW").toLowerCase()}`} style={{ fontSize: 11 }}>
+                        {(t.status || "NEW").replace("_", " ")}
                       </span>
                     </div>
                   </div>
@@ -122,8 +145,9 @@ export default function MessagesPage() {
                     {t.message}
                   </div>
                   {lastReply && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--text3)" }}>
-                      Last reply: {new Date(lastReply.createdAt).toLocaleString()}
+                    <div style={{ marginTop: 10, fontSize: 12, color: "var(--text3)", display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>Last response by <b>{lastReply.sender === "admin" ? "MangaReader Support" : "You"}</b>:</span>
+                      <span>{new Date(lastReply.createdAt).toLocaleDateString()}</span>
                     </div>
                   )}
                 </div>
@@ -131,8 +155,9 @@ export default function MessagesPage() {
             })}
           </div>
         )}
+        </div>
       </div>
       <Footer />
-    </div>
+    </>
   );
 }

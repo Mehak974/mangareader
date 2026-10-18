@@ -753,3 +753,32 @@ export async function makeChapterAvailableOffline({
   onProgress?.(100, `Chapter ${chapterNum} is now ready for offline reading!`);
   return record;
 }
+
+/**
+ * Deletes ALL offline chapters from IndexedDB and clears memory cache.
+ */
+export async function clearAllOfflineChapters() {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+    memoryChapterCache.clear();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('offline-chapters-updated', {
+          detail: { action: 'clearAll' },
+        })
+      );
+    }
+    return true;
+  } catch (err) {
+    console.warn('Failed to clear all offline chapters:', err);
+    return false;
+  }
+}
+

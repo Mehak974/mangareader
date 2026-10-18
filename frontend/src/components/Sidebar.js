@@ -6,8 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 
 export default function Sidebar() {
+  const [mounted, setMounted] = React.useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     sidebarOpen,
@@ -19,8 +24,8 @@ export default function Sidebar() {
     setSigninSheetOpen,
   } = useApp();
 
-  // Hide sidebar in reader mode
-  if (pathname?.startsWith("/reader")) {
+  // Hide sidebar until client hydration is complete, or in reader mode
+  if (!mounted || pathname?.startsWith("/reader")) {
     return null;
   }
 
@@ -316,6 +321,18 @@ export default function Sidebar() {
             <rect x="3" y="16" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.8" />
           </svg>
           Collections
+        </Link>
+        <Link
+          href="/library?tab=downloaded"
+          className="sb-item"
+          onClick={handleLinkClick}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points="7 10 12 15 17 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Downloaded
         </Link>
         <Link
           href="/history"

@@ -43,8 +43,8 @@ export default function ContactPage() {
         <h1>Message Sent!</h1>
         <p>We'll get back to you within 48 hours.</p>
         <p style={{ marginTop: 16 }}>
-          <button className="btn btn-p" onClick={() => router.push("/messages")} style={{ marginTop: 8 }}>
-            View My Messages &amp; Replies
+          <button className="btn btn-p" onClick={() => router.push(`/messages?email=${encodeURIComponent(form.email.trim().toLowerCase())}`)} style={{ marginTop: 8 }}>
+            View My Messages &amp; Replies →
           </button>
         </p>
         <button className="btn btn-s" onClick={() => { setStatus(null); setForm({ name:"",email:"",subject:"",message:"" }); setReceiveReplies(true); }} style={{ marginTop: 16 }}>
@@ -62,6 +62,36 @@ export default function ContactPage() {
         <p className="legal-subtitle">
           Got a suggestion, a bug report, or a manga recommendation? I'm always listening!
         </p>
+        
+        {/* Previous messages banner */}
+        <div style={{
+          background: "var(--bg2)",
+          border: "1px solid var(--border)",
+          borderRadius: "12px",
+          padding: "14px 18px",
+          marginBottom: "1.5rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>💬 Already contacted us?</div>
+            <div style={{ fontSize: "0.85rem", color: "var(--text2)", marginTop: 2 }}>
+              Check responses from MangaReader Support and continue your conversation.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-s"
+            onClick={() => router.push(form.email ? `/messages?email=${encodeURIComponent(form.email.trim().toLowerCase())}` : "/messages")}
+            style={{ fontSize: "0.85rem", padding: "6px 14px", flexShrink: 0 }}
+          >
+            View Messages →
+          </button>
+        </div>
+
         <p style={{ marginBottom: "2rem", color: "var(--text2)" }}>
           Because this platform is built by a fellow reader, your feedback directly shapes the future of MangaReader.pro. Whether a chapter failed to load, you have an idea for a new feature, or you just want to say hi, fill out the form below. I read every single message.
         </p>
