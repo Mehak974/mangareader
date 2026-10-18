@@ -1,71 +1,339 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
-// Routes where the popunder must never fire.
-// Strictly blocks /aads, /aads300, /mangaread-sticky, /mangaread-300, and admin routes.
+// Routes where ads must NEVER fire.
 const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-300', '/admin', '/login', '/signup'];
 
-// ── Hilltop Ads (served from purple-text.com) per domain ─────────────────────
-const MANGAREADER_POPUNDER = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
-const MANGAREAD_POPUNDER    = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
+// ── Network Configurations ─────────────────────────────────────────
+const HILLTOP_SRC_MAIN = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
+const HILLTOP_SRC_READ = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
+const ADSTERRA_SRC     = 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js';
+const ADCASH_SRC       = '//acscdn.com/script/aclib.js';
+const ADCASH_ZONE_ID   = '12331482';
 
-function getPopunderSrc(): string {
+function getHilltopSrc(): string {
   if (typeof window !== 'undefined') {
     const h = window.location.hostname.toLowerCase();
-    if (h.includes('mangaread.pro')) {
-      return MANGAREAD_POPUNDER;
-    }
+    if (h.includes('mangaread.pro')) return HILLTOP_SRC_READ;
   }
-  return MANGAREADER_POPUNDER;
+  return HILLTOP_SRC_MAIN;
 }
 
-let hilltopInjected = false;
-let hilltopNode: HTMLScriptElement | null = null;
+// ── Waterfall Schedule (Sequential for ALL users) ───────────────────
+// 1st Pop: Hilltop  -->  2nd Pop: Adsterra  -->  3rd Pop: Adcash
+const STAGE_INTERVAL_MS = 75 * 1000; // 75 seconds gap between pops
+const CYCLE_RESET_MS    = 24 * 60 * 60 * 1000; // Full 24-hour reset (guarantees 100% unique IP status across all platforms)
 
-function removeHilltop() {
-  if (hilltopNode) {
-    try { hilltopNode.remove(); } catch { /* already gone */ }
-    hilltopNode = null;
+const STORAGE_LAST_POP = 'manga_waterfall_last_pop';
+const STORAGE_STAGE    = 'manga_waterfall_stage';
+
+interface AdNetworkConfig {
+  name: string;
+  inject: () => HTMLScriptElement;
+}
+
+const NETWORKS: AdNetworkConfig[] = [
+  {
+    name: 'Hilltop',
+    inject: () => {
+      const s = document.createElement('script');
+      (s as any).settings = {};
+      s.src = getHilltopSrc();
+      s.async = true;
+      s.referrerPolicy = 'no-referrer-when-downgrade';
+      document.head.appendChild(s);
+      return s;
+    },
+  },
+  {
+    name: 'Adsterra',
+    inject: () => {
+      const s = document.createElement('script');
+      (s as any).settings = {};
+      s.src = ADSTERRA_SRC;
+      s.async = true;
+      s.referrerPolicy = 'no-referrer-when-downgrade';
+      document.head.appendChild(s);
+      return s;
+    },
+  },
+  {
+    name: 'Adcash',
+    inject: () => {
+      const s = document.createElement('script');
+      s.id = 'aclib';
+      s.type = 'text/javascript';
+      s.src = ADCASH_SRC;
+      s.async = true;
+      s.onload = () => {
+        try {
+          if ((window as any).aclib?.runPop) {
+            (window as any).aclib.runPop({ zoneId: ADCASH_ZONE_ID });
+          }
+        } catch (e) {
+          console.error('[AdWaterfall] Adcash runPop error', e);
+        }
+      };
+      document.head.appendChild(s);
+      return s;
+    },
+  },
+];
+
+let activeNode: HTMLScriptElement | null = null;
+let currentStageLocked = false;
+let guardInstalled = false;
+
+// ── Listener Capturing & Purging ───────────────────────────────────
+// Captures all event listeners attached by an ad network during its turn,
+// then purges them completely once its pop fires so old 60s timers are killed.
+type CapturedListener = { target: EventTarget; type: string; listener: any; options?: any };
+let capturedListeners: CapturedListener[] = [];
+let isCapturing = false;
+
+function startCapturing() {
+  if (typeof window === 'undefined' || isCapturing) return;
+  isCapturing = true;
+  capturedListeners = [];
+
+  const winAdd = window.addEventListener;
+  const docAdd = document.addEventListener;
+
+  window.addEventListener = function (type: string, listener: any, options?: any) {
+    if (isCapturing && ['click', 'mousedown', 'mouseup', 'pointerdown'].includes(type)) {
+      capturedListeners.push({ target: window, type, listener, options });
+    }
+    return winAdd.call(this, type, listener, options);
+  };
+
+  document.addEventListener = function (type: string, listener: any, options?: any) {
+    if (isCapturing && ['click', 'mousedown', 'mouseup', 'pointerdown'].includes(type)) {
+      capturedListeners.push({ target: document, type, listener, options });
+    }
+    return docAdd.call(this, type, listener, options);
+  };
+}
+
+function purgeCurrentNetworkArtifacts() {
+  isCapturing = false;
+
+  // 1. Detach all in-memory event listeners registered during this stage
+  for (const item of capturedListeners) {
+    try {
+      item.target.removeEventListener(item.type, item.listener, item.options);
+    } catch {}
   }
-  hilltopInjected = false;
+  capturedListeners = [];
+
+  // 2. Remove all ad network script tags from document head and body
+  if (typeof document !== 'undefined') {
+    const selectors = [
+      'script[src*="purple-text"]',
+      'script[src*="untimely-promotion"]',
+      'script[src*="quizzical-topic"]',
+      'script[src*="elderly-craft"]',
+      'script[src*="profitableratecpmnetwork"]',
+      'script[id="aclib"]',
+      'script[src*="acscdn"]',
+    ];
+    document.querySelectorAll(selectors.join(',')).forEach((el) => {
+      try { el.remove(); } catch {}
+    });
+  }
+}
+
+// ── Network Caller Signature Verification ───────────────────────────
+// Verifies that the script calling window.open actually belongs to the active stage
+function isCallerMatchingStage(targetStage: number, url: string, stack: string): boolean {
+  const target = NETWORKS[targetStage]?.name;
+  if (!target) return false;
+
+  const urlStr = (url || '').toLowerCase();
+  const stackStr = (stack || '').toLowerCase();
+
+  if (target === 'Hilltop') {
+    // If it clearly belongs to another network, reject it
+    if (urlStr.includes('profitableratecpmnetwork') || stackStr.includes('profitableratecpmnetwork')) return false;
+    if (urlStr.includes('acscdn') || stackStr.includes('aclib')) return false;
+    return true;
+  }
+
+  if (target === 'Adsterra') {
+    // Reject rogue Hilltop ghost timers trying to hijack Adsterra's slot
+    if (
+      urlStr.includes('purple-text') ||
+      urlStr.includes('untimely-promotion') ||
+      urlStr.includes('quizzical-topic') ||
+      stackStr.includes('purple-text') ||
+      stackStr.includes('untimely-promotion')
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (target === 'Adcash') {
+    // Reject previous network calls
+    if (
+      urlStr.includes('purple-text') ||
+      urlStr.includes('untimely-promotion') ||
+      urlStr.includes('profitableratecpmnetwork') ||
+      stackStr.includes('purple-text') ||
+      stackStr.includes('profitableratecpmnetwork')
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  return true;
+}
+
+// ── Anti-Hijack Guard ──────────────────────────────────────────────
+function installAntiHijackGuard(onPopFired: () => void) {
+  if (guardInstalled || typeof window === 'undefined') return;
+  guardInstalled = true;
+
+  const originalOpen = window.open;
+
+  window.open = function (...args: any[]) {
+    const lastPop = Number(localStorage.getItem(STORAGE_LAST_POP) || 0);
+    const now = Date.now();
+
+    // 1. If 24 hours passed, reset cycle to 0
+    if (lastPop && now - lastPop > CYCLE_RESET_MS) {
+      localStorage.setItem(STORAGE_STAGE, '0');
+      currentStageLocked = false;
+    }
+
+    const currentStage = Number(localStorage.getItem(STORAGE_STAGE) || 0);
+
+    // 2. HARD LOCK: If all networks have completed for this 24-hour cycle, BLOCK EVERYTHING!
+    if (currentStage >= NETWORKS.length) {
+      console.warn(`[AdGuard] Blocked popunder: All ${NETWORKS.length} networks already completed for this 24-hour cycle`);
+      return null;
+    }
+
+    // 3. If cooldown is active or current stage has already fired, BLOCK IT!
+    if (currentStageLocked || (lastPop && now - lastPop < STAGE_INTERVAL_MS)) {
+      console.warn('[AdGuard] Blocked unauthorized popunder attempt during cooldown');
+      return null;
+    }
+
+    // 4. Verify that this call actually belongs to the active network (blocks Hilltop 60s ghost timers)
+    const openedUrl = String(args[0] || '');
+    const callStack = new Error().stack || '';
+    if (!isCallerMatchingStage(currentStage, openedUrl, callStack)) {
+      console.warn(`[AdGuard] Blocked rogue ghost popunder from a previous network. Expected: ${NETWORKS[currentStage]?.name}`);
+      return null;
+    }
+
+    // Allowed pop: Let it open and lock the stage
+    currentStageLocked = true;
+    console.log(`[AdGuard] Authorized popunder opened for Stage ${currentStage + 1}/${NETWORKS.length} (${NETWORKS[currentStage]?.name}). Advancing waterfall.`);
+    onPopFired();
+    return originalOpen.apply(window, args as any);
+  };
 }
 
 export default function AdScriptLoader() {
   const pathname = usePathname();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // 1. Block ads on excluded routes
     if (EXCLUDED_PATHS.some((p) => pathname.startsWith(p))) {
-      removeHilltop();
+      if (activeNode) {
+        try { activeNode.remove(); } catch {}
+        activeNode = null;
+      }
       return;
     }
 
-    if (hilltopInjected) return;
+    const scheduleInject = (delayMs: number, targetStage: number) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (targetStage >= NETWORKS.length) return;
 
-    hilltopInjected = true;
+      timeoutRef.current = setTimeout(() => {
+        // Unlock guard for this specific network's turn
+        currentStageLocked = false;
 
-    // Directly create script and append to document.head.
-    const inject = () => {
-      const s = document.createElement('script');
-      (s as any).settings = {};
-      s.src = getPopunderSrc();
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      s.onerror = () => {
-        removeHilltop();
-      };
-
-      document.head.appendChild(s);
-      hilltopNode = s;
+        const network = NETWORKS[targetStage];
+        if (network && !activeNode) {
+          console.log(`[AdWaterfall] Loading Stage ${targetStage + 1}/${NETWORKS.length}: ${network.name}`);
+          startCapturing();
+          activeNode = network.inject();
+          activeNode.onerror = () => {
+            console.error(`[AdWaterfall] Failed to load ${network.name}`);
+            purgeCurrentNetworkArtifacts();
+            activeNode = null;
+          };
+        }
+      }, Math.max(delayMs, 100));
     };
 
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(inject);
-    } else {
-      setTimeout(inject, 200);
+    // 2. Install Anti-Hijack Guard
+    installAntiHijackGuard(() => {
+      const now = Date.now();
+      localStorage.setItem(STORAGE_LAST_POP, now.toString());
+
+      const currentStage = Number(localStorage.getItem(STORAGE_STAGE) || 0);
+      const nextStage = currentStage + 1;
+      localStorage.setItem(STORAGE_STAGE, nextStage.toString());
+
+      // Purge all listeners and scripts associated with this stage immediately
+      purgeCurrentNetworkArtifacts();
+      activeNode = null;
+
+      // Automatically queue the next network after the 75s interval
+      if (nextStage < NETWORKS.length) {
+        console.log(`[AdWaterfall] Scheduling next network (${NETWORKS[nextStage].name}) in ${STAGE_INTERVAL_MS / 1000}s`);
+        scheduleInject(STAGE_INTERVAL_MS, nextStage);
+      } else {
+        console.log('[AdWaterfall] All networks completed for this 24-hour cycle.');
+      }
+    });
+
+    // 3. Determine Waterfall Stage
+    const lastPop = Number(localStorage.getItem(STORAGE_LAST_POP) || 0);
+    const now = Date.now();
+    let stage = Number(localStorage.getItem(STORAGE_STAGE) || 0);
+
+    // If whole cycle completed and reset time passed, reset to 0
+    if (lastPop && now - lastPop > CYCLE_RESET_MS) {
+      stage = 0;
+      localStorage.setItem(STORAGE_STAGE, '0');
     }
+
+    // If we've completed all networks in the waterfall (Hilltop, Adsterra, Monetag), stop!
+    if (stage >= NETWORKS.length) {
+      return;
+    }
+
+    // 4. Check Cooldown between stages (60-90s)
+    const timeSinceLast = now - lastPop;
+    const remainingCooldown = STAGE_INTERVAL_MS - timeSinceLast;
+
+    if (lastPop === 0 || remainingCooldown <= 0) {
+      // Ready for current stage pop on interaction/idle
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => scheduleInject(0, stage));
+      } else {
+        scheduleInject(200, stage);
+      }
+    } else {
+      // Still in cooldown: Wait for cooldown before loading next network
+      scheduleInject(remainingCooldown, stage);
+    }
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [pathname]);
 
   return null;
 }
+
+

@@ -101,6 +101,12 @@ export function middleware(request) {
     'https://*.untimely-promotion.com',
     'https://www.quizzical-topic.com',
     'https://*.quizzical-topic.com',
+    'https://pl30844032.profitableratecpmnetwork.com',
+    'https://*.profitableratecpmnetwork.com',
+    'https://acscdn.com',
+    'https://*.acscdn.com',
+    'https://adcash.com',
+    'https://*.adcash.com',
     'https://va.vercel-scripts.com',
     'https://www.googletagmanager.com',
     'https://www.google-analytics.com',
@@ -142,6 +148,17 @@ export function middleware(request) {
     request: { headers: requestHeaders },
   });
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
+
+  // Geo detection: Pass country from Cloudflare/Vercel edge to client for smart ad routing
+  const country = request.headers.get("cf-ipcountry") || request.headers.get("x-vercel-ip-country");
+  if (country && country !== "XX" && country !== "T1") {
+    response.cookies.set("user_country", country.toUpperCase(), {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      httpOnly: false,
+      sameSite: "lax",
+    });
+  }
 
    // Prevent search engines from indexing reader and protected/unindexed series pages.
    if (
