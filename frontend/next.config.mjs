@@ -144,7 +144,9 @@ const withPWA = withPWAInit({
   reloadOnOnline: true,
   workboxOptions: {
     disableDevLogs: true,
-    buildExcludes: [
+    exclude: [
+      /\.mp4$/,
+      /videos\//,
       /app-build-manifest\.json$/,
       /_buildManifest\.js$/,
       /_ssgManifest\.js$/,
