@@ -10,8 +10,6 @@ const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-30
 const HILLTOP_SRC_MAIN = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
 const HILLTOP_SRC_READ = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
 const ADSTERRA_SRC     = 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js';
-const ADCASH_SRC       = '//acscdn.com/script/aclib.js';
-const ADCASH_ZONE_ID   = '12331482';
 
 function getHilltopSrc(): string {
   if (typeof window !== 'undefined') {
@@ -21,10 +19,10 @@ function getHilltopSrc(): string {
   return HILLTOP_SRC_MAIN;
 }
 
-// ── Waterfall Schedule (Sequential for ALL users) ───────────────────
-// 1st Pop: Hilltop  -->  2nd Pop: Adsterra  -->  3rd Pop: Adcash
-const STAGE_INTERVAL_MS = 75 * 1000; // 75 seconds gap between pops
-const CYCLE_RESET_MS    = 24 * 60 * 60 * 1000; // Full 24-hour reset (guarantees 100% unique IP status across all platforms)
+// ── Waterfall Schedule (Sequential 4-Pop Cycle) ─────────────────────
+// Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra
+const STAGE_INTERVAL_MS = 50 * 1000; // 50 seconds gap between pops
+const CYCLE_RESET_MS    = 24 * 60 * 60 * 1000; // Full 24-hour reset
 
 const STORAGE_LAST_POP = 'manga_waterfall_last_pop';
 const STORAGE_STAGE    = 'manga_waterfall_stage';
@@ -34,52 +32,31 @@ interface AdNetworkConfig {
   inject: () => HTMLScriptElement;
 }
 
+const injectHilltop = (): HTMLScriptElement => {
+  const s = document.createElement('script');
+  (s as any).settings = {};
+  s.src = getHilltopSrc();
+  s.async = true;
+  s.referrerPolicy = 'no-referrer-when-downgrade';
+  document.head.appendChild(s);
+  return s;
+};
+
+const injectAdsterra = (): HTMLScriptElement => {
+  const s = document.createElement('script');
+  (s as any).settings = {};
+  s.src = ADSTERRA_SRC;
+  s.async = true;
+  s.referrerPolicy = 'no-referrer-when-downgrade';
+  document.head.appendChild(s);
+  return s;
+};
+
 const NETWORKS: AdNetworkConfig[] = [
-  {
-    name: 'Hilltop',
-    inject: () => {
-      const s = document.createElement('script');
-      (s as any).settings = {};
-      s.src = getHilltopSrc();
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      document.head.appendChild(s);
-      return s;
-    },
-  },
-  {
-    name: 'Adsterra',
-    inject: () => {
-      const s = document.createElement('script');
-      (s as any).settings = {};
-      s.src = ADSTERRA_SRC;
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      document.head.appendChild(s);
-      return s;
-    },
-  },
-  {
-    name: 'Adcash',
-    inject: () => {
-      const s = document.createElement('script');
-      s.id = 'aclib';
-      s.type = 'text/javascript';
-      s.src = ADCASH_SRC;
-      s.async = true;
-      s.onload = () => {
-        try {
-          if ((window as any).aclib?.runPop) {
-            (window as any).aclib.runPop({ zoneId: ADCASH_ZONE_ID });
-          }
-        } catch (e) {
-          console.error('[AdWaterfall] Adcash runPop error', e);
-        }
-      };
-      document.head.appendChild(s);
-      return s;
-    },
-  },
+  { name: 'Hilltop',  inject: injectHilltop },
+  { name: 'Adsterra', inject: injectAdsterra },
+  { name: 'Hilltop',  inject: injectHilltop },
+  { name: 'Adsterra', inject: injectAdsterra },
 ];
 
 let activeNode: HTMLScriptElement | null = null;
@@ -135,8 +112,6 @@ function purgeCurrentNetworkArtifacts() {
       'script[src*="quizzical-topic"]',
       'script[src*="elderly-craft"]',
       'script[src*="profitableratecpmnetwork"]',
-      'script[id="aclib"]',
-      'script[src*="acscdn"]',
     ];
     document.querySelectorAll(selectors.join(',')).forEach((el) => {
       try { el.remove(); } catch {}
@@ -154,9 +129,8 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
   const stackStr = (stack || '').toLowerCase();
 
   if (target === 'Hilltop') {
-    // If it clearly belongs to another network, reject it
+    // If it clearly belongs to Adsterra, reject it
     if (urlStr.includes('profitableratecpmnetwork') || stackStr.includes('profitableratecpmnetwork')) return false;
-    if (urlStr.includes('acscdn') || stackStr.includes('aclib')) return false;
     return true;
   }
 
@@ -168,20 +142,6 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
       urlStr.includes('quizzical-topic') ||
       stackStr.includes('purple-text') ||
       stackStr.includes('untimely-promotion')
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  if (target === 'Adcash') {
-    // Reject previous network calls
-    if (
-      urlStr.includes('purple-text') ||
-      urlStr.includes('untimely-promotion') ||
-      urlStr.includes('profitableratecpmnetwork') ||
-      stackStr.includes('purple-text') ||
-      stackStr.includes('profitableratecpmnetwork')
     ) {
       return false;
     }
