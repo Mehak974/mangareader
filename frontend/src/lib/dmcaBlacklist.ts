@@ -44,6 +44,18 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'her-merry-obsession',
   'trash-will-always-be-trash',
   'meet-me-halfway',
+  'codename-anastasia',
+  'gate-where-the-jsdf-fought',
+  'the-player-with-13-hidden-traits',
+  'the-rogue-prince-is-secretly-an-omega',
+  'the-fragrant-flower-blooms-with-dignity',
+  'koushaku-sama-akusai-no-watashi-wa-mou-houtteoite-kudasai',
+  'ohitorisama-ni-wa-naremashita-node-konyakusha-houchichuu',
+  'the-man-in-the-box',
+  'the-princess-groom',
+  'toilet-bound-hanako-kun-vol-0',
+  'your-grace-please-just-forget-about-this-wicked-wife',
+  'yankee-jk-kuzuhana-chan',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

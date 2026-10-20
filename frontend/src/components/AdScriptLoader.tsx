@@ -10,6 +10,7 @@ const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-30
 const HILLTOP_SRC_MAIN = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
 const HILLTOP_SRC_READ = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
 const ADSTERRA_SRC     = 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js';
+const SOCIAL_BAR_SRC   = 'https://pl31917680.profitableratecpmnetwork.com/81/54/91/815491afa1ed9cdee8235b34c6f2cf6b.js';
 
 function getHilltopSrc(): string {
   if (typeof window !== 'undefined') {
@@ -111,7 +112,7 @@ function purgeCurrentNetworkArtifacts() {
       'script[src*="untimely-promotion"]',
       'script[src*="quizzical-topic"]',
       'script[src*="elderly-craft"]',
-      'script[src*="profitableratecpmnetwork"]',
+      'script[src*="pl30844032"]',
     ];
     document.querySelectorAll(selectors.join(',')).forEach((el) => {
       try { el.remove(); } catch {}
@@ -129,8 +130,8 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
   const stackStr = (stack || '').toLowerCase();
 
   if (target === 'Hilltop') {
-    // If it clearly belongs to Adsterra, reject it
-    if (urlStr.includes('profitableratecpmnetwork') || stackStr.includes('profitableratecpmnetwork')) return false;
+    // If it clearly belongs to Adsterra popunder, reject it
+    if (urlStr.includes('pl30844032') || stackStr.includes('pl30844032')) return false;
     return true;
   }
 
@@ -182,9 +183,15 @@ function installAntiHijackGuard(onPopFired: () => void) {
       return null;
     }
 
-    // 4. Verify that this call actually belongs to the active network (blocks Hilltop 60s ghost timers)
     const openedUrl = String(args[0] || '');
     const callStack = new Error().stack || '';
+
+    // Whitelist Social Bar clicks: Direct clicks on Social Bar in-page elements should open without popunder restrictions
+    if (callStack.includes('815491afa1ed9cdee8235b34c6f2cf6b') || callStack.includes('pl31917680')) {
+      return originalOpen.apply(window, args as any);
+    }
+
+    // 4. Verify that this call actually belongs to the active network (blocks Hilltop 60s ghost timers)
     if (!isCallerMatchingStage(currentStage, openedUrl, callStack)) {
       console.warn(`[AdGuard] Blocked rogue ghost popunder from a previous network. Expected: ${NETWORKS[currentStage]?.name}`);
       return null;
@@ -209,7 +216,19 @@ export default function AdScriptLoader() {
         try { activeNode.remove(); } catch {}
         activeNode = null;
       }
+      const sb = document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"]');
+      if (sb) {
+        try { sb.remove(); } catch {}
+      }
       return;
+    }
+
+    // 2. Mount Social Bar (In-Page Push) once per session
+    if (typeof document !== 'undefined' && !document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"]')) {
+      const sb = document.createElement('script');
+      sb.src = SOCIAL_BAR_SRC;
+      sb.async = true;
+      document.head.appendChild(sb);
     }
 
     const scheduleInject = (delayMs: number, targetStage: number) => {

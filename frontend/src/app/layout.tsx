@@ -88,7 +88,6 @@ const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
-const FeatureBroadcast= dynamic(() => import('@/components/FeatureBroadcast'));
 
 // ── Root metadata ─────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
@@ -254,7 +253,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AppProvider>
           <MaintenanceGuard>
             <Header />
-            <FeatureBroadcast />
             <Sidebar />
             <MobileNav />
             <InkDots />

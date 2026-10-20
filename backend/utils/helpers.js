@@ -53,17 +53,25 @@ function isGoodMatch(orig, found) {
     if (extra.some(w => seq.includes(w)) && !co.split(/\s+/).some(w => seq.includes(w))) return false;
     return true;
   }
-  const stopWords = new Set(['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from']);
-  const words = co.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-  if (!words.length) return false;
-  let m = 0; words.forEach(w => { if (cf.includes(w)) m++; });
-  const thresh = Math.max(2, Math.ceil(words.length * 0.5));
-  const match = m >= Math.min(words.length, thresh);
-  if (match) {
-    const extra = cf.split(/\s+/).filter(w => !co.includes(w) && !stopWords.has(w));
-    if (extra.some(w => seq.includes(w)) && !co.split(/\s+/).some(w => seq.includes(w))) return false;
-  }
-  return match;
+  const stopWords = new Set(['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from', 'my']);
+  const origTokens = co.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+  const foundTokens = cf.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+  if (!origTokens.length || !foundTokens.length) return false;
+
+  const foundSet = new Set(foundTokens);
+  let matchCount = 0;
+  origTokens.forEach(w => { if (foundSet.has(w)) matchCount++; });
+
+  // Require at least 70% of the original title words to be matched
+  const origRatio = matchCount / origTokens.length;
+  // Prevent matching completely different works that only share 1 generic word (e.g. Romantic Box)
+  const foundRatio = matchCount / foundTokens.length;
+  if (origRatio < 0.7 || foundRatio < 0.45) return false;
+
+  const extra = foundTokens.filter(w => !origTokens.includes(w));
+  if (extra.some(w => seq.includes(w)) && !origTokens.some(w => seq.includes(w))) return false;
+
+  return true;
 }
 
 function checkDirectRedirect($, baseUrl) {
