@@ -13,8 +13,14 @@ export default function AAdsInline({ force = false }) {
   const adMode = useAdMode();
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-  const isMangaRead = hostname.includes('mangaread.pro');
-  const floatId = isMangaRead ? '2458319' : (aadsFloatUnitId || '2457490');
+  let floatId = '2457490';
+  if (hostname.includes('mangaread.pro')) {
+    floatId = '2458319';
+  } else if (hostname.includes('manireader.online') || hostname.includes('manireader.pro')) {
+    floatId = '2459321';
+  } else {
+    floatId = aadsFloatUnitId || '2457490';
+  }
   const unitSrc = `//ad.a-ads.com/${floatId}/?size=300x250&background_color=transparent`;
 
   if (!AADS_FLOAT_ENABLED || !floatId) return null;

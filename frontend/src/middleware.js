@@ -116,6 +116,10 @@ export function middleware(request) {
     'https://*.up.railway.app',
     'https://dcbbwymp1bhlf.cloudfront.net',
     'https://*.cloudfront.net',
+    'https://abscloud.org',
+    'https://*.abscloud.org',
+    'https://bauval.org',
+    'https://*.bauval.org',
   ];
 
   const cspHeader = `

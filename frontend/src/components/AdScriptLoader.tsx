@@ -6,18 +6,39 @@ import { usePathname } from 'next/navigation';
 // Routes where ads must NEVER fire.
 const EXCLUDED_PATHS = ['/aads', '/aads300', '/mangaread-sticky', '/mangaread-300', '/admin', '/login', '/signup'];
 
-// ── Network Configurations ─────────────────────────────────────────
-const HILLTOP_SRC_MAIN = '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ';
-const HILLTOP_SRC_READ = '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F';
-const ADSTERRA_SRC     = 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js';
-const SOCIAL_BAR_SRC   = 'https://pl31917680.profitableratecpmnetwork.com/81/54/91/815491afa1ed9cdee8235b34c6f2cf6b.js';
+// ── Multi-Domain Network Configurations ─────────────────────────────
+interface DomainAdConfig {
+  hilltopPop: string;
+  adsterraPop: string;
+  adsterraSocialBar: string;
+}
 
-function getHilltopSrc(): string {
+const DOMAIN_ADS: Record<string, DomainAdConfig> = {
+  'mangareader.pro': {
+    hilltopPop: '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
+    adsterraPop: 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js',
+    adsterraSocialBar: 'https://pl31917680.profitableratecpmnetwork.com/81/54/91/815491afa1ed9cdee8235b34c6f2cf6b.js',
+  },
+  'mangaread.pro': {
+    hilltopPop: '//purple-text.com/cjDK9y6.bF2a5eluSWW/Qt9tNezsMiykNCTZUTzXMly_0-3AMFzmIL1ZN/TRMI3c',
+    adsterraPop: 'https://abscloud.org/1/7b7d010eb7fd655ac5200b25dff46189',
+    adsterraSocialBar: 'https://bauval.org/14/bbbcaaedb9462b6e29aa7a475bc1cdfc',
+  },
+  'manireader.online': {
+    hilltopPop: '//purple-text.com/czDm9B6.be2V5BlhS/WVQN9LN/zTQt0CNYD/QF2/MlSB0L3/NZDbQ/0JNoDbYy1L',
+    adsterraPop: 'https://abscloud.org/1/17fa2a0abb1619ea7086df42c7fa7d40',
+    adsterraSocialBar: 'https://bauval.org/14/a4d5830ab740fb42a37d9777427ee81e',
+  },
+};
+
+function getActiveAdConfig(): DomainAdConfig {
   if (typeof window !== 'undefined') {
     const h = window.location.hostname.toLowerCase();
-    if (h.includes('mangaread.pro')) return HILLTOP_SRC_READ;
+    for (const [domain, cfg] of Object.entries(DOMAIN_ADS)) {
+      if (h.includes(domain)) return cfg;
+    }
   }
-  return HILLTOP_SRC_MAIN;
+  return DOMAIN_ADS['mangareader.pro'];
 }
 
 // ── Waterfall Schedule (Sequential 4-Pop Cycle) ─────────────────────
@@ -36,7 +57,7 @@ interface AdNetworkConfig {
 const injectHilltop = (): HTMLScriptElement => {
   const s = document.createElement('script');
   (s as any).settings = {};
-  s.src = getHilltopSrc();
+  s.src = getActiveAdConfig().hilltopPop;
   s.async = true;
   s.referrerPolicy = 'no-referrer-when-downgrade';
   document.head.appendChild(s);
@@ -46,7 +67,7 @@ const injectHilltop = (): HTMLScriptElement => {
 const injectAdsterra = (): HTMLScriptElement => {
   const s = document.createElement('script');
   (s as any).settings = {};
-  s.src = ADSTERRA_SRC;
+  s.src = getActiveAdConfig().adsterraPop;
   s.async = true;
   s.referrerPolicy = 'no-referrer-when-downgrade';
   document.head.appendChild(s);
@@ -113,6 +134,7 @@ function purgeCurrentNetworkArtifacts() {
       'script[src*="quizzical-topic"]',
       'script[src*="elderly-craft"]',
       'script[src*="pl30844032"]',
+      'script[src*="abscloud.org"]',
     ];
     document.querySelectorAll(selectors.join(',')).forEach((el) => {
       try { el.remove(); } catch {}
@@ -131,7 +153,10 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
 
   if (target === 'Hilltop') {
     // If it clearly belongs to Adsterra popunder, reject it
-    if (urlStr.includes('pl30844032') || stackStr.includes('pl30844032')) return false;
+    if (
+      urlStr.includes('pl30844032') || stackStr.includes('pl30844032') ||
+      urlStr.includes('abscloud.org') || stackStr.includes('abscloud.org')
+    ) return false;
     return true;
   }
 
@@ -187,7 +212,10 @@ function installAntiHijackGuard(onPopFired: () => void) {
     const callStack = new Error().stack || '';
 
     // Whitelist Social Bar clicks: Direct clicks on Social Bar in-page elements should open without popunder restrictions
-    if (callStack.includes('815491afa1ed9cdee8235b34c6f2cf6b') || callStack.includes('pl31917680')) {
+    if (
+      callStack.includes('815491afa1ed9cdee8235b34c6f2cf6b') || callStack.includes('pl31917680') ||
+      callStack.includes('bauval.org') || callStack.includes('bbbcaaedb9462b6e') || callStack.includes('a4d5830ab740fb42')
+    ) {
       return originalOpen.apply(window, args as any);
     }
 
@@ -210,13 +238,15 @@ export default function AdScriptLoader() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const cfg = getActiveAdConfig();
+
     // 1. Block ads on excluded routes
     if (EXCLUDED_PATHS.some((p) => pathname.startsWith(p))) {
       if (activeNode) {
         try { activeNode.remove(); } catch {}
         activeNode = null;
       }
-      const sb = document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"]');
+      const sb = document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]');
       if (sb) {
         try { sb.remove(); } catch {}
       }
@@ -224,9 +254,9 @@ export default function AdScriptLoader() {
     }
 
     // 2. Mount Social Bar (In-Page Push) once per session
-    if (typeof document !== 'undefined' && !document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"]')) {
+    if (typeof document !== 'undefined' && !document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]')) {
       const sb = document.createElement('script');
-      sb.src = SOCIAL_BAR_SRC;
+      sb.src = cfg.adsterraSocialBar;
       sb.async = true;
       document.head.appendChild(sb);
     }

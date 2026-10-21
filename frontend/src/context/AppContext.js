@@ -29,7 +29,19 @@ export const AppProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(true);
   const [isIncognito, setIsIncognito] = useState(false);
   const [isNSFW, setIsNSFW] = useState(false);
-  const [accentColors, setAccentColors] = useState({ c1: "#a855f7", c2: "#c084fc" });
+  const [accentColors, setAccentColors] = useState(() => {
+    if (typeof window !== "undefined") {
+      const h = window.location.hostname.toLowerCase();
+      const s = window.location.search.toLowerCase();
+      if (h.includes("mangaread.pro") || s.includes("domain=mangaread")) {
+        return { c1: "#38bdf8", c2: "#7dd3fc" };
+      }
+      if (h.includes("manireader.online") || h.includes("manireader.pro") || s.includes("domain=manireader")) {
+        return { c1: "#f97316", c2: "#fb923c" };
+      }
+    }
+    return { c1: "#a855f7", c2: "#c084fc" };
+  });
 
   // Custom User Preferences Settings
   const [compactCards, setCompactCards] = useState(false);

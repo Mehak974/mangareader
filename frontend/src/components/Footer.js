@@ -36,6 +36,38 @@ export default function Footer() {
           <NewsletterForm />
         </div>
       </div>
+
+      {/* Official Mirrors cross-linking for SEO authority transfer & backup discovery */}
+      <div
+        style={{
+          margin: "20px 0 12px",
+          padding: "10px 16px",
+          background: "rgba(255, 255, 255, 0.03)",
+          borderRadius: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          gap: "14px",
+          fontSize: "12px",
+          color: "var(--text3, #888)",
+          border: "1px solid rgba(255, 255, 255, 0.06)",
+        }}
+      >
+        <span style={{ fontWeight: 600, color: "var(--text2, #bbb)" }}>🌐 Official Mirrors:</span>
+        <a href="https://mangareader.pro" style={{ color: "#a855f7", textDecoration: "none", fontWeight: 500 }} title="MangaReader Primary Hub">
+          MangaReader.pro
+        </a>
+        <span>•</span>
+        <a href="https://mangaread.pro" style={{ color: "#38bdf8", textDecoration: "none", fontWeight: 500 }} title="Fast MangaRead Mirror">
+          MangaRead.pro
+        </a>
+        <span>•</span>
+        <a href="https://manireader.online" style={{ color: "#f97316", textDecoration: "none", fontWeight: 500 }} title="ManiReader Discovery Mirror">
+          ManiReader.online
+        </a>
+      </div>
+
       <div className="footer-bottom">
         <span>© 2026 MangaReader.</span>
         <span className="footer-bottom-links">
@@ -59,7 +91,7 @@ export default function Footer() {
               fontWeight: 500,
             }}
           >
-            What's New ✨
+            What&apos;s New ✨
           </button>
           <Link href="/dmca">DMCA</Link>
         </span>

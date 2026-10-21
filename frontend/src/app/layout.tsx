@@ -26,6 +26,7 @@ import { Toaster }          from 'react-hot-toast';
 import Header               from '@/components/Header';
 import JsonLd               from '@/components/JsonLd';
 import MaintenanceGuard     from '@/components/MaintenanceGuard';
+import UmamiAnalytics       from '@/components/UmamiAnalytics';
 import { Analytics }        from '@vercel/analytics/react';
 import { SpeedInsights }    from '@vercel/speed-insights/next';
 import {
@@ -170,7 +171,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={organizationSchema()} />
         <JsonLd data={websiteSchema()} />
 
-        {/* CSS custom properties — statically rendered to prevent flash of unstyled content */}
+        {/* CSS custom properties & instant domain theme detector */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var h = window.location.hostname.toLowerCase();
+              var s = window.location.search.toLowerCase();
+              var root = document.documentElement;
+              if (h.includes('mangaread.pro') || s.includes('domain=mangaread')) {
+                root.style.setProperty('--accent', '#38bdf8');
+                root.style.setProperty('--accent2', '#7dd3fc');
+                root.style.setProperty('--accent-hover', '#0ea5e9');
+                root.style.setProperty('--bg-dark', '#0c1220');
+                root.style.setProperty('--bg-card', '#111827');
+                root.style.setProperty('--accent-bg', 'rgba(56, 189, 248, 0.1)');
+                root.style.setProperty('--accent-border', 'rgba(56, 189, 248, 0.25)');
+              } else if (h.includes('manireader.online') || h.includes('manireader.pro') || s.includes('domain=manireader')) {
+                root.style.setProperty('--accent', '#f97316');
+                root.style.setProperty('--accent2', '#fb923c');
+                root.style.setProperty('--accent-hover', '#ea580c');
+                root.style.setProperty('--bg-dark', '#0e0f14');
+                root.style.setProperty('--bg-card', '#16171f');
+                root.style.setProperty('--accent-bg', 'rgba(249, 115, 22, 0.1)');
+                root.style.setProperty('--accent-border', 'rgba(249, 115, 22, 0.25)');
+              }
+            } catch(e) {}
+          })();
+        `}} />
         <style dangerouslySetInnerHTML={{ __html: `
           :root {
             --accent: ${siteConfig.theme.accentColor};
@@ -232,14 +259,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           );
         })()}
 
-        {/* Umami Analytics — domain-aware and executed after interactive */}
-        {siteConfig.ads.umamiWebsiteId && (
-          <Script
-            src={siteConfig.ads.umamiSrc || "https://analytics.mangareader.pro/script.js"}
-            data-website-id={siteConfig.ads.umamiWebsiteId}
-            strategy="afterInteractive"
-          />
-        )}
+        {/* Umami Analytics — domain-aware dynamic client tracker */}
+        <UmamiAnalytics />
 
         {/* Cloudflare Web Analytics (Production only — avoids CORS errors on localhost:3000) */}
         {process.env.NODE_ENV === 'production' && (

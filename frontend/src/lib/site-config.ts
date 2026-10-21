@@ -141,11 +141,11 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://araplhn.org/4/d38fac34429eb176545e5bedd538698f',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
-      popunderSrc:         '//purple-text.com/cyDP9.6nbb2R5-lxS/WBQU9ONdzVMNyENjTgU/zAMXyy0J3nMczdIh1INwTuMl3F',
-      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
-      umamiWebsiteId:      'e86694e7-14e4-419e-91dc-acbc20c501de',
+      popunderSrc:         '//purple-text.com/cjDK9y6.bF2a5eluSWW/Qt9tNezsMiykNCTZUTzXMly_0-3AMFzmIL1ZN/TRMI3c',
+      umamiSrc:            'https://analytics.mangareader.pro/script.js',
+      umamiWebsiteId:      'b1dd872f-c0bb-4c52-825d-7b4495799626',
     },
     seo: {
       title:       'MangaRead — The Fastest Manga Reader',
@@ -173,17 +173,17 @@ const CONFIGS: Record<string, SiteConfig> = {
     url: 'https://manireader.online',
     ads: {
       aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '2455863',
-      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2457490',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '2459321',
       aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0E0F14',
       aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'F97316',
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '1deac198ed672add0c4d5cdb8f28c9d1d92f900f',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/b/3/V/0mP.3Lpkv/brmBV-JeZWDM0/3bNUT/EkxlNajfci3ILPT/cT1KMXTEE/2-OLDWEr',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://araplhn.org/4/2304a09d530ff81438de88c046c0c0e8',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
-      popunderSrc:         '//purple-text.com/c-DC9b6-b.2a5qlISnWTQs9VNZzqMVyYMED/UpygODSX0V3NMGzeIIw/NuT/M_zZ',
-      umamiSrc:            'https://umami-production-30dc.up.railway.app/script.js',
-      umamiWebsiteId:      'ef155174-2e98-4b40-8186-12fe716c14ba',
+      popunderSrc:         '//purple-text.com/czDm9B6.be2V5BlhS/WVQN9LN/zTQt0CNYD/QF2/MlSB0L3/NZDbQ/0JNoDbYy1L',
+      umamiSrc:            'https://analytics.mangareader.pro/script.js',
+      umamiWebsiteId:      '6b6b8998-1e5b-4a05-8106-430a310bad28',
     },
     seo: {
       title:       'ManiReader — Discover Manga & Manhwa',
@@ -268,7 +268,10 @@ export function getDirectLink(): string {
   if (typeof window !== 'undefined') {
     const h = window.location.hostname.toLowerCase();
     if (h.includes('mangaread.pro')) {
-      return 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt';
+      return 'https://araplhn.org/4/d38fac34429eb176545e5bedd538698f';
+    }
+    if (h.includes('manireader.online') || h.includes('manireader.pro')) {
+      return 'https://araplhn.org/4/2304a09d530ff81438de88c046c0c0e8';
     }
     if (h.includes('mangareader.pro')) {
       return 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24';

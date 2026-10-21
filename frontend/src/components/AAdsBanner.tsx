@@ -18,16 +18,24 @@ function AAdsBannerInner() {
   if (!aadsUnitId || isHidden) return null;
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
-  const isMangaRead = hostname.includes('mangaread.pro');
-  const unitId = isMangaRead ? '2455860' : aadsUnitId;
+  let unitId = aadsUnitId || '2454751';
+  let isTransparent = false;
+
+  if (hostname.includes('mangaread.pro')) {
+    unitId = '2455860';
+    isTransparent = true;
+  } else if (hostname.includes('manireader.online') || hostname.includes('manireader.pro')) {
+    unitId = '2455863';
+    isTransparent = true;
+  } else {
+    unitId = '2454751';
+  }
 
   let src = `//acceptable.a-ads.com/${unitId}/?size=Adaptive`;
-  if (isMangaRead) {
+  if (isTransparent) {
     src += '&background_color=transparent';
-  } else if (siteConfig.profile === 'manireader.online') {
-    src += '&background_color=transparent';
-  } else if (siteConfig.profile === 'mangareader.pro') {
-    src += `&background_color=${aadsBgColor}&title_color=${aadsTitleColor}&title_hover_color=${aadsTitleColor}`;
+  } else {
+    src += `&background_color=${aadsBgColor || '0A0612'}&title_color=${aadsTitleColor || 'A855F7'}&title_hover_color=${aadsTitleColor || 'A855F7'}`;
   }
 
   const closeId = `aadssticky-${unitId}`;
