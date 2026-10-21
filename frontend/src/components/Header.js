@@ -8,7 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { MANGA, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
 import { getMangaHref } from "@/lib/dmcaBlacklist";
-import { fetchAnilist, MANGA_QUERY } from "@/utils/anilist";
+import { getMangaList } from "@/utils/anilist";
 import { proxyImage } from "@/utils/api";
 
 export default function Header() {
@@ -86,25 +86,9 @@ return () => document.removeEventListener("keydown", handleKeyDown);
     setSearching(true);
     const delayDebounceFn = setTimeout(async () => {
       try {
-        let resultsData = null;
-        const aniData = await fetchAnilist(MANGA_QUERY, { search: q, perPage: 6 });
-        if (aniData && aniData.Page && aniData.Page.media) {
-          resultsData = aniData.Page.media;
-        }
-
-        if (resultsData) {
-          const formatted = resultsData.map(media => {
-            const title = media.title.english || media.title.romaji || media.title.userPreferred || media.title.native;
-            const isKorean = media.countryOfOrigin === 'KR' || media.genres?.some(g => String(g).toLowerCase() === 'manhwa');
-            return {
-              id: media.id,
-              t: title,
-              isKorean,
-              g: media.genres ? (Array.isArray(media.genres) ? media.genres.join(", ") : media.genres) : "Action",
-              cover: media.coverImage?.medium || ""
-            };
-          });
-          setResults(formatted);
+        const res = await getMangaList({ search: q, perPage: 6 });
+        if (res && res.media && res.media.length > 0) {
+          setResults(res.media);
         } else {
           setResults([]);
         }
