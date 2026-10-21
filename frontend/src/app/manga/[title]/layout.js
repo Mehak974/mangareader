@@ -1,18 +1,16 @@
 export const revalidate = 86400;
 
-import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema } from "@/lib/seo";
+import { buildMetadata, absoluteUrl, SITE_URL, mangaSchema, breadcrumbSchema, SITE_NAME } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import { notFound } from "next/navigation";
 import { isBlockedManga } from "@/lib/dmcaBlacklist";
 import { prisma } from "@/lib/prisma";
 
-function slugify(input) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function formatTitle(slug) {
+  if (!slug) return "";
+  return decodeURIComponent(slug)
+    .replace(/-/g, " ")
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 }
 
 export async function generateMetadata({ params }) {
@@ -20,23 +18,29 @@ export async function generateMetadata({ params }) {
   if (isBlockedManga(titleSlug)) {
     notFound();
   }
-  const fallbackTitle = decodeURIComponent(titleSlug).replace(/-/g, " ");
 
   let isKorean = false;
+  let dbTitle = null;
   try {
     const rows = await prisma.$queryRaw`
-      SELECT country FROM manga 
+      SELECT title, country FROM manga 
       WHERE id = ${titleSlug} 
          OR LOWER(REGEXP_REPLACE(title, '[^a-zA-Z0-9]+', '-', 'g')) = ${titleSlug}
       LIMIT 1
     `;
-    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.country === 'KR') {
-      isKorean = true;
+    if (Array.isArray(rows) && rows.length > 0) {
+      if (rows[0]?.country === 'KR') isKorean = true;
+      if (rows[0]?.title) dbTitle = rows[0].title;
     }
   } catch {}
 
+  const displayTitle = dbTitle || formatTitle(titleSlug);
+  const pageTitle = `Read ${displayTitle} Manga Online Free - All Chapters`;
+  const metaDescription = `Read ${displayTitle} manga online for free with high quality scans and full chapter list. Enjoy latest chapter releases, English translations, and updates for ${displayTitle} on ${SITE_NAME}.`;
+
   return buildMetadata({
-    title: `${fallbackTitle} — Read Online`,
+    title: pageTitle,
+    description: metaDescription,
     path: `/manga/${titleSlug}`,
     type: "article",
     noIndex: isKorean,
@@ -45,7 +49,7 @@ export async function generateMetadata({ params }) {
 
 async function generateJsonLd({ params }) {
   const { title: titleSlug } = await params;
-  const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
+  const name = formatTitle(titleSlug);
   
   // Build manga schema - in production you'd fetch real data
   const manga = mangaSchema({
@@ -69,7 +73,7 @@ export default async function MangaDetailLayout({ children, params }) {
   if (isBlockedManga(titleSlug)) {
     notFound();
   }
-  const name = decodeURIComponent(titleSlug).replace(/-/g, " ");
+  const name = formatTitle(titleSlug);
   
   const manga = mangaSchema({
     title: name,

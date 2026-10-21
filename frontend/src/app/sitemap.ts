@@ -35,10 +35,9 @@ const STATIC_ROUTES: Array<{
   { path: '/dmca',    changeFrequency: 'yearly',  priority: 0.3, lastModified: '2026-09-01' },
 ];
 
-// Top 10 most-opened discovered manga. Ranking is purely cumulative opens —
-  // no recency weighting and no activity window, so a title's rank reflects how
-  // often readers actually open it.
-const SITEMAP_TOP_MANGA = 10;
+// Top 50 most-opened discovered manga. Kept focused so Google quickly indexes
+// high-intent titles without diluting crawl budget or stacking unindexed URLs.
+const SITEMAP_TOP_MANGA = 50;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static routes
