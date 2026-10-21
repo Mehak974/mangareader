@@ -63,7 +63,7 @@ export function isWorkerAvailable() {
   }
 }
 
-const ANILIST_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
+const DIRECT_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org'];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp', '.svg'];
 const SKIP_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];
@@ -78,8 +78,8 @@ export function proxyImage(url, width = null, quality = null) {
   if (cleanUrl.includes('/img-proxy?')) return url;
   if (cleanUrl.includes('/api/proxy-image?')) return url;
 
-  const isAniList = ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
-  if (isAniList) return url;
+  const isDirect = DIRECT_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
+  if (isDirect) return url;
 
   const isSkipped = SKIP_DOMAINS.some(d => cleanUrl.includes(d));
   if (isSkipped) return url;
@@ -277,7 +277,7 @@ export async function fetchChapterImagesThroughWorker(url, source) {
           if (currentList.length > bestScriptImages.length) {
             bestScriptImages = currentList;
           }
-        } catch {}
+        } catch { }
       }
     }
     if (bestScriptImages.length > 0) {
@@ -369,7 +369,7 @@ export async function fetchApi(endpoint, options = {}) {
         ...options,
         headers,
       });
-    } catch {}
+    } catch { }
   }
 
   // Include credentials for CSRF cookies

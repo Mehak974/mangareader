@@ -24,9 +24,11 @@ export async function fetchAnilist(query, variables = {}, retries = 3, delay = 1
 }
 
 async function fetchDirectAnilist(query, variables) {
+  // ponytail: browser can't call AniList directly — 403 has no CORS headers, spams console
+  if (typeof window !== "undefined") return null;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
     const res = await fetch("https://graphql.anilist.co", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -46,10 +48,16 @@ let backendProxyBroken = false;
 let lastProxyCheck = 0;
 
 async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
-  // If backend proxy is currently down (e.g. 502 Bad Gateway), bypass directly to AniList
+  // If AniList is currently marked down, do a quick direct probe (server only)
   if (backendProxyBroken && (Date.now() - lastProxyCheck) < 60000) {
+    // In browser, skip entirely — client-side getMangaList routes through /api/manga/browse
+    if (typeof window !== "undefined") return null;
     const directData = await fetchDirectAnilist(query, variables);
-    if (directData) return directData;
+    if (directData) {
+      backendProxyBroken = false;
+      return directData;
+    }
+    return null;
   }
 
   for (let i = 0; i < retries; i++) {
@@ -67,11 +75,20 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
 
       clearTimeout(timeoutId);
 
+      if (res.status === 403) {
+        backendProxyBroken = true;
+        lastProxyCheck = Date.now();
+        return null;
+      }
+
       if (res.status === 429) {
         backendProxyBroken = true;
         lastProxyCheck = Date.now();
         const directData = await fetchDirectAnilist(query, variables);
-        if (directData) return directData;
+        if (directData) {
+          backendProxyBroken = false;
+          return directData;
+        }
 
         if (i === retries - 1) {
           console.warn("AniList rate limited — giving up until the limit resets.");
@@ -84,9 +101,11 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
       if (!res.ok) {
         backendProxyBroken = true;
         lastProxyCheck = Date.now();
-        // Any proxy error (502, 500, 404) immediately falls back to direct AniList
         const directData = await fetchDirectAnilist(query, variables);
-        if (directData) return directData;
+        if (directData) {
+          backendProxyBroken = false;
+          return directData;
+        }
 
         const text = await res.text();
         throw new Error(`Anilist API failure: ${res.status} - ${text}`);
@@ -98,17 +117,7 @@ async function fetchAnilistInner(query, variables, retries = 2, delay = 1000) {
     } catch (err) {
       backendProxyBroken = true;
       lastProxyCheck = Date.now();
-
-      // If backend proxy timed out or failed to connect, instantly try direct AniList
-      const directData = await fetchDirectAnilist(query, variables);
-      if (directData) return directData;
-
-      if (i === retries - 1) {
-        console.warn("AniList request failed completely:", err.message);
-        return null;
-      }
-      const waitTime = delay * Math.pow(2, i);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      return null;
     }
   }
   return null;
@@ -211,21 +220,187 @@ export function mapAnilistMedia(media) {
   };
 }
 
-export async function getMangaList(variables) {
+const MANGADEX_GENRE_TAGS = {
+  action: "391b0423-d847-456f-aff0-8b0cfc03066b",
+  adventure: "87cc87cd-a395-47af-b27a-93258283bbc6",
+  comedy: "4d32cc48-9f00-4cca-9b5a-a839f0764984",
+  drama: "b9af3a63-f058-46de-a9a0-e0c13906197a",
+  fantasy: "cdc58573-824b-420b-ba9f-546d60590c27",
+  horror: "cdad7e68-07dd-4270-a3ee-725487693895",
+  mystery: "ee9634b1-6355-4270-b70c-ce589b81458c",
+  psychological: "3b60b75c-a2d7-4860-ab56-05f391bb889c",
+  romance: "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
+  "sci-fi": "256c8bd9-4904-4360-bf4f-508a76d67183",
+  thriller: "07251805-a27e-4d59-b488-f0bfbec15168",
+  supernatural: "eabc548c-9e9d-440f-aa32-51a44c66e2c3",
+};
+
+async function fetchMangaDexFallback(variables = {}) {
+  try {
+    const limit = Math.min(variables.perPage || 24, 100);
+    const page = variables.page || 1;
+    const offset = (page - 1) * limit;
+
+    const params = new URLSearchParams();
+    params.append("limit", String(limit));
+    params.append("offset", String(offset));
+    params.append("includes[]", "cover_art");
+    params.append("contentRating[]", "safe");
+    params.append("contentRating[]", "suggestive");
+
+    if (variables.search && String(variables.search).trim()) {
+      params.append("title", String(variables.search).trim());
+    } else {
+      if (variables.sort && Array.isArray(variables.sort)) {
+        if (variables.sort.some((s) => String(s).includes("SCORE"))) {
+          params.append("order[rating]", "desc");
+        } else if (variables.sort.some((s) => String(s).includes("UPDATED"))) {
+          params.append("order[latestUploadedChapter]", "desc");
+        } else {
+          params.append("order[followedCount]", "desc");
+        }
+      } else {
+        params.append("order[followedCount]", "desc");
+      }
+    }
+
+    if (variables.status === "RELEASING") params.append("status[]", "ongoing");
+    else if (variables.status === "FINISHED") params.append("status[]", "completed");
+
+    if (variables.genre && variables.genre !== "All") {
+      const tagId = MANGADEX_GENRE_TAGS[String(variables.genre).toLowerCase()];
+      if (tagId) params.append("includedTags[]", tagId);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const apiUrl = `https://api.mangadex.org/manga?${params.toString()}`;
+    const res = await fetch(apiUrl, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.warn("[MangaDex] API response not OK:", res.status);
+      return null;
+    }
+    const json = await res.json();
+    if (!json.data || !Array.isArray(json.data)) {
+      console.warn("[MangaDex] No data array in response");
+      return null;
+    }
+
+    const media = json.data.map((m) => {
+      let enTitle = m.attributes?.title?.en;
+      if (!enTitle) {
+        const altEn = m.attributes?.altTitles?.find((a) => a.en)?.en;
+        enTitle = altEn || (m.attributes?.title ? Object.values(m.attributes.title)[0] : "Untitled");
+      }
+
+      const coverRel = m.relationships?.find((r) => r.type === "cover_art");
+      const cover = coverRel?.attributes?.fileName
+        ? `https://uploads.mangadex.org/covers/${m.id}/${coverRel.attributes.fileName}.512.jpg`
+        : "";
+
+      const genres =
+        m.attributes?.tags
+          ?.filter((t) => t.attributes?.group === "genre")
+          .map((t) => t.attributes?.name?.en)
+          .filter(Boolean) || [];
+
+      const tags =
+        m.attributes?.tags?.map((t) => t.attributes?.name?.en).filter(Boolean) || [];
+
+      const isKorean = m.attributes?.originalLanguage === "ko";
+      const isAdult =
+        m.attributes?.contentRating === "erotica" ||
+        m.attributes?.contentRating === "pornographic";
+
+      return {
+        id: m.id,
+        countryOfOrigin: isKorean ? "KR" : "JP",
+        country: isKorean ? "KR" : "JP",
+        t: enTitle,
+        g: genres[0] || (isKorean ? "Manhwa" : "Action"),
+        ch: m.attributes?.lastChapter
+          ? `Ch ${m.attributes.lastChapter}`
+          : m.attributes?.status === "completed"
+          ? "Completed"
+          : "Ongoing",
+        hot: true,
+        rating: 4.5,
+        ongoing: m.attributes?.status === "ongoing",
+        cover,
+        genres,
+        tags,
+        isAdult,
+      };
+    });
+
+    const total = json.total || media.length;
+    return {
+      pageInfo: {
+        total,
+        currentPage: page,
+        lastPage: Math.ceil(total / limit) || 1,
+        hasNextPage: offset + media.length < total,
+        perPage: limit,
+      },
+      media,
+    };
+  } catch (err) {
+    console.warn("MangaDex fallback failed:", err.message);
+    return null;
+  }
+}
+
+export async function getMangaList(variables = {}) {
+  // In the browser, route through the internal Next.js API route to guarantee ad-blocker immunity and avoid CORS/aborts
+  if (typeof window !== "undefined") {
+    try {
+      const q = new URLSearchParams();
+      if (variables.page) q.set("page", String(variables.page));
+      if (variables.perPage) q.set("perPage", String(variables.perPage));
+      if (variables.genre) q.set("genre", String(variables.genre));
+      if (variables.search) q.set("search", String(variables.search));
+      if (variables.status) q.set("status", String(variables.status));
+      if (variables.countryOfOrigin) q.set("countryOfOrigin", String(variables.countryOfOrigin));
+      if (variables.sort && Array.isArray(variables.sort)) {
+        if (variables.sort.some((s) => String(s).includes("SCORE"))) q.set("sort", "Top Rated");
+        else if (variables.sort.some((s) => String(s).includes("ID"))) q.set("sort", "New Releases");
+      }
+      const res = await fetch(`/api/manga/browse?${q.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.media && json.media.length > 0) {
+          return json;
+        }
+      }
+    } catch (err) {
+      console.warn("Client /api/manga/browse failed, attempting direct:", err.message);
+    }
+  }
+
   try {
     const cleanVariables = { ...variables };
     if (cleanVariables.search && String(cleanVariables.search).trim()) {
       delete cleanVariables.sort;
     }
     const data = await fetchAnilist(MANGA_QUERY, cleanVariables, 2, 1000);
-    if (data && data.Page) {
+    if (data && data.Page && data.Page.media?.length > 0) {
       return {
         pageInfo: data.Page.pageInfo,
         media: data.Page.media.map(mapAnilistMedia),
       };
     }
   } catch (err) {
-    console.warn("getMangaList failed:", err.message);
+    console.warn("getMangaList AniList offline:", err.message);
+  }
+
+  // Fallback to MangaDex only when AniList is offline or empty
+  const dexData = await fetchMangaDexFallback(variables);
+  if (dexData && dexData.media?.length > 0) {
+    return dexData;
   }
 
   return {
@@ -237,14 +412,20 @@ export async function getMangaList(variables) {
 export async function getRecentMangaList(variables) {
   try {
     const data = await fetchAnilist(RECENT_MANGA_QUERY, variables, 2, 1000);
-    if (data && data.Page) {
+    if (data && data.Page && data.Page.media?.length > 0) {
       return {
         pageInfo: data.Page.pageInfo,
         media: data.Page.media.map(mapAnilistMedia),
       };
     }
   } catch (err) {
-    console.warn("getRecentMangaList failed:", err.message);
+    console.warn("getRecentMangaList AniList offline:", err.message);
+  }
+
+  // Fallback to MangaDex only when AniList is offline or empty
+  const dexData = await fetchMangaDexFallback({ ...variables, sort: ["UPDATED_AT_DESC"] });
+  if (dexData && dexData.media?.length > 0) {
+    return dexData;
   }
 
   return {

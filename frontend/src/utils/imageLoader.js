@@ -13,10 +13,10 @@ export default function myImageLoader({ src, width, quality }) {
     return src;
   }
 
-  const ANILIST_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co'];
-  if (ANILIST_DOMAINS.some(d => src.includes(d))) {
-    const sep = src.includes('?') ? '&' : '?';
-    return `${src}${sep}w=${width || 400}`;
+  const DIRECT_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org'];
+  if (DIRECT_DOMAINS.some(d => src.includes(d))) {
+    if (!src.includes('w=') && width) return `${src}${src.includes('?') ? '&' : '?'}w=${width}`;
+    return src;
   }
 
   const TRACKING_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];

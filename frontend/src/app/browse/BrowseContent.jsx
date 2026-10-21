@@ -61,7 +61,7 @@ export default function BrowseContent({ initialData, initialParams }) {
   const [error, setError] = useState(null);
 
   const perPage = 36;
-  const isInitialMount = useRef(true);
+  const isInitialRender = useRef(true);
 
   const changePage = (newPage) => {
     const targetPage = Math.max(1, newPage);
@@ -99,18 +99,23 @@ export default function BrowseContent({ initialData, initialParams }) {
     }
   }, [searchParams, setSearchQuery]);
 
-  // Reset to page 1 when any filter changes
+  const filterMountRef = useRef(true);
+  // Reset to page 1 when any filter changes (after initial mount)
   useEffect(() => {
+    if (filterMountRef.current) {
+      filterMountRef.current = false;
+      return;
+    }
     setPage(1);
   }, [sort, status, activeGenre, year, rating, country, searchQuery, perPage]);
 
   // Fetch manga on filter or page changes
   useEffect(() => {
-    if (isInitialMount.current && initialData?.media?.length > 0) {
-      isInitialMount.current = false;
-      return;
+    // On first render, if SSR already provided data, skip the client fetch entirely
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      if (mangaList.length > 0) return;
     }
-    isInitialMount.current = false;
 
     let activeSort = ["TRENDING_DESC", "POPULARITY_DESC"];
     if (sort === "Top Rated") activeSort = ["SCORE_DESC", "POPULARITY_DESC"];
@@ -143,22 +148,22 @@ export default function BrowseContent({ initialData, initialParams }) {
 
     setLoading(true);
     getMangaList(fetchVariables)
-      .then((aniRes) => {
-        if (aniRes.media && aniRes.media.length > 0) {
-          setMangaList(applyNsfwFilter(aniRes.media));
-          setPageInfo(aniRes.pageInfo);
+      .then((res) => {
+        if (res && res.media && res.media.length > 0) {
+          setMangaList(applyNsfwFilter(res.media));
+          if (res.pageInfo) setPageInfo(res.pageInfo);
           setError(null);
-        } else {
+        } else if (searchQuery.trim() || activeGenre !== "All" || status !== "All Statuses" || year !== "All" || rating !== "All" || country !== "All") {
+          // User applied filters that genuinely returned 0 results
           setMangaList([]);
           setPageInfo({ currentPage: page, lastPage: 1, hasNextPage: false, total: 0 });
           setError(null);
         }
+        // If default filters returned empty (API down), keep whatever we have
         setLoading(false);
       })
       .catch(() => {
-        setMangaList([]);
-        setPageInfo({ currentPage: page, lastPage: 1, hasNextPage: false, total: 0 });
-        setError("Failed to fetch results");
+        // On error, never wipe existing data
         setLoading(false);
       });
   }, [page, sort, status, activeGenre, year, rating, country, searchQuery, perPage]);

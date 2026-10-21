@@ -44,6 +44,7 @@ async function fetchInitialData(params) {
 export default async function Browse({ searchParams }) {
   const params = await searchParams;
   const initialData = await fetchInitialData(params);
+  console.log('[Browse page.js] initialData:', initialData ? { count: initialData.media?.length } : null);
 
   const priorityImages = (initialData?.media || [])
     .slice(0, 4)

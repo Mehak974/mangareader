@@ -62,6 +62,7 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'dead-dead-demons-dededede-destruction',
   'bound',
   'tangled-feelings-tugged-loose',
+  'my-childhood-friends-are-trying-to-kill-me',
   // Proactive Shield: Heavily monitored licensed titles (Viz, Shueisha, Kodansha)
   'boruto',
   'boruto-naruto-next-generations',

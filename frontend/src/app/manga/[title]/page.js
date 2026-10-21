@@ -111,36 +111,36 @@ export default function MangaDetail({ params }) {
 
   const [loading, setLoading] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
-const [chPage, setChPage] = useState(1);
-   const [chSearchQuery, setChSearchQuery] = useState("");
-   const [descExpanded, setDescExpanded] = useState(false);
-   const [selectMode, setSelectMode] = useState(false);
-   const [activeTab, setActiveTab] = useState('chapters');
-   const [selected, setSelected] = useState(() => new Set()); // chapter numbers
-   const [offlineChapters, setOfflineChapters] = useState(() => new Set());
-   const [downloadingChapters, setDownloadingChapters] = useState({}); // { [chNum]: percent }
-   const CHS_PER_PAGE = 20;
+  const [chPage, setChPage] = useState(1);
+  const [chSearchQuery, setChSearchQuery] = useState("");
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('chapters');
+  const [selected, setSelected] = useState(() => new Set()); // chapter numbers
+  const [offlineChapters, setOfflineChapters] = useState(() => new Set());
+  const [downloadingChapters, setDownloadingChapters] = useState({}); // { [chNum]: percent }
+  const CHS_PER_PAGE = 20;
 
-   useEffect(() => {
-     if (!mangaId && !manga?.title && !titleSlug) return;
-     const loadOffline = () => {
-       getOfflineChaptersForManga(mangaId, manga?.title || titleSlug).then((items) => {
-         const set = new Set(items.map((item) => Number(item.chapterNum) || item.chapterNum));
-         setOfflineChapters(set);
-       });
-     };
-     loadOffline();
-     window.addEventListener('offline-chapters-updated', loadOffline);
-     return () => window.removeEventListener('offline-chapters-updated', loadOffline);
-   }, [mangaId, manga?.title, titleSlug]);
+  useEffect(() => {
+    if (!mangaId && !manga?.title && !titleSlug) return;
+    const loadOffline = () => {
+      getOfflineChaptersForManga(mangaId, manga?.title || titleSlug).then((items) => {
+        const set = new Set(items.map((item) => Number(item.chapterNum) || item.chapterNum));
+        setOfflineChapters(set);
+      });
+    };
+    loadOffline();
+    window.addEventListener('offline-chapters-updated', loadOffline);
+    return () => window.removeEventListener('offline-chapters-updated', loadOffline);
+  }, [mangaId, manga?.title, titleSlug]);
 
-    useEffect(() => {
-      setChPage(1);
-      setSelected(new Set());
-      setSelectMode(false);
-      setCoverIndex(0);
-      redirectDoneRef.current = false;
-    }, [titleSlug]);
+  useEffect(() => {
+    setChPage(1);
+    setSelected(new Set());
+    setSelectMode(false);
+    setCoverIndex(0);
+    redirectDoneRef.current = false;
+  }, [titleSlug]);
 
   const longPressTimerRef = useRef(null);
   const LONG_PRESS_DURATION = 500;
@@ -219,8 +219,8 @@ const [chPage, setChPage] = useState(1);
           // Now fetch full details from AniList using the resolved ID
           if (resolvedId && !resolvedId.startsWith("mal-")) {
             try {
-              const cleanId = resolvedId.startsWith("anilist-") 
-                ? resolvedId.replace("anilist-", "") 
+              const cleanId = resolvedId.startsWith("anilist-")
+                ? resolvedId.replace("anilist-", "")
                 : resolvedId;
               const aniData = await fetchAnilist(SINGLE_MANGA_QUERY, { id: parseInt(cleanId) });
               if (aniData && aniData.Media) {
@@ -279,7 +279,7 @@ const [chPage, setChPage] = useState(1);
 
         if (!normalizedManga) {
           console.warn("AniList detail fetch missed or returned no results for:", searchTitle);
-          
+
           normalizedManga = {
             id: `fallback-${slugify(searchTitle)}`,
             title: searchTitle,
@@ -314,7 +314,7 @@ const [chPage, setChPage] = useState(1);
           fetchApi(`/api/manga/track-view?slug=${encodeURIComponent(titleSlug)}&title=${encodeURIComponent(normalizedManga.title)}&chapterCount=0`, {
             method: 'GET',
             keepalive: true,
-          }).catch(() => {});
+          }).catch(() => { });
         }
 
         // 2. Fetch chapters from backend API (client-side CORS fetching removed
@@ -519,7 +519,7 @@ const [chPage, setChPage] = useState(1);
   const handleDownloadChapterClick = async (ch, idx) => {
     const chNum = totalChapters - idx;
     const chTitle = ch.title || `Chapter ${chNum}`;
-    
+
     // 1. Show the inline progress loader on the chapter row
     setDownloadingChapters((prev) => ({ ...prev, [chNum]: 5 }));
 
@@ -721,7 +721,7 @@ const [chPage, setChPage] = useState(1);
     <div>
       {/* MANGA HERO INFOS */}
       <div className="detail-hero">
-        <div 
+        <div
           className="detail-cover"
           style={
             primaryCover
@@ -736,8 +736,8 @@ const [chPage, setChPage] = useState(1);
               alt={`Cover for ${manga.title}`}
               fill
               sizes="(max-width: 768px) 110px, (max-width: 900px) 140px, 195px"
-              style={{ 
-                objectFit: "cover", 
+              style={{
+                objectFit: "cover",
                 objectPosition: "center",
                 filter: shouldBlur ? "blur(40px) brightness(0.3)" : "none",
                 transition: "filter 0.3s ease"
@@ -783,9 +783,9 @@ const [chPage, setChPage] = useState(1);
             }}>
               <div>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 8px auto", display: "block" }}>
-                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                May contain<br/>explicit content
+                May contain<br />explicit content
               </div>
             </div>
           )}
@@ -909,18 +909,18 @@ const [chPage, setChPage] = useState(1);
 
       <div className="divider" />
 
-{/* TABS */}
-       <div className="manga-tabs manga-tabs--responsive">
-         <button 
-           className={`manga-tab ${activeTab === 'chapters' ? 'manga-tab--active' : ''}`}
-           onClick={() => setActiveTab('chapters')}
-         >
-           Chapters
-         </button>
-         <button 
-           className={`manga-tab ${activeTab === 'discussion' ? 'manga-tab--active' : ''}`}
-           onClick={() => setActiveTab('discussion')}
-         >
+      {/* TABS */}
+      <div className="manga-tabs manga-tabs--responsive">
+        <button
+          className={`manga-tab ${activeTab === 'chapters' ? 'manga-tab--active' : ''}`}
+          onClick={() => setActiveTab('chapters')}
+        >
+          Chapters
+        </button>
+        <button
+          className={`manga-tab ${activeTab === 'discussion' ? 'manga-tab--active' : ''}`}
+          onClick={() => setActiveTab('discussion')}
+        >
           Discussion
         </button>
       </div>
@@ -984,15 +984,15 @@ const [chPage, setChPage] = useState(1);
                 {Array.from(selected).some(
                   (n) => offlineChapters.has(n) || offlineChapters.has(Number(n)) || offlineChapters.has(String(n))
                 ) && (
-                  <button
-                    className="ch-bulk-btn"
-                    onClick={applyBulkRemoveOffline}
-                    title="Remove selected chapters from offline storage"
-                    style={{ background: "rgba(239, 68, 68, 0.2)", color: "#f87171" }}
-                  >
-                    ✕ Remove Offline
-                  </button>
-                )}
+                    <button
+                      className="ch-bulk-btn"
+                      onClick={applyBulkRemoveOffline}
+                      title="Remove selected chapters from offline storage"
+                      style={{ background: "rgba(239, 68, 68, 0.2)", color: "#f87171" }}
+                    >
+                      ✕ Remove Offline
+                    </button>
+                  )}
               </div>
             </div>
           )}
@@ -1051,21 +1051,21 @@ const [chPage, setChPage] = useState(1);
                   ? () => toggleSelected(chNum)
                   : () => handleReadChapterClick(c, chIndex);
                 return (
-                   <div
-                     key={`${chIndex}-${c.href || chNum}`}
-                     className={`ch-row ${chRead ? "ch-read" : ""} ${isSelected ? "ch-selected" : ""}`}
-                     onClick={rowClick}
-                     onTouchStart={() => handleLongPressStart(chNum)}
-                     onTouchEnd={handleLongPressEnd}
-                     onTouchMove={handleLongPressMove}
-                     onContextMenu={(e) => {
-                       e.preventDefault();
-                       if (!selectMode) {
-                         setSelectMode(true);
-                         toggleSelected(chNum);
-                       }
-                     }}
-                   >
+                  <div
+                    key={`${chIndex}-${c.href || chNum}`}
+                    className={`ch-row ${chRead ? "ch-read" : ""} ${isSelected ? "ch-selected" : ""}`}
+                    onClick={rowClick}
+                    onTouchStart={() => handleLongPressStart(chNum)}
+                    onTouchEnd={handleLongPressEnd}
+                    onTouchMove={handleLongPressMove}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (!selectMode) {
+                        setSelectMode(true);
+                        toggleSelected(chNum);
+                      }
+                    }}
+                  >
                     {selectMode ? (
                       <span className="ch-checkbox" aria-hidden="true">
                         {isSelected ? "☑" : "☐"}

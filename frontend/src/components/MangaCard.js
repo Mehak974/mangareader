@@ -63,7 +63,7 @@ const MangaCard = React.memo(function MangaCard({ manga, index, priority = false
       aria-label={`Go to ${manga.t}`}
     >
       <div className="m-cover" style={coverStyle}>
-{imageUrl && (
+        {imageUrl && (
           <Image
             src={imageUrl}
             alt={`Cover for ${manga.t}`}
@@ -73,6 +73,7 @@ const MangaCard = React.memo(function MangaCard({ manga, index, priority = false
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"
+            unoptimized={Boolean(imageUrl && (imageUrl.includes('mangadex.org') || imageUrl.includes('anilist.co')))}
           />
         )}
         <div className="m-shimmer" />
