@@ -220,136 +220,141 @@ export function mapAnilistMedia(media) {
   };
 }
 
-const MANGADEX_GENRE_TAGS = {
-  action: "391b0423-d847-456f-aff0-8b0cfc03066b",
-  adventure: "87cc87cd-a395-47af-b27a-93258283bbc6",
-  comedy: "4d32cc48-9f00-4cca-9b5a-a839f0764984",
-  drama: "b9af3a63-f058-46de-a9a0-e0c13906197a",
-  fantasy: "cdc58573-824b-420b-ba9f-546d60590c27",
-  horror: "cdad7e68-07dd-4270-a3ee-725487693895",
-  mystery: "ee9634b1-6355-4270-b70c-ce589b81458c",
-  psychological: "3b60b75c-a2d7-4860-ab56-05f391bb889c",
-  romance: "423e2eae-a7a2-4a8b-ac03-a8351462d71d",
-  "sci-fi": "256c8bd9-4904-4360-bf4f-508a76d67183",
-  thriller: "07251805-a27e-4d59-b488-f0bfbec15168",
-  supernatural: "eabc548c-9e9d-440f-aa32-51a44c66e2c3",
-};
-
-async function fetchMangaDexFallback(variables = {}) {
+async function fetchKitsuFallback(variables = {}) {
   try {
-    const limit = Math.min(variables.perPage || 24, 100);
+    const requestedPerPage = Math.min(variables.perPage || 24, 40);
     const page = variables.page || 1;
-    const offset = (page - 1) * limit;
+    // Kitsu enforces max limit=20 per query. We fetch in chunks of up to 20.
+    const primaryLimit = Math.min(requestedPerPage, 20);
+    const secondaryLimit = requestedPerPage > 20 ? Math.min(requestedPerPage - 20, 20) : 0;
+    const baseOffset = (page - 1) * requestedPerPage;
 
-    const params = new URLSearchParams();
-    params.append("limit", String(limit));
-    params.append("offset", String(offset));
-    params.append("includes[]", "cover_art");
-    params.append("contentRating[]", "safe");
-    params.append("contentRating[]", "suggestive");
+    const buildUrl = (limit, offset) => {
+      const params = new URLSearchParams();
+      params.set("page[limit]", String(limit));
+      params.set("page[offset]", String(offset));
 
-    if (variables.search && String(variables.search).trim()) {
-      params.append("title", String(variables.search).trim());
-    } else {
-      if (variables.sort && Array.isArray(variables.sort)) {
-        if (variables.sort.some((s) => String(s).includes("SCORE"))) {
-          params.append("order[rating]", "desc");
-        } else if (variables.sort.some((s) => String(s).includes("UPDATED"))) {
-          params.append("order[latestUploadedChapter]", "desc");
-        } else {
-          params.append("order[followedCount]", "desc");
-        }
+      if (variables.search && String(variables.search).trim()) {
+        params.set("filter[text]", String(variables.search).trim());
       } else {
-        params.append("order[followedCount]", "desc");
+        const sortArr = Array.isArray(variables.sort)
+          ? variables.sort.map((s) => String(s).toUpperCase())
+          : [];
+        if (sortArr.some((s) => s.includes("SCORE"))) {
+          params.set("sort", "-averageRating");
+        } else if (
+          sortArr.some(
+            (s) =>
+              s.includes("ID") ||
+              s.includes("UPDATED") ||
+              s.includes("START_DATE") ||
+              s.includes("LATEST")
+          )
+        ) {
+          params.set("sort", "-startDate");
+          if (!variables.status) params.set("filter[status]", "current,finished");
+        } else if (sortArr.some((s) => s.includes("ROMAJI") || s.includes("TITLE"))) {
+          params.set("sort", "canonicalTitle");
+        } else {
+          // Default: Trending (sorted by popularityRank)
+          params.set("sort", "popularityRank");
+        }
+      }
+
+      if (variables.status === "RELEASING") params.set("filter[status]", "current");
+      else if (variables.status === "FINISHED") params.set("filter[status]", "finished");
+
+      if (variables.countryOfOrigin === "KR") params.set("filter[subtype]", "manhwa");
+      else if (variables.countryOfOrigin === "CN") params.set("filter[subtype]", "manhua");
+
+      if (variables.genre && variables.genre !== "All") {
+        params.set("filter[categories]", String(variables.genre).toLowerCase());
+      }
+
+      return `https://kitsu.io/api/edge/manga?${params.toString()}`;
+    };
+
+    const fetchChunk = async (url) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      try {
+        const res = await fetch(url, {
+          headers: { Accept: "application/vnd.api+json" },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        clearTimeout(timeoutId);
+        return null;
+      }
+    };
+
+    const firstJson = await fetchChunk(buildUrl(primaryLimit, baseOffset));
+    if (!firstJson || !Array.isArray(firstJson.data)) return null;
+
+    let allItems = [...firstJson.data];
+    const totalCount = firstJson.meta?.count || allItems.length;
+
+    if (secondaryLimit > 0 && allItems.length === primaryLimit && (baseOffset + primaryLimit) < totalCount) {
+      const secondJson = await fetchChunk(buildUrl(secondaryLimit, baseOffset + primaryLimit));
+      if (secondJson && Array.isArray(secondJson.data)) {
+        allItems = allItems.concat(secondJson.data);
       }
     }
 
-    if (variables.status === "RELEASING") params.append("status[]", "ongoing");
-    else if (variables.status === "FINISHED") params.append("status[]", "completed");
+    const media = allItems.map((m) => {
+      const attr = m.attributes || {};
+      const title = attr.titles?.en || attr.canonicalTitle || "Untitled";
+      const isKorean = attr.subtype === "manhwa";
+      const isChinese = attr.subtype === "manhua";
+      const country = isKorean ? "KR" : isChinese ? "CN" : "JP";
+      const cover =
+        attr.posterImage?.large ||
+        attr.posterImage?.medium ||
+        attr.posterImage?.original ||
+        attr.posterImage?.small ||
+        "";
 
-    if (variables.genre && variables.genre !== "All") {
-      const tagId = MANGADEX_GENRE_TAGS[String(variables.genre).toLowerCase()];
-      if (tagId) params.append("includedTags[]", tagId);
-    }
+      let defaultGenre = "Action";
+      if (isKorean) defaultGenre = "Manhwa";
+      else if (isChinese) defaultGenre = "Manhua";
+      else if (variables.genre && variables.genre !== "All") defaultGenre = variables.genre;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
-    const apiUrl = `https://api.mangadex.org/manga?${params.toString()}`;
-    const res = await fetch(apiUrl, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      console.warn("[MangaDex] API response not OK:", res.status);
-      return null;
-    }
-    const json = await res.json();
-    if (!json.data || !Array.isArray(json.data)) {
-      console.warn("[MangaDex] No data array in response");
-      return null;
-    }
-
-    const media = json.data.map((m) => {
-      let enTitle = m.attributes?.title?.en;
-      if (!enTitle) {
-        const altEn = m.attributes?.altTitles?.find((a) => a.en)?.en;
-        enTitle = altEn || (m.attributes?.title ? Object.values(m.attributes.title)[0] : "Untitled");
-      }
-
-      const coverRel = m.relationships?.find((r) => r.type === "cover_art");
-      const cover = coverRel?.attributes?.fileName
-        ? `https://uploads.mangadex.org/covers/${m.id}/${coverRel.attributes.fileName}.512.jpg`
-        : "";
-
-      const genres =
-        m.attributes?.tags
-          ?.filter((t) => t.attributes?.group === "genre")
-          .map((t) => t.attributes?.name?.en)
-          .filter(Boolean) || [];
-
-      const tags =
-        m.attributes?.tags?.map((t) => t.attributes?.name?.en).filter(Boolean) || [];
-
-      const isKorean = m.attributes?.originalLanguage === "ko";
-      const isAdult =
-        m.attributes?.contentRating === "erotica" ||
-        m.attributes?.contentRating === "pornographic";
+      const ratingVal = attr.averageRating ? parseFloat(attr.averageRating) / 20 : 4.5;
+      // Only R18 is pornography/explicit. Standard R in Kitsu is for regular shonen/seinen action (Tokyo Ghoul, AoT)
+      const isAdult = attr.ageRating === "R18";
 
       return {
-        id: m.id,
-        countryOfOrigin: isKorean ? "KR" : "JP",
-        country: isKorean ? "KR" : "JP",
-        t: enTitle,
-        g: genres[0] || (isKorean ? "Manhwa" : "Action"),
-        ch: m.attributes?.lastChapter
-          ? `Ch ${m.attributes.lastChapter}`
-          : m.attributes?.status === "completed"
-          ? "Completed"
-          : "Ongoing",
-        hot: true,
-        rating: 4.5,
-        ongoing: m.attributes?.status === "ongoing",
+        id: String(m.id),
+        countryOfOrigin: country,
+        country,
+        t: title,
+        g: defaultGenre,
+        ch: attr.chapterCount ? `Ch ${attr.chapterCount}` : "Ongoing",
+        hot: (attr.userCount || 0) > 2000,
+        rating: Math.min(5, Math.max(1, Number(ratingVal.toFixed(1)))),
+        ongoing: attr.status === "current",
         cover,
-        genres,
-        tags,
+        genres: [defaultGenre],
+        tags: [],
         isAdult,
       };
     });
 
-    const total = json.total || media.length;
     return {
       pageInfo: {
-        total,
+        total: totalCount,
         currentPage: page,
-        lastPage: Math.ceil(total / limit) || 1,
-        hasNextPage: offset + media.length < total,
-        perPage: limit,
+        lastPage: Math.ceil(totalCount / requestedPerPage) || 1,
+        hasNextPage: baseOffset + media.length < totalCount,
+        perPage: requestedPerPage,
       },
       media,
     };
   } catch (err) {
-    console.warn("MangaDex fallback failed:", err.message);
+    console.warn("Kitsu fallback failed:", err.message);
     return null;
   }
 }
@@ -367,7 +372,9 @@ export async function getMangaList(variables = {}) {
       if (variables.countryOfOrigin) q.set("countryOfOrigin", String(variables.countryOfOrigin));
       if (variables.sort && Array.isArray(variables.sort)) {
         if (variables.sort.some((s) => String(s).includes("SCORE"))) q.set("sort", "Top Rated");
-        else if (variables.sort.some((s) => String(s).includes("ID"))) q.set("sort", "New Releases");
+        else if (variables.sort.some((s) => String(s).includes("ID") || String(s).includes("UPDATED") || String(s).includes("START_DATE"))) q.set("sort", "New Releases");
+        else if (variables.sort.some((s) => String(s).includes("TRENDING"))) q.set("sort", "Trending");
+        else if (variables.sort.some((s) => String(s).includes("ROMAJI"))) q.set("sort", "A–Z");
       }
       const res = await fetch(`/api/manga/browse?${q.toString()}`);
       if (res.ok) {
@@ -397,10 +404,10 @@ export async function getMangaList(variables = {}) {
     console.warn("getMangaList AniList offline:", err.message);
   }
 
-  // Fallback to MangaDex only when AniList is offline or empty
-  const dexData = await fetchMangaDexFallback(variables);
-  if (dexData && dexData.media?.length > 0) {
-    return dexData;
+  // Fallback to Kitsu only when AniList is offline or empty
+  const kitsuData = await fetchKitsuFallback(variables);
+  if (kitsuData && kitsuData.media?.length > 0) {
+    return kitsuData;
   }
 
   return {
@@ -422,10 +429,10 @@ export async function getRecentMangaList(variables) {
     console.warn("getRecentMangaList AniList offline:", err.message);
   }
 
-  // Fallback to MangaDex only when AniList is offline or empty
-  const dexData = await fetchMangaDexFallback({ ...variables, sort: ["UPDATED_AT_DESC"] });
-  if (dexData && dexData.media?.length > 0) {
-    return dexData;
+  // Fallback to Kitsu only when AniList is offline or empty
+  const kitsuData = await fetchKitsuFallback({ ...variables, sort: ["UPDATED_AT_DESC"] });
+  if (kitsuData && kitsuData.media?.length > 0) {
+    return kitsuData;
   }
 
   return {

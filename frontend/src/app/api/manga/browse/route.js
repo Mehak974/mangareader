@@ -18,7 +18,8 @@ export async function GET(request) {
 
     let activeSort = ["TRENDING_DESC", "POPULARITY_DESC"];
     if (sort === "Top Rated") activeSort = ["SCORE_DESC", "POPULARITY_DESC"];
-    else if (sort === "New Releases" || sort === "latest") activeSort = ["ID_DESC"];
+    else if (sort === "New Releases" || sort === "latest" || sort === "Latest") activeSort = ["ID_DESC"];
+    else if (sort === "Trending" || sort === "trending") activeSort = ["TRENDING_DESC", "POPULARITY_DESC"];
     else if (sort === "A–Z") activeSort = ["TITLE_ROMAJI"];
     else if (sort === "Completed" || sort === "completed") activeSort = ["SCORE_DESC", "POPULARITY_DESC"];
 

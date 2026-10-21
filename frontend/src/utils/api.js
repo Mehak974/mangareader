@@ -63,7 +63,7 @@ export function isWorkerAvailable() {
   }
 }
 
-const DIRECT_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org'];
+const DIRECT_IMAGE_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org', 'kitsu.app', 'media.kitsu.app', 'kitsu.io', 'media.kitsu.io'];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp', '.svg'];
 const SKIP_DOMAINS = ['yandex.ru', 'yandex.com', 'google-analytics.com', 'doubleclick.net', 'googletagmanager.com', 'hotjar.com', 'cloudflareinsights.com', 'cloudflare-analytics.com'];

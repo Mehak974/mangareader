@@ -13,7 +13,7 @@ export default function myImageLoader({ src, width, quality }) {
     return src;
   }
 
-  const DIRECT_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org'];
+  const DIRECT_DOMAINS = ['anilist.co', 's4.anilist.co', 's5.anilist.co', 'mangadex.org', 'uploads.mangadex.org', 'kitsu.app', 'media.kitsu.app', 'kitsu.io', 'media.kitsu.io'];
   if (DIRECT_DOMAINS.some(d => src.includes(d))) {
     if (!src.includes('w=') && width) return `${src}${src.includes('?') ? '&' : '?'}w=${width}`;
     return src;
