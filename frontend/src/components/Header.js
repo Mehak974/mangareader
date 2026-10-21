@@ -310,6 +310,12 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     </div>
                   </div>
                 ))
+              ) : searching ? (
+                <div className="sr-item" style={{ cursor: "default", opacity: 0.7 }}>
+                  <div className="sr-title" style={{ color: "var(--text3)" }}>
+                    Searching for &quot;{searchQuery.trim()}&quot;…
+                  </div>
+                </div>
               ) : (
                 <div className="sr-item" style={{ cursor: "default" }}>
                   <div className="sr-title" style={{ color: "var(--text3)" }}>
