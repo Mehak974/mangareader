@@ -56,6 +56,12 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'toilet-bound-hanako-kun-vol-0',
   'your-grace-please-just-forget-about-this-wicked-wife',
   'yankee-jk-kuzuhana-chan',
+  'baron-the-cat-returns',
+  'boys-abyss',
+  'caste-heaven',
+  'dead-dead-demons-dededede-destruction',
+  'bound',
+  'tangled-feelings-tugged-loose',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

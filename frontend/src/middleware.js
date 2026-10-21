@@ -74,7 +74,7 @@ export function middleware(request) {
   }
 
   // ── Blocked / DMCA protected titles: return 404 page for /manga/:slug ─────
-  const mangaMatch = pathname.match(/^\/manga\/([^/]+)$/);
+  const mangaMatch = pathname.match(/^\/manga\/([^/]+)\/?$/);
   if (mangaMatch && isBlockedManga(mangaMatch[1])) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
