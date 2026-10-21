@@ -178,7 +178,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
-      <head>
+      <head suppressHydrationWarning>
         {/* Ad network preconnects to eliminate popunder initialization delay (<5-10s) */}
         <link rel="dns-prefetch" href="//purple-text.com" />
         <link rel="preconnect" href="https://purple-text.com" />
@@ -216,7 +216,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             } catch(e) {}
           })();
         `}} />
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: `
           :root {
             --accent: ${siteConfig.theme.accentColor};
             --accent-hover: ${siteConfig.theme.accentHover};
