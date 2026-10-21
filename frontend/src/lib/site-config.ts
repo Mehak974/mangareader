@@ -103,7 +103,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
       bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
       hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
-      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn',
+      hilltopDirectLink:   process.env.NEXT_PUBLIC_HILLTOP_DIRECT_LINK   || 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24',
       hilltopVastUrl:      process.env.NEXT_PUBLIC_HILLTOP_VAST_URL      || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
       umamiSrc:            'https://analytics.mangareader.pro/script.js',
@@ -271,14 +271,14 @@ export function getDirectLink(): string {
       return 'https://purple-text.com/by3.VC0cP/3Cp-vpb/mIVOJVZtDJ0G3DNHDrQH0WNxDTYw5WLiTgc/0-NND/Q/0uNxzYMt';
     }
     if (h.includes('mangareader.pro')) {
-      return 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
+      return 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24';
     }
   }
-  return siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
+  return siteConfig.ads.hilltopDirectLink || 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24';
 }
 
 /** Hilltop direct link for download/offline triggers (defaults to active config) */
-export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://purple-text.com/bB3.VM0/Pe3opMvmb/mmVvJ/ZKDL0P3mNPTZEtxqNBjycd3/LYTUcy1-MBTPE/2/OrDmEn';
+export const HILLTOP_DIRECT_LINK = siteConfig.ads.hilltopDirectLink || 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24';
 
 /** Hilltop VAST 3.0 video tag URL */
 export const HILLTOP_VAST_URL = siteConfig.ads.hilltopVastUrl || 'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB';
