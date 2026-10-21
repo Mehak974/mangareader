@@ -65,11 +65,11 @@ export function buildMetadata({
     title,
     description,
     alternates: {
-      canonical: url,
+      canonical: path,
     },
     openGraph: {
       type,
-      url,
+      url: path,
       title,
       description,
       siteName: SITE_NAME,

@@ -28,10 +28,10 @@ import JsonLd               from '@/components/JsonLd';
 import MaintenanceGuard     from '@/components/MaintenanceGuard';
 import UmamiAnalytics       from '@/components/UmamiAnalytics';
 import { Analytics }        from '@vercel/analytics/react';
-import { SpeedInsights }    from '@vercel/speed-insights/next';
+import { headers } from 'next/headers';
 import {
   SITE_NAME, SITE_URL, SEO, AD_CONFIG,
-  siteConfig,
+  siteConfig, getSiteConfig,
 } from '@/lib/site-config';
 import { organizationSchema, websiteSchema } from '@/lib/seo';
 
@@ -90,66 +90,84 @@ const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
 
-// ── Root metadata ─────────────────────────────────────────────────────────────
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+// ── Dynamic root metadata (self-canonicalizes to avoid cross-domain duplicate penalties) ─────
+export async function generateMetadata(): Promise<Metadata> {
+  let domain = 'mangareader.pro';
+  try {
+    const headersList = await headers();
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+    if (host.includes('mangaread.pro')) {
+      domain = 'mangaread.pro';
+    } else if (host.includes('manireader.online') || host.includes('manireader.pro')) {
+      domain = 'manireader.online';
+    }
+  } catch {}
 
-  title: {
-    default:  SEO.title,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SEO.description,
-  keywords:    SEO.keywords,
-  applicationName: SITE_NAME,
+  const config = getSiteConfig(domain);
+  const domainUrl = `https://${domain}`;
 
-  // Google / Bing site verification — set per domain in Vercel env vars
-  verification: {
-    google: AD_CONFIG.googleVerification || undefined,
-    other: {
-      ...(AD_CONFIG.bingVerification ? { 'msvalidate.01': AD_CONFIG.bingVerification } : {}),
-      ...(AD_CONFIG.hilltopVerification ? { hltp: AD_CONFIG.hilltopVerification } : {}),
+  return {
+    metadataBase: new URL(domainUrl),
+
+    title: {
+      default:  config.seo.title,
+      template: `%s | ${config.name}`,
     },
-  },
+    description: config.seo.description,
+    keywords:    config.seo.keywords,
+    applicationName: config.name,
 
-  openGraph: {
-    type:      'website',
-    url:       SITE_URL,
-    siteName:  SITE_NAME,
-    title:     SEO.title,
-    description: SEO.description,
-    images: [{ url: SEO.ogImage, width: 1200, height: 630 }],
-  },
-  twitter: {
-    card:        'summary_large_image',
-    site:        `@${SEO.twitterHandle}`,
-    title:       SEO.title,
-    description: SEO.description,
-    images:      [SEO.ogImage],
-  },
-
-  alternates: {
-    canonical: '/',
-    languages: HREFLANG_ALTERNATES,
-  },
-
-  robots: {
-    index:  true,
-    follow: true,
-    googleBot: {
-      index:              true,
-      follow:             true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet':       -1,
+    verification: {
+      google: config.ads.googleVerification || undefined,
+      other: {
+        ...(config.ads.bingVerification ? { 'msvalidate.01': config.ads.bingVerification } : {}),
+        ...(config.ads.hilltopVerification ? { hltp: config.ads.hilltopVerification } : {}),
+      },
     },
-  },
 
-  manifest: '/manifest.webmanifest',
-  icons: {
-    icon:  [{ url: '/icon.png' }],
-    apple: [{ url: '/apple-icon.png' }],
-  },
-};
+    openGraph: {
+      type:        'website',
+      url:         domainUrl,
+      siteName:    config.name,
+      title:       config.seo.title,
+      description: config.seo.description,
+      images: [{ url: config.seo.ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card:        'summary_large_image',
+      site:        `@${config.seo.twitterHandle}`,
+      title:       config.seo.title,
+      description: config.seo.description,
+      images:      [config.seo.ogImage],
+    },
+
+    alternates: {
+      canonical: domainUrl,
+      languages: {
+        'x-default': 'https://mangareader.pro',
+        'en': domainUrl,
+      },
+    },
+
+    robots: {
+      index:  true,
+      follow: true,
+      googleBot: {
+        index:              true,
+        follow:             true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet':       -1,
+      },
+    },
+
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon:  [{ url: '/icon.png' }],
+      apple: [{ url: '/apple-icon.png' }],
+    },
+  };
+}
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 export default function RootLayout({ children }: { children: React.ReactNode }) {
