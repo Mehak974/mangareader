@@ -9,6 +9,7 @@ import MangaCard from "@/components/MangaCard";
 import Footer from "@/components/Footer";
 import { proxyImage } from "@/utils/api";
 import { slugify } from "@/utils/slugify";
+import { getMangaHref } from "@/lib/dmcaBlacklist";
 import {
   getAllOfflineChapters,
   deleteOfflineChapter,
@@ -307,7 +308,7 @@ export default function LibraryContent() {
                 >
                   {/* Manga Cover */}
                   <Link
-                    href={`/manga/${slugify(g.mangaTitle)}`}
+                    href={getMangaHref(g.mangaTitle, g.cover)}
                     style={{
                       position: "relative",
                       width: "74px",
@@ -357,7 +358,7 @@ export default function LibraryContent() {
                     >
                       <div>
                         <Link
-                          href={`/manga/${slugify(g.mangaTitle)}`}
+                          href={getMangaHref(g.mangaTitle, g.cover)}
                           style={{
                             fontSize: "16px",
                             fontWeight: 700,
