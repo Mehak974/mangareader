@@ -234,7 +234,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           id="pwa-early-init"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
-            __html: `if(typeof window!=='undefined'){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwa-prompt-available',{detail:e}));});if('serviceWorker' in navigator){function reg(){navigator.serviceWorker.register('/sw.js').then(function(r){if(r)r.update().catch(function(){});}).catch(function(){});}if(document.readyState==='complete'){reg();}else{window.addEventListener('load',reg);}}}`,
+            __html: `if(typeof window!=='undefined'){window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__deferredInstallPrompt=e;window.dispatchEvent(new CustomEvent('pwa-prompt-available',{detail:e}));});if(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){for(var r of regs){r.unregister();}});if('caches' in window){caches.keys().then(function(names){for(var n of names){caches.delete(n);}});}}}else if('serviceWorker' in navigator){function reg(){navigator.serviceWorker.register('/sw.js').then(function(r){if(r)r.update().catch(function(){});}).catch(function(){});}if(document.readyState==='complete'){reg();}else{window.addEventListener('load',reg);}}}`,
           }}
         />
 
