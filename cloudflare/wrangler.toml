@@ -47,9 +47,11 @@ routes = [
 #    re-fetch of a chapter nobody is reading. Recreate with:
 #      npx wrangler r2 bucket lifecycle add mangareader-images Lifetime img/ --expire-days 7
 # 3) Optional purge endpoint:  npx wrangler secret put ADMIN_TOKEN
-[[r2_buckets]]
-binding     = "IMG_BUCKET"
-bucket_name = "mangareader-images"
+# R2 image store disabled to eliminate Class B operations and storage charges
+# Cloudflare Edge Cache (caches.default) serves everything for free.
+# [[r2_buckets]]
+# binding     = "IMG_BUCKET"
+# bucket_name = "mangareader-images"
 
 # WebP conversion before caching. Billed as Cloudflare Images "unique
 # transformations": first 5,000/month free, then $0.50 per 1,000. Already-WebP
@@ -62,7 +64,7 @@ binding = "IMAGES"
 [vars]
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
-R2_CACHE = "on"
+R2_CACHE = "off"
 # R2 writes (Class A ops like PUT/DELETE/LIST) are strictly forbidden and disabled.
 R2_WRITE = "off"
 
@@ -91,9 +93,9 @@ binding = "IMAGES"
 [env.production.vars]
 BACKEND_URL = "https://api.mangareader.pro"
 WEBP_CONVERT = "off"
-R2_CACHE = "on"
+R2_CACHE = "off"
 R2_WRITE = "off"
 
-[[env.production.r2_buckets]]
-binding     = "IMG_BUCKET"
-bucket_name = "mangareader-images"
+# [[env.production.r2_buckets]]
+# binding     = "IMG_BUCKET"
+# bucket_name = "mangareader-images"
