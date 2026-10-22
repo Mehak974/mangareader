@@ -63,6 +63,7 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'bound',
   'tangled-feelings-tugged-loose',
   'my-childhood-friends-are-trying-to-kill-me',
+  'lili-men',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
