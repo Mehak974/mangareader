@@ -364,6 +364,51 @@ function ReaderContent({ params }) {
     }
   }, [id, mangaId, title, savedOfflineChapters]);
 
+  // 1. Sliding window image prefetcher: aggressively preload the next 3 images ahead of reader's scroll
+  useEffect(() => {
+    if (!images || images.length === 0 || isOfflineMode || typeof window === 'undefined') return;
+    const curIdx = page - 1;
+    for (let offset = 1; offset <= 3; offset++) {
+      const nextIdx = curIdx + offset;
+      if (nextIdx < images.length && images[nextIdx] && !images[nextIdx].startsWith('data:')) {
+        const prefetchImg = new window.Image();
+        prefetchImg.src = proxyImage(images[nextIdx]);
+      }
+    }
+  }, [page, images, isOfflineMode]);
+
+  // 2. Next-Chapter Prewarming: when reader reaches near end of chapter, prewarm next chapter bundle & images
+  useEffect(() => {
+    if (!chapters || chapters.length === 0 || images.length === 0 || isOfflineMode) return;
+    if (page < Math.max(1, images.length - 3)) return;
+
+    const currentChNum = parseInt(id) || 1;
+    const targetNextNum = currentChNum + 1;
+    const directMatch = chapters.find((c) => Number(c.chNum) === targetNextNum);
+    let nextHref = directMatch?.href;
+    if (!nextHref) {
+      const curIdx = chapters.findIndex((c) => (c.href && c.href === url) || Number(c.chNum) === currentChNum);
+      if (curIdx > 0 && chapters[curIdx - 1]) {
+        nextHref = chapters[curIdx - 1].href;
+      }
+    }
+
+    if (nextHref) {
+      const nextUrl = `/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`;
+      router.prefetch(nextUrl);
+
+      // Prewarm the next chapter's first 2 images into browser cache
+      fetchChapterImagesThroughWorker(nextHref, source).then((res) => {
+        if (res?.data?.images && res.data.images.length > 0) {
+          for (let i = 0; i < Math.min(2, res.data.images.length); i++) {
+            const nextImg = new window.Image();
+            nextImg.src = proxyImage(res.data.images[i]);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [page, images.length, chapters, id, url, source, title, mangaId, cover, router, isOfflineMode]);
+
   // Trigger download modal if navigated with ?download=1
   useEffect(() => {
     if (autoDownload && images.length > 0 && !hasTriggeredAutoDownloadRef.current) {

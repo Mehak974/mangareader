@@ -17,7 +17,7 @@ const STATIC_ROUTES = [
   { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-09-01' },
 ];
 
-const SITEMAP_TOP_MANGA = 50;
+const SITEMAP_TOP_MANGA = 500;
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   Promise.race([
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         ORDER BY d.view_count DESC, d.last_viewed_at DESC
         LIMIT ${SITEMAP_TOP_MANGA}
       `,
-      2000
+      3000
     );
 
     const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
