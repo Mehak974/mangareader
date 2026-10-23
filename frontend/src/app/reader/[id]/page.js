@@ -1042,6 +1042,7 @@ function ReaderContent({ params }) {
               End of Chapter {id}
             </div>
             <PartnerSpotlight />
+            <AdsterraNativeBanner style={{ marginTop: 14, marginBottom: 10 }} />
             <div className="reader-footer-btns" style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px", flexWrap: "wrap", maxWidth: "100%", padding: "0 10px" }}>
               <button
                 className="rt-btn"
@@ -1115,7 +1116,6 @@ function ReaderContent({ params }) {
                   : "Next Chapter →"}
               </button>
             </div>
-            <AdsterraNativeBanner style={{ marginTop: 16 }} />
             <AAdsBanner style={{ marginTop: 12 }} />
         </div>
 
