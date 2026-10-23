@@ -217,7 +217,14 @@ function ReaderContent({ params }) {
   // Fetch chapters list on mount
   useEffect(() => {
     if (title || romaji) {
-      const candidates = [romaji, title].filter(Boolean);
+      const rawRomaji = romaji || "";
+      const romajiVariants = [
+        rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
+        rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
+        rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
+        rawRomaji,
+      ].filter(Boolean);
+      const candidates = [...romajiVariants, title].filter((t, i, arr) => t && arr.indexOf(t) === i);
       let cancelled = false;
 
       (async () => {
@@ -354,7 +361,14 @@ function ReaderContent({ params }) {
         if ((title || romaji) && id) {
           const alternateSources = ['manganato', 'mangaread', 'mangakatana', 'mangabuddy', 'asura'].filter(s => s !== source);
           const currentChNum = parseInt(id) || 1;
-          const queryTitles = [romaji, title].filter(Boolean);
+          const rawRomaji = romaji || "";
+          const romajiVariants = [
+            rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
+            rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
+            rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
+            rawRomaji,
+          ].filter(Boolean);
+          const queryTitles = [...romajiVariants, title].filter((t, i, arr) => t && arr.indexOf(t) === i);
 
           for (const altSource of alternateSources) {
             let recovered = false;
@@ -497,14 +511,16 @@ function ReaderContent({ params }) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    const cleanRomaji = (romaji || '')
-      .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const rawRomaji = romaji || "";
+    const romajiVariants = [
+      rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
+      rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
+      rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
+      rawRomaji,
+    ].filter(Boolean);
 
     const titleCandidates = [
-      romaji,
-      cleanRomaji,
+      ...romajiVariants,
       cleanTitle,
       title,
       cleanTitle.split(/\s+(?:are|shall|will|is|can)\b/i)[0]?.trim(),
@@ -745,14 +761,16 @@ function ReaderContent({ params }) {
         .replace(/\s+/g, ' ')
         .trim();
 
-      const cleanRomaji = (romaji || '')
-        .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+      const rawRomaji = romaji || "";
+      const romajiVariants = [
+        rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
+        rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
+        rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
+        rawRomaji,
+      ].filter(Boolean);
 
       const titleQueries = [
-        romaji,
-        cleanRomaji,
+        ...romajiVariants,
         title,
         cleanTitle
       ].filter((t, i, arr) => t && arr.indexOf(t) === i);

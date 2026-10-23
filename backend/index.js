@@ -488,9 +488,19 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     }
     const mr = (await db.query('SELECT source_slug FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, helpers.san(sid, 50)])).rows;
     let url = mr.length ? mr[0].source_slug : null;
+
+    if (url && !helpers.isGoodMatch(title, url)) {
+      console.warn(`[source-chapters] Purging poisoned mapping "${url}" for "${title}"`);
+      await db.query('DELETE FROM source_mappings WHERE manga_id=$1 AND source_id=$2', [mangaId, sid]);
+      await db.query('DELETE FROM chapters_cache WHERE manga_id=$1 AND source_id=$2', [mangaId, sid]);
+      await cache.del('chapter_list', redisKey);
+      url = null;
+      cached = null;
+    }
+
     if (cached && (Date.now() - cachedTs) < cache.TTL.chapter_list * 1000 && cached.chapters?.length) {
       res.setHeader('Cache-Control', 'public, max-age=43200'); // 12 hours
-      return res.json({ data: { sourceId: sid, url, chapters: cached.chapters }, cached: true });
+      return res.json({ data: { sourceId: sid, url, title: cached.detail?.title || title, chapters: cached.chapters }, cached: true });
     }
     if (!url) {
       console.log(`[source-chapters] Searching for ${sid}: ${title}`);
@@ -509,10 +519,10 @@ app.get('/api/manga/source-chapters', rateLimit(60000, 20), async (req, res) => 
     if (d.chapters.length) {
       const ts = Date.now();
       await db.query(`INSERT INTO chapters_cache(manga_id,source_id,chapters,fetched_at)VALUES($1,$2,$3,NOW())ON CONFLICT(manga_id,source_id)DO UPDATE SET chapters=EXCLUDED.chapters,fetched_at=NOW()`, [mangaId, sid, JSON.stringify(d.chapters)]);
-      await cache.set('chapter_list', redisKey, { source_id: sid, source_slug: url, chapters: d.chapters, fetched_at: ts, detail: null }, cache.TTL.chapter_list);
+      await cache.set('chapter_list', redisKey, { source_id: sid, source_slug: url, chapters: d.chapters, fetched_at: ts, detail: { title: d.title || title } }, cache.TTL.chapter_list);
     }
     res.setHeader('Cache-Control', 'public, max-age=43200'); // 12 hours
-    res.json({ data: { sourceId: sid, url, chapters: d.chapters || [] } });
+    res.json({ data: { sourceId: sid, url, title: d.title || title, chapters: d.chapters || [] } });
   } catch (err) { console.error('[source-chapters] error:', err); res.status(500).json({ error: err.message }); }
 });
 
