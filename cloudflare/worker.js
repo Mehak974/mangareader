@@ -809,10 +809,20 @@ async function anilist(req, ctx, origin, env) {
     IN_FLIGHT.set(ck, promise);
   }
 
+  const staleKey = `stale-${ck}`;
+
   let data;
   try {
     data = await promise;
   } catch (e) {
+    // Stale-on-error: If AniList origin fails (429 rate limit or 5xx), serve stale cache backup
+    const staleHit = await cacheGet(req.url, staleKey);
+    if (staleHit) {
+      console.warn(`[anilist] origin error (${e.message}), serving 7-day stale backup`);
+      memSet(ck, staleHit, 300);
+      return json(staleHit, 200, { 'X-Cache': 'STALE-FALLBACK', cf: { cacheEverything: true, cacheTtl: 300 } }, origin);
+    }
+
     const s = e && e.status;
     const status = Number.isInteger(s) && s >= 400 && s < 600 ? s : 502;
     // 429 stays 429 so the client's retry ladder engages. Everything else is
@@ -823,6 +833,7 @@ async function anilist(req, ctx, origin, env) {
   const ttl = 86400; // 24h — AniList data barely changes
   memSet(ck, data, 3600);
   cachePut(ctx, req.url, ck, data, ttl); // async, non-blocking
+  cachePut(ctx, req.url, staleKey, data, 604800); // 7-day emergency stale backup
   return json(data, 200, { 'X-Cache': 'MISS', cf: { cacheEverything: true, cacheTtl: ttl } }, origin);
 }
 

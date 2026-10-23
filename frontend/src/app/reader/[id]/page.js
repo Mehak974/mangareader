@@ -315,14 +315,57 @@ function ReaderContent({ params }) {
           return;
         }
 
-        const res = await fetchChapterImagesThroughWorker(url, source);
+        let res = null;
+        try {
+          res = await fetchChapterImagesThroughWorker(url, source);
+        } catch (initialErr) {
+          console.warn(`Primary source (${source}) failed:`, initialErr.message);
+        }
+
         if (res?.data?.images && res.data.images.length > 0) {
           setImages(res.data.images);
           setLoading(false);
           addToHistory(title || "Manga", `Chapter ${id}`, parseInt(id) || 1, url, source, mangaId, cover);
-        } else {
-          throw new Error("No images found in server response");
+          return;
         }
+
+        // Automatic Server Failover: If primary server failed, seamlessly try alternate servers
+        if (title && id) {
+          const alternateSources = ['manganato', 'mangakatana', 'mangaread'].filter(s => s !== source);
+          const currentChNum = parseInt(id) || 1;
+
+          for (const altSource of alternateSources) {
+            try {
+              console.log(`[AutoFailover] Trying alternate server: ${altSource} for chapter ${currentChNum}`);
+              const chRes = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${altSource}`);
+              const chData = await chRes.json();
+              const altChapters = chData?.data?.chapters;
+              if (Array.isArray(altChapters) && altChapters.length > 0) {
+                const targetCh = altChapters.find(c => {
+                  const num = typeof c.chNum !== 'undefined' ? c.chNum : null;
+                  if (num === currentChNum) return true;
+                  return c.title?.includes(` ${currentChNum}`) || c.title?.includes(`Chapter ${currentChNum}`);
+                });
+                if (targetCh?.href) {
+                  const altRes = await fetchChapterImagesThroughWorker(targetCh.href, altSource);
+                  if (altRes?.data?.images && altRes.data.images.length > 0) {
+                    console.log(`[AutoFailover] Rescued chapter via ${altSource}!`);
+                    setChapters(altChapters);
+                    setImages(altRes.data.images);
+                    setLoading(false);
+                    addToHistory(title || "Manga", `Chapter ${id}`, currentChNum, targetCh.href, altSource, mangaId, cover);
+                    toast.success(`Loaded from ${getServerName(altSource)}`, { duration: 2000, id: 'failover-toast' });
+                    return;
+                  }
+                }
+              }
+            } catch (altErr) {
+              console.warn(`[AutoFailover] ${altSource} attempt failed:`, altErr.message);
+            }
+          }
+        }
+
+        throw new Error("All servers failed to load chapter images");
       } catch (err) {
         console.warn("Reader fetch error, falling back to mock panels:", err.message);
 
