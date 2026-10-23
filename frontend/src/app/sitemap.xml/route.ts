@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isBlockedManga } from '@/lib/dmcaBlacklist';
+import { submitPathsToAllDomains } from '@/lib/indexnow';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,12 @@ export async function GET(request: NextRequest) {
       xml += `    <priority>${priority}</priority>\n`;
       xml += `  </url>\n`;
     });
+
+    // Auto-ping IndexNow in background to trigger fast search crawler indexing
+    if (validManga.length > 0) {
+      const topPaths = validManga.slice(0, 100).map((m) => `/manga/${m.slug}`);
+      submitPathsToAllDomains(topPaths).catch(() => {});
+    }
   } catch {}
 
   xml += `</urlset>`;
