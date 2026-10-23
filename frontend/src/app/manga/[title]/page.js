@@ -72,6 +72,58 @@ const sourceLabel = (id) => {
   return AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
 };
 
+const isStopWord = (w) => ['the', 'and', 'are', 'you', 'what', 'that', 'with', 'from', 'for', 'a', 'an', 'is', 'in', 'to', 'of', 'shall', 'will', 'have'].includes(w.toLowerCase());
+const getKeywords = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !isStopWord(w));
+
+const isTitleCompatible = (expectedTitles, receivedTitle, receivedUrl) => {
+  if (receivedUrl) {
+    const slug = receivedUrl.split('/manga/')[1]?.split('/')[0] || '';
+    const slugWords = getKeywords(slug.replace(/[-_]/g, ' '));
+    if (slugWords.length > 0) {
+      const matchesAnyCandidate = expectedTitles.some(expected => {
+        const expWords = getKeywords(expected);
+        return expWords.some(w => slugWords.includes(w));
+      });
+      if (!matchesAnyCandidate) {
+        console.warn(`[MangaDetail] Discarded mismatched URL slug "${slug}" for expected titles`);
+        return false;
+      }
+    }
+  }
+
+  if (!receivedTitle || !expectedTitles.length) return true;
+  const receivedWords = getKeywords(receivedTitle);
+  if (receivedWords.length === 0) return true;
+  for (const expected of expectedTitles) {
+    const expectedWords = getKeywords(expected);
+    if (expectedWords.length === 0) continue;
+    const matchCount = expectedWords.filter(w => receivedWords.includes(w)).length;
+    if (matchCount >= Math.min(2, Math.ceil(expectedWords.length * 0.4))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const getCandidateTitles = (mangaObj) => {
+  if (!mangaObj) return [];
+  const rawRomaji = mangaObj.romajiTitle || "";
+  const romajiVariants = [
+    rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
+    rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
+    rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
+    rawRomaji,
+  ].filter(Boolean);
+
+  return [
+    ...romajiVariants,
+    mangaObj.title,
+    mangaObj.romajiTitle,
+    mangaObj.englishTitle,
+    ...(mangaObj.synonyms || [])
+  ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+};
+
 export default function MangaDetail({ params }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -403,55 +455,7 @@ export default function MangaDetail({ params }) {
         let chaptersLoaded = false;
         const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
 
-        // Candidate titles to try: Romaji title first for Japanese manga, then main title, English, synonyms
-        const isStopWord = (w) => ['the', 'and', 'are', 'you', 'what', 'that', 'with', 'from', 'for', 'a', 'an', 'is', 'in', 'to', 'of', 'shall', 'will', 'have'].includes(w.toLowerCase());
-        const getKeywords = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !isStopWord(w));
-
-        const isTitleCompatible = (expectedTitles, receivedTitle, receivedUrl) => {
-          if (receivedUrl) {
-            const slug = receivedUrl.split('/manga/')[1]?.split('/')[0] || '';
-            const slugWords = getKeywords(slug.replace(/[-_]/g, ' '));
-            if (slugWords.length > 0) {
-              const matchesAnyCandidate = expectedTitles.some(expected => {
-                const expWords = getKeywords(expected);
-                return expWords.some(w => slugWords.includes(w));
-              });
-              if (!matchesAnyCandidate) {
-                console.warn(`[MangaDetail] Discarded mismatched URL slug "${slug}" for expected titles`);
-                return false;
-              }
-            }
-          }
-
-          if (!receivedTitle || !expectedTitles.length) return true;
-          const receivedWords = getKeywords(receivedTitle);
-          if (receivedWords.length === 0) return true;
-          for (const expected of expectedTitles) {
-            const expectedWords = getKeywords(expected);
-            if (expectedWords.length === 0) continue;
-            const matchCount = expectedWords.filter(w => receivedWords.includes(w)).length;
-            if (matchCount >= Math.min(2, Math.ceil(expectedWords.length * 0.4))) {
-              return true;
-            }
-          }
-          return false;
-        };
-
-        const rawRomaji = normalizedManga.romajiTitle || "";
-        const romajiVariants = [
-          rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
-          rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
-          rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
-          rawRomaji,
-        ].filter(Boolean);
-
-        const candidateTitles = [
-          ...romajiVariants,
-          normalizedManga.title,
-          normalizedManga.romajiTitle,
-          normalizedManga.englishTitle,
-          ...(normalizedManga.synonyms || [])
-        ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+        const candidateTitles = getCandidateTitles(normalizedManga);
 
         let bestMapData = null;
 
@@ -571,21 +575,7 @@ export default function MangaDetail({ params }) {
     setChPage(1);
     let loaded = false;
 
-    const rawRomaji = manga?.romajiTitle || "";
-    const romajiVariants = [
-      rawRomaji.replace(/\bnan\s+desu\s+ka\b/gi, 'nandesu ka'),
-      rawRomaji.replace(/\bnan\s+desuka\b/gi, 'nandesu ka'),
-      rawRomaji.replace(/\bnan\s+desu\s*ka\b/gi, 'nandesuka'),
-      rawRomaji,
-    ].filter(Boolean);
-
-    const candidateTitles = [
-      ...romajiVariants,
-      manga.title,
-      manga.romajiTitle,
-      manga.englishTitle,
-      ...(manga.synonyms || [])
-    ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+    const candidateTitles = getCandidateTitles(manga);
 
     for (const qTitle of candidateTitles) {
       try {
