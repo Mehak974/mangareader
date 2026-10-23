@@ -85,6 +85,8 @@ let activeNode: HTMLScriptElement | null = null;
 let currentStageLocked = false;
 let guardInstalled = false;
 const failedStages = new Set<number>();
+let lastSocialBarMountedAt = 0;
+const SOCIAL_BAR_INTERVAL_MS = 90 * 1000; // 90s minimum gap between Social Bar impressions across chapter navigations
 
 // ── Listener Capturing & Purging ───────────────────────────────────
 // Captures all event listeners attached by an ad network during its turn,
@@ -247,19 +249,33 @@ export default function AdScriptLoader() {
         try { activeNode.remove(); } catch {}
         activeNode = null;
       }
-      const sb = document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]');
+      const sb = document.querySelector('script[data-socialbar="true"], script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]');
       if (sb) {
         try { sb.remove(); } catch {}
       }
       return;
     }
 
-    // 2. Mount Social Bar (In-Page Push) once per session
-    if (typeof document !== 'undefined' && !document.querySelector('script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]')) {
-      const sb = document.createElement('script');
-      sb.src = cfg.adsterraSocialBar;
-      sb.async = true;
-      document.head.appendChild(sb);
+    // 2. Mount / Refresh Social Bar (In-Page Push) with respectful navigation cooldown
+    if (typeof document !== 'undefined') {
+      const now = Date.now();
+      if (now - lastSocialBarMountedAt >= SOCIAL_BAR_INTERVAL_MS) {
+        // Clean up previous Social Bar script tag and any leftover iframe containers
+        const oldSb = document.querySelector('script[data-socialbar="true"], script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]');
+        if (oldSb) {
+          try { oldSb.remove(); } catch {}
+        }
+        document.querySelectorAll('iframe[src*="profitableratecpmnetwork"], iframe[src*="bauval.org"]').forEach((el) => {
+          try { el.remove(); } catch {}
+        });
+
+        const sb = document.createElement('script');
+        sb.src = cfg.adsterraSocialBar;
+        sb.async = true;
+        sb.setAttribute('data-socialbar', 'true');
+        document.head.appendChild(sb);
+        lastSocialBarMountedAt = now;
+      }
     }
 
     const scheduleInject = (delayMs: number, targetStage: number) => {
