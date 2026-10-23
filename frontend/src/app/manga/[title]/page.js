@@ -136,32 +136,37 @@ export default function MangaDetail({ params }) {
         const isKorean = manga?.countryOfOrigin === "KR" || manga?.country === "KR" || manga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
         const country = isKorean ? "KR" : undefined;
 
-        let res = await getMangaList({
-          genre: primaryGenre,
-          countryOfOrigin: country,
-          perPage: 12,
-          sort: ["TRENDING_DESC", "POPULARITY_DESC"],
-        });
-
-        let list = res?.media || [];
-        if (!list || list.length < 3) {
-          const fallbackRes = await getMangaList({
+        let res = null;
+        try {
+          res = await getMangaList({
+            genre: primaryGenre,
+            countryOfOrigin: country,
             perPage: 12,
             sort: ["TRENDING_DESC", "POPULARITY_DESC"],
           });
-          if (fallbackRes?.media) {
-            list = fallbackRes.media;
-          }
+        } catch {}
+
+        let list = res?.media || [];
+        if (!list || list.length < 4) {
+          try {
+            const fallbackRes = await fetch(`/api/manga/browse?sort=Trending&perPage=12`).then(r => r.json());
+            if (fallbackRes?.media?.length) {
+              list = [...list, ...fallbackRes.media];
+            }
+          } catch {}
         }
 
         if (active && list.length > 0) {
+          const seen = new Set();
           const filtered = list.filter((item) => {
             if (!item) return false;
             const itemTitle = item.t || item.title?.userPreferred || item.title?.english || item.title?.romaji || "";
             const itemSlug = slugify(itemTitle);
             if (itemSlug === titleSlug) return false;
             if (manga?.id && item.id && String(item.id) === String(manga.id)) return false;
-            return !isExplicitNSFW(item.genres, itemTitle, { isAdult: item.isAdult });
+            if (seen.has(itemSlug)) return false;
+            seen.add(itemSlug);
+            return !isExplicitNSFW(item.genres || (item.g ? [item.g] : []), itemTitle, { isAdult: item.isAdult });
           }).slice(0, 6);
 
           setRelatedManga(filtered);
@@ -1331,7 +1336,7 @@ export default function MangaDetail({ params }) {
       </div>
 
       {/* RELATED MANGA RECOMMENDATIONS ("READERS ALSO READ") */}
-      {relatedManga.length > 0 && (
+      {(loadingRelated || relatedManga.length > 0) && (
         <div className="section related-section" style={{ maxWidth: "1200px", margin: "40px auto 20px", padding: "0 20px" }}>
           <div className="s-hd" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
             <div>
@@ -1347,9 +1352,13 @@ export default function MangaDetail({ params }) {
             </span>
           </div>
           <div className="manga-grid">
-            {relatedManga.map((m, idx) => (
-              <MangaCard key={m.id || idx} manga={m} index={idx} priority={idx < 3} />
-            ))}
+            {loadingRelated && relatedManga.length === 0
+              ? Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={idx} className="skeleton-card" style={{ height: "280px", borderRadius: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }} />
+                ))
+              : relatedManga.map((m, idx) => (
+                  <MangaCard key={m.id || idx} manga={m} index={idx} priority={idx < 3} />
+                ))}
           </div>
         </div>
       )}

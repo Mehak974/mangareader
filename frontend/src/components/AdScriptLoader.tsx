@@ -84,6 +84,7 @@ const NETWORKS: AdNetworkConfig[] = [
 let activeNode: HTMLScriptElement | null = null;
 let currentStageLocked = false;
 let guardInstalled = false;
+const failedStages = new Set<number>();
 
 // ── Listener Capturing & Purging ───────────────────────────────────
 // Captures all event listeners attached by an ad network during its turn,
@@ -263,25 +264,33 @@ export default function AdScriptLoader() {
 
     const scheduleInject = (delayMs: number, targetStage: number) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      while (targetStage < NETWORKS.length && failedStages.has(targetStage)) {
+        targetStage++;
+      }
       if (targetStage >= NETWORKS.length) return;
 
       timeoutRef.current = setTimeout(() => {
         // Unlock guard for this specific network's turn
         currentStageLocked = false;
 
+        while (targetStage < NETWORKS.length && failedStages.has(targetStage)) {
+          targetStage++;
+        }
+        if (targetStage >= NETWORKS.length) return;
+
         const network = NETWORKS[targetStage];
         if (network && !activeNode) {
-          console.log(`[AdWaterfall] Loading Stage ${targetStage + 1}/${NETWORKS.length}: ${network.name}`);
           startCapturing();
           activeNode = network.inject();
           activeNode.onerror = () => {
-            console.error(`[AdWaterfall] Failed to load ${network.name}`);
+            failedStages.add(targetStage);
             purgeCurrentNetworkArtifacts();
             activeNode = null;
             const nextStage = targetStage + 1;
             localStorage.setItem(STORAGE_STAGE, nextStage.toString());
             if (nextStage < NETWORKS.length) {
-              scheduleInject(1000, nextStage);
+              scheduleInject(500, nextStage);
             }
           };
         }
@@ -303,10 +312,7 @@ export default function AdScriptLoader() {
 
       // Automatically queue the next network after the 75s interval
       if (nextStage < NETWORKS.length) {
-        console.log(`[AdWaterfall] Scheduling next network (${NETWORKS[nextStage].name}) in ${STAGE_INTERVAL_MS / 1000}s`);
         scheduleInject(STAGE_INTERVAL_MS, nextStage);
-      } else {
-        console.log('[AdWaterfall] All networks completed for this 24-hour cycle.');
       }
     });
 
@@ -321,7 +327,12 @@ export default function AdScriptLoader() {
       localStorage.setItem(STORAGE_STAGE, '0');
     }
 
-    // If we've completed all networks in the waterfall (Hilltop, Adsterra, Monetag), stop!
+    // Skip any stages that failed or were blocked by client/adblocker
+    while (stage < NETWORKS.length && failedStages.has(stage)) {
+      stage++;
+    }
+
+    // If we've completed or skipped all networks in the waterfall, stop!
     if (stage >= NETWORKS.length) {
       return;
     }

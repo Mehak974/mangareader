@@ -22,6 +22,9 @@ import {
 } from "@/utils/offlineStorage";
 import { HILLTOP_DIRECT_LINK, getDirectLink } from "@/lib/site-config";
 import PartnerSpotlight from "@/components/PartnerSpotlight";
+import MangaCard from "@/components/MangaCard";
+import { slugify } from "@/utils/slugify";
+import { isExplicitNSFW } from "@/utils/anilist";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
 
@@ -95,7 +98,10 @@ function ReaderContent({ params }) {
   const [isOfflineMode, setIsOfflineMode] = useState(() => initialImages.length > 0);
   const [savedOfflineChapters, setSavedOfflineChapters] = useState(() => new Set());
   const [loadedImages, setLoadedImages] = useState({});
+  const [recommendedManga, setRecommendedManga] = useState([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
   const hasTriggeredAutoDownloadRef = useRef(false);
+  const hasTriggeredFailoverRef = useRef(false);
   const autoDownload = searchParams.get("download") === "1";
 
   // Sync state synchronously during render when navigating across chapters
@@ -167,6 +173,7 @@ function ReaderContent({ params }) {
   // Reset navigation guard, scroll to top, and clear transient state on chapter change
   useEffect(() => {
     isNavigatingRef.current = false;
+    hasTriggeredFailoverRef.current = false;
     window.scrollTo({ top: 0, behavior: "instant" });
     setPage(1);
     setImgErrors({});
@@ -461,6 +468,108 @@ function ReaderContent({ params }) {
     }
   }, [autoDownload, images]);
 
+  // Automatic Server Failover: when 2+ images fail or >20% fail due to dead upstream CDN (e.g. Manganato 2xstorage 503/404)
+  const triggerAutoFailover = async () => {
+    const altSources = ['mangakatana', 'mangaread', 'mangabuddy', 'asura'].filter(s => s !== source);
+    const currentNum = parseInt(id) || 1;
+
+    const cleanTitle = (title || '')
+      .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const titleCandidates = [
+      cleanTitle,
+      title,
+      cleanTitle.split(/\s+(?:are|shall|will|is|can)\b/i)[0]?.trim(),
+    ].filter(Boolean);
+
+    toast.loading("Primary image server unavailable. Switching to backup server...", { id: "failover-toast", duration: 3000 });
+
+    for (const altSource of altSources) {
+      for (const queryTitle of titleCandidates) {
+        try {
+          const chRes = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(queryTitle)}&source=${altSource}`);
+          if (!chRes.ok) continue;
+          const chData = await chRes.json();
+          const altChapters = chData?.data?.chapters;
+          if (Array.isArray(altChapters) && altChapters.length > 0) {
+            const targetCh = altChapters.find(c => {
+              if (c.chNum === currentNum) return true;
+              return c.title?.includes(` ${currentNum}`) || c.title?.includes(`Chapter ${currentNum}`);
+            });
+            if (targetCh?.href) {
+              const altRes = await fetchChapterImagesThroughWorker(targetCh.href, altSource);
+              if (altRes?.data?.images && altRes.data.images.length > 0) {
+                setChapters(altChapters);
+                setImages(altRes.data.images);
+                setImgErrors({});
+                setLoadedImages({});
+                if (typeof window !== "undefined" && mangaId) {
+                  localStorage.setItem(`preferred_source_${mangaId}`, altSource);
+                }
+                addToHistory(title || "Manga", `Chapter ${id}`, currentNum, targetCh.href, altSource, mangaId, cover);
+                toast.success(`Switched to ${getServerName(altSource)}!`, { id: "failover-toast", duration: 2500 });
+                try {
+                  const newParams = new URLSearchParams(window.location.search);
+                  newParams.set('source', altSource);
+                  newParams.set('url', targetCh.href);
+                  window.history.replaceState(null, '', `${window.location.pathname}?${newParams.toString()}`);
+                } catch {}
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          // continue to next source candidate
+        }
+      }
+    }
+    toast.error("Images temporarily unavailable on mirror servers.", { id: "failover-toast" });
+  };
+
+  useEffect(() => {
+    const errorCount = Object.keys(imgErrors).length;
+    const shouldFailover = (errorCount >= 2 || (images.length > 0 && errorCount / images.length >= 0.2)) && images.length > 0;
+    if (shouldFailover && !hasTriggeredFailoverRef.current && !loading && !isOfflineMode) {
+      hasTriggeredFailoverRef.current = true;
+      triggerAutoFailover();
+    }
+  }, [imgErrors, images.length, loading, isOfflineMode]);
+
+  // Fetch Recommended Manga for end-of-chapter recommendations
+  useEffect(() => {
+    let active = true;
+    async function loadReaderRecommendations() {
+      setLoadingRecommended(true);
+      try {
+        const res = await fetch('/api/manga/browse?sort=Trending&perPage=8');
+        if (res.ok) {
+          const json = await res.json();
+          if (active && json?.media?.length > 0) {
+            const seen = new Set();
+            const list = json.media.filter((item) => {
+              if (!item) return false;
+              const itemTitle = item.t || item.title?.userPreferred || item.title?.english || item.title?.romaji || "";
+              const itemSlug = slugify(itemTitle);
+              if (title && itemSlug === slugify(title)) return false;
+              if (seen.has(itemSlug)) return false;
+              seen.add(itemSlug);
+              return !isExplicitNSFW(item.genres || (item.g ? [item.g] : []), itemTitle, { isAdult: item.isAdult });
+            }).slice(0, 6);
+            setRecommendedManga(list);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load reader recommendations:", e);
+      } finally {
+        if (active) setLoadingRecommended(false);
+      }
+    }
+    loadReaderRecommendations();
+    return () => { active = false; };
+  }, [title]);
+
   // Page tracking via IntersectionObserver — accurate per image detection
   const observerRef = useRef(null);
 
@@ -604,9 +713,27 @@ function ReaderContent({ params }) {
     if (newSource === source) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${newSource}`);
-      const data = await res.json();
-      if (data.data && data.data.chapters?.length > 0) {
+      const cleanTitle = (title || '')
+        .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const titleQueries = [title, cleanTitle].filter(Boolean);
+      let data = null;
+      for (const t of titleQueries) {
+        try {
+          const res = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(t)}&source=${newSource}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.data?.chapters?.length > 0) {
+              data = json;
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      if (data?.data && data.data.chapters?.length > 0) {
         const newChaps = data.data.chapters;
         setChapters(newChaps);
         const currentNum = parseInt(id) || 1;
@@ -1204,6 +1331,33 @@ function ReaderContent({ params }) {
                   : "Next Chapter →"}
               </button>
             </div>
+
+            {/* RECOMMENDED MANGA SECTION AT END OF CHAPTER */}
+            <div className="reader-recommendations" style={{ width: "100%", maxWidth: "1000px", margin: "32px auto 20px", padding: "0 16px", textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "10px" }}>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--accent)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "700", marginBottom: "2px" }}>
+                    ✨ Recommended For You
+                  </div>
+                  <div style={{ fontSize: "18px", fontWeight: "700", color: "#fff" }}>
+                    Readers Also Read
+                  </div>
+                </div>
+                <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>
+                  Popular picks
+                </span>
+              </div>
+              <div className="manga-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))", gap: "12px" }}>
+                {loadingRecommended && recommendedManga.length === 0
+                  ? Array.from({ length: 6 }).map((_, idx) => (
+                      <div key={idx} style={{ height: "200px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }} />
+                    ))
+                  : recommendedManga.map((m, idx) => (
+                      <MangaCard key={m.id || idx} manga={m} index={idx} priority={false} />
+                    ))}
+              </div>
+            </div>
+
             <AAdsBanner style={{ marginTop: 12 }} />
         </div>
 
