@@ -330,7 +330,7 @@ function ReaderContent({ params }) {
 
         // Automatic Server Failover: If primary server failed, seamlessly try alternate servers
         if (title && id) {
-          const alternateSources = ['manganato', 'mangakatana', 'mangaread'].filter(s => s !== source);
+          const alternateSources = ['manganato', 'mangaread', 'mangakatana'].filter(s => s !== source);
           const currentChNum = parseInt(id) || 1;
 
           for (const altSource of alternateSources) {
