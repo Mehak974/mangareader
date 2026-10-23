@@ -67,6 +67,7 @@ function ReaderContent({ params }) {
   const title = searchParams.get("title") || "";
   const mangaId = searchParams.get("mangaId") || "";
   const cover = searchParams.get("cover") || "";
+  const romaji = searchParams.get("romaji") || "";
 
   const isNotChapterImage = (img) => typeof img === 'string' && (
     /[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(img) ||
@@ -215,21 +216,33 @@ function ReaderContent({ params }) {
 
   // Fetch chapters list on mount
   useEffect(() => {
-    if (title) {
-      const fetchUrl = source
-        ? `${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${source}`
-        : `${API_BASE}/api/manga/map?title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}`;
+    if (title || romaji) {
+      const candidates = [romaji, title].filter(Boolean);
+      let cancelled = false;
 
-      fetch(fetchUrl)
-        .then((res) => res.json())
-        .then((res) => {
-          if (res.data && res.data.chapters) {
-            setChapters(res.data.chapters);
+      (async () => {
+        for (const q of candidates) {
+          const fetchUrl = source
+            ? `${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(q)}&source=${source}`
+            : `${API_BASE}/api/manga/map?title=${encodeURIComponent(q)}&mangaId=${encodeURIComponent(mangaId)}`;
+          try {
+            const res = await fetch(fetchUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (!cancelled && data?.data?.chapters?.length > 0) {
+                setChapters(data.data.chapters);
+                break;
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to fetch chapters in reader:", err.message);
           }
-        })
-        .catch((err) => console.warn("Failed to fetch chapters in reader:", err.message));
+        }
+      })();
+
+      return () => { cancelled = true; };
     }
-  }, [title, mangaId, source]);
+  }, [title, romaji, mangaId, source]);
 
   // Sync offline chapters from IndexedDB so continuous offline reading works seamlessly
   useEffect(() => {
@@ -338,38 +351,44 @@ function ReaderContent({ params }) {
         }
 
         // Automatic Server Failover: If primary server failed, seamlessly try alternate servers
-        if (title && id) {
+        if ((title || romaji) && id) {
           const alternateSources = ['manganato', 'mangaread', 'mangakatana', 'mangabuddy', 'asura'].filter(s => s !== source);
           const currentChNum = parseInt(id) || 1;
+          const queryTitles = [romaji, title].filter(Boolean);
 
           for (const altSource of alternateSources) {
-            try {
-              console.log(`[AutoFailover] Trying alternate server: ${altSource} for chapter ${currentChNum}`);
-              const chRes = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(title)}&source=${altSource}`);
-              const chData = await chRes.json();
-              const altChapters = chData?.data?.chapters;
-              if (Array.isArray(altChapters) && altChapters.length > 0) {
-                const targetCh = altChapters.find(c => {
-                  const num = typeof c.chNum !== 'undefined' ? c.chNum : null;
-                  if (num === currentChNum) return true;
-                  return c.title?.includes(` ${currentChNum}`) || c.title?.includes(`Chapter ${currentChNum}`);
-                });
-                if (targetCh?.href) {
-                  const altRes = await fetchChapterImagesThroughWorker(targetCh.href, altSource);
-                  if (altRes?.data?.images && altRes.data.images.length > 0) {
-                    console.log(`[AutoFailover] Rescued chapter via ${altSource}!`);
-                    setChapters(altChapters);
-                    setImages(altRes.data.images);
-                    setLoading(false);
-                    addToHistory(title || "Manga", `Chapter ${id}`, currentChNum, targetCh.href, altSource, mangaId, cover);
-                    toast.success(`Loaded from ${getServerName(altSource)}`, { duration: 2000, id: 'failover-toast' });
-                    return;
+            let recovered = false;
+            for (const qTitle of queryTitles) {
+              try {
+                console.log(`[AutoFailover] Trying alternate server: ${altSource} for chapter ${currentChNum} with "${qTitle}"`);
+                const chRes = await fetch(`${API_BASE}/api/manga/source-chapters?title=${encodeURIComponent(qTitle)}&source=${altSource}`);
+                const chData = await chRes.json();
+                const altChapters = chData?.data?.chapters;
+                if (Array.isArray(altChapters) && altChapters.length > 0) {
+                  const targetCh = altChapters.find(c => {
+                    const num = typeof c.chNum !== 'undefined' ? c.chNum : null;
+                    if (num === currentChNum) return true;
+                    return c.title?.includes(` ${currentChNum}`) || c.title?.includes(`Chapter ${currentChNum}`);
+                  });
+                  if (targetCh?.href) {
+                    const altRes = await fetchChapterImagesThroughWorker(targetCh.href, altSource);
+                    if (altRes?.data?.images && altRes.data.images.length > 0) {
+                      console.log(`[AutoFailover] Rescued chapter via ${altSource}!`);
+                      setChapters(altChapters);
+                      setImages(altRes.data.images);
+                      setLoading(false);
+                      addToHistory(title || "Manga", `Chapter ${id}`, currentChNum, targetCh.href, altSource, mangaId, cover);
+                      toast.success(`Loaded from ${getServerName(altSource)}`, { duration: 2000, id: 'failover-toast' });
+                      recovered = true;
+                      return;
+                    }
                   }
                 }
+              } catch (altErr) {
+                console.warn(`[AutoFailover] ${altSource} attempt failed:`, altErr.message);
               }
-            } catch (altErr) {
-              console.warn(`[AutoFailover] ${altSource} attempt failed:`, altErr.message);
             }
+            if (recovered) return;
           }
         }
 
@@ -445,7 +464,7 @@ function ReaderContent({ params }) {
     }
 
     if (nextHref) {
-      const nextUrl = `/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`;
+      const nextUrl = `/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`;
       router.prefetch(nextUrl);
 
       // Prewarm the next chapter's first 2 images into browser cache
@@ -458,7 +477,7 @@ function ReaderContent({ params }) {
         }
       }).catch(() => {});
     }
-  }, [page, images.length, chapters, id, url, source, title, mangaId, cover, router, isOfflineMode]);
+  }, [page, images.length, chapters, id, url, source, title, mangaId, cover, romaji, router, isOfflineMode]);
 
   // Trigger download modal if navigated with ?download=1
   useEffect(() => {
@@ -470,7 +489,7 @@ function ReaderContent({ params }) {
 
   // Automatic Server Failover: when 2+ images fail or >20% fail due to dead upstream CDN (e.g. Manganato 2xstorage 503/404)
   const triggerAutoFailover = async () => {
-    const altSources = ['mangakatana', 'mangaread', 'mangabuddy', 'asura'].filter(s => s !== source);
+    const altSources = ['manganato', 'mangakatana', 'mangaread', 'mangabuddy', 'asura'].filter(s => s !== source);
     const currentNum = parseInt(id) || 1;
 
     const cleanTitle = (title || '')
@@ -478,11 +497,18 @@ function ReaderContent({ params }) {
       .replace(/\s+/g, ' ')
       .trim();
 
+    const cleanRomaji = (romaji || '')
+      .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     const titleCandidates = [
+      romaji,
+      cleanRomaji,
       cleanTitle,
       title,
       cleanTitle.split(/\s+(?:are|shall|will|is|can)\b/i)[0]?.trim(),
-    ].filter(Boolean);
+    ].filter((t, i, arr) => t && arr.indexOf(t) === i);
 
     toast.loading("Primary image server unavailable. Switching to backup server...", { id: "failover-toast", duration: 3000 });
 
@@ -514,6 +540,7 @@ function ReaderContent({ params }) {
                   const newParams = new URLSearchParams(window.location.search);
                   newParams.set('source', altSource);
                   newParams.set('url', targetCh.href);
+                  if (romaji) newParams.set('romaji', romaji);
                   window.history.replaceState(null, '', `${window.location.pathname}?${newParams.toString()}`);
                 } catch {}
                 return;
@@ -654,7 +681,7 @@ function ReaderContent({ params }) {
 
     const nextIsOffline = await isChapterOffline(mangaId, targetNextNum, title);
     if (nextHref || nextIsOffline || savedOfflineChapters.has(targetNextNum) || (chapters.length > 0 && targetNextNum <= chapters.length)) {
-      router.push(`/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+      router.push(`/reader/${targetNextNum}?url=${encodeURIComponent(nextHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`);
     } else {
       isNavigatingRef.current = false;
     }
@@ -691,7 +718,7 @@ function ReaderContent({ params }) {
 
     const prevIsOffline = await isChapterOffline(mangaId, targetPrevNum, title);
     if (prevHref || prevIsOffline || savedOfflineChapters.has(targetPrevNum)) {
-      router.push(`/reader/${targetPrevNum}?url=${encodeURIComponent(prevHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+      router.push(`/reader/${targetPrevNum}?url=${encodeURIComponent(prevHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`);
     } else {
       router.push(getMangaHref(title));
     }
@@ -705,7 +732,7 @@ function ReaderContent({ params }) {
     const ch = chapters[selectedIndex];
     if (ch) {
       const chNum = chapters.length - selectedIndex;
-      router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+      router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`);
     }
   };
 
@@ -718,7 +745,18 @@ function ReaderContent({ params }) {
         .replace(/\s+/g, ' ')
         .trim();
 
-      const titleQueries = [title, cleanTitle].filter(Boolean);
+      const cleanRomaji = (romaji || '')
+        .replace(/[?.,!/\\:;'"_–—()[\]{}]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const titleQueries = [
+        romaji,
+        cleanRomaji,
+        title,
+        cleanTitle
+      ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+
       let data = null;
       for (const t of titleQueries) {
         try {
@@ -747,7 +785,7 @@ function ReaderContent({ params }) {
         if (typeof window !== "undefined" && mangaId) {
           localStorage.setItem(`preferred_source_${mangaId}`, newSource);
         }
-        router.push(`/reader/${chNum}?url=${encodeURIComponent(targetCh.href || "")}&source=${newSource}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`);
+        router.push(`/reader/${chNum}?url=${encodeURIComponent(targetCh.href || "")}&source=${newSource}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`);
       } else {
         toast.error(`No chapters found on ${getServerName(newSource)}`);
       }

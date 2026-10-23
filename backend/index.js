@@ -706,7 +706,8 @@ async function performSearch(sourceId, query, origTitle) {
           const text = ($(el).attr('title') || $(el).text()).trim().toLowerCase(), href = $(el).attr('href');
           if (!href || !href.includes('/manga/')) return;
           if (!helpers.isGoodMatch(origTitle, text)) return;
-          let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && text.includes(w)) s++; });
+          const stopWords = ['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from', 'my', 'are', 'you', 'do', 'what', 'that', 'shall', 'will', 'can', 'have', 'your'];
+          let s = 0; origTitle.toLowerCase().split(/\s+/).forEach(w => { if (w.length > 2 && !stopWords.includes(w) && text.includes(w)) s++; });
           if (s > score) { score = s; best = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`; }
         });
         if (score >= 1) { found = best; break; }

@@ -53,7 +53,7 @@ function isGoodMatch(orig, found) {
     if (extra.some(w => seq.includes(w)) && !co.split(/\s+/).some(w => seq.includes(w))) return false;
     return true;
   }
-  const stopWords = new Set(['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from', 'my']);
+  const stopWords = new Set(['the', 'and', 'of', 'to', 'in', 'a', 'is', 'for', 'on', 'with', 'at', 'by', 'from', 'my', 'are', 'you', 'do', 'what', 'that', 'shall', 'will', 'can', 'have', 'your']);
   const origTokens = co.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
   const foundTokens = cf.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
   if (!origTokens.length || !foundTokens.length) return false;

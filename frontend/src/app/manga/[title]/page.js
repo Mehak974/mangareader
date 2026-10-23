@@ -298,6 +298,10 @@ export default function MangaDetail({ params }) {
           normalizedManga = {
             id: String(media.id),
             title: aniTitle,
+            englishTitle: media.title.english || "",
+            romajiTitle: media.title.romaji || "",
+            nativeTitle: media.title.native || "",
+            synonyms: Array.isArray(media.synonyms) ? media.synonyms : [],
             countryOfOrigin: media.countryOfOrigin || "",
             cover: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || cachedCover || queryCover || "",
             description: media.description || "No description available.",
@@ -387,69 +391,104 @@ export default function MangaDetail({ params }) {
         let chaptersLoaded = false;
         const prefSource = typeof window !== "undefined" ? localStorage.getItem(`preferred_source_${resolvedId}`) : null;
 
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
-          const mapRes = await fetchApi(prefSource ? `/api/manga/source-chapters?title=${encodeURIComponent(normalizedManga.title)}&source=${prefSource}` : `/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`, {
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-          if (mapRes.ok) {
-            const mapData = await mapRes.json();
-            if (mapData.data && mapData.data.chapters?.length > 0) {
-              currentChapters = mapData.data.chapters || [];
-              currentSourceId = mapData.data.sourceId || "";
-              currentSourceUrl = mapData.data.url || "";
-              setChapters(currentChapters);
-              setSourceId(currentSourceId);
-              setSourceUrl(currentSourceUrl);
-              // Only fill gaps — never overwrite an existing cover. The old
-              // `!manga || !manga.cover` read `manga` from the effect closure,
-              // which is always null on mount, so the source-site cover
-              // clobbered the working AniList cover on every back-nav. Those
-              // covers 403 through the image proxy often enough that the cover
-              // ended up blank.
-              const patch = {};
-              if (mapData.data.cover && !currentManga.cover) patch.cover = mapData.data.cover;
-              if (mapData.data.title && !currentManga.description) {
-                patch.title = mapData.data.title;
-                patch.description = mapData.data.description || currentManga.description;
-              }
-              if (Object.keys(patch).length) {
-                currentManga = { ...currentManga, ...patch };
-                setManga(currentManga);
-              }
-              chaptersLoaded = true;
-              if (mapData.data.sourceId) {
-                localStorage.setItem(`preferred_source_${resolvedId}`, mapData.data.sourceId);
-              }
+        // Candidate titles to try: Romaji title first for Japanese manga, then main title, English, synonyms
+        const isStopWord = (w) => ['the', 'and', 'are', 'you', 'what', 'that', 'with', 'from', 'for', 'a', 'an', 'is', 'in', 'to', 'of'].includes(w.toLowerCase());
+        const getKeywords = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !isStopWord(w));
+
+        const isTitleCompatible = (expectedTitles, receivedTitle) => {
+          if (!receivedTitle || !expectedTitles.length) return true;
+          const receivedWords = getKeywords(receivedTitle);
+          if (receivedWords.length === 0) return true;
+          for (const expected of expectedTitles) {
+            const expectedWords = getKeywords(expected);
+            if (expectedWords.length === 0) continue;
+            const matchCount = expectedWords.filter(w => receivedWords.includes(w)).length;
+            if (matchCount >= Math.min(2, Math.ceil(expectedWords.length * 0.4))) {
+              return true;
             }
           }
-        } catch (mapErr) {
-          console.warn("Backend chapter fetch failed:", mapErr.message);
-        }
+          return false;
+        };
 
-        // Auto-fallback: if the preferred source had no chapters, query /api/manga/map to find a working source
-        if (!chaptersLoaded && prefSource) {
+        const isJapanese = normalizedManga.countryOfOrigin === 'JP' || !normalizedManga.countryOfOrigin;
+        const candidateTitles = [
+          ...(isJapanese && normalizedManga.romajiTitle ? [normalizedManga.romajiTitle] : []),
+          normalizedManga.title,
+          normalizedManga.romajiTitle,
+          normalizedManga.englishTitle,
+          ...(normalizedManga.synonyms || [])
+        ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+
+        let bestMapData = null;
+
+        for (const queryTitle of candidateTitles) {
           try {
-            const fallbackRes = await fetchApi(`/api/manga/map?title=${encodeURIComponent(normalizedManga.title)}&mangaId=${encodeURIComponent(resolvedId)}`);
-            if (fallbackRes.ok) {
-              const fbData = await fallbackRes.json();
-              if (fbData.data && fbData.data.chapters?.length > 0) {
-                currentChapters = fbData.data.chapters || [];
-                currentSourceId = fbData.data.sourceId || "";
-                currentSourceUrl = fbData.data.url || "";
-                setChapters(currentChapters);
-                setSourceId(currentSourceId);
-                setSourceUrl(currentSourceUrl);
-                chaptersLoaded = true;
-                if (fbData.data.sourceId) {
-                  localStorage.setItem(`preferred_source_${resolvedId}`, fbData.data.sourceId);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const mapRes = await fetchApi(
+              prefSource
+                ? `/api/manga/source-chapters?title=${encodeURIComponent(queryTitle)}&source=${prefSource}`
+                : `/api/manga/map?title=${encodeURIComponent(queryTitle)}&mangaId=${encodeURIComponent(resolvedId)}`,
+              { signal: controller.signal }
+            );
+            clearTimeout(timeoutId);
+            if (mapRes.ok) {
+              const mapData = await mapRes.json();
+              if (mapData.data && mapData.data.chapters?.length > 0) {
+                const returnedTitle = mapData.data.title;
+                if (!returnedTitle || isTitleCompatible(candidateTitles, returnedTitle)) {
+                  bestMapData = mapData;
+                  break;
+                } else {
+                  console.warn(`[MangaDetail] Discarded mismatched search result "${returnedTitle}" for "${queryTitle}"`);
                 }
               }
             }
-          } catch (fbErr) {
-            console.warn("Fallback chapter map failed:", fbErr.message);
+          } catch (err) {
+            console.warn(`Chapter fetch error for candidate "${queryTitle}":`, err.message);
+          }
+        }
+
+        // If preferred source failed or mismatched, fall back to searching /api/manga/map across all sources
+        if (!bestMapData && prefSource) {
+          for (const queryTitle of candidateTitles) {
+            try {
+              const fallbackRes = await fetchApi(`/api/manga/map?title=${encodeURIComponent(queryTitle)}&mangaId=${encodeURIComponent(resolvedId)}`);
+              if (fallbackRes.ok) {
+                const fbData = await fallbackRes.json();
+                if (fbData.data && fbData.data.chapters?.length > 0) {
+                  const returnedTitle = fbData.data.title;
+                  if (!returnedTitle || isTitleCompatible(candidateTitles, returnedTitle)) {
+                    bestMapData = fbData;
+                    break;
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+
+        if (bestMapData?.data) {
+          currentChapters = bestMapData.data.chapters || [];
+          currentSourceId = bestMapData.data.sourceId || "";
+          currentSourceUrl = bestMapData.data.url || "";
+          setChapters(currentChapters);
+          setSourceId(currentSourceId);
+          setSourceUrl(currentSourceUrl);
+
+          const patch = {};
+          if (bestMapData.data.cover && !currentManga.cover) patch.cover = bestMapData.data.cover;
+          if (bestMapData.data.title && !currentManga.description) {
+            patch.title = bestMapData.data.title;
+            patch.description = bestMapData.data.description || currentManga.description;
+          }
+          if (Object.keys(patch).length) {
+            currentManga = { ...currentManga, ...patch };
+            setManga(currentManga);
+          }
+          chaptersLoaded = true;
+          if (bestMapData.data.sourceId) {
+            localStorage.setItem(`preferred_source_${resolvedId}`, bestMapData.data.sourceId);
           }
         }
 
@@ -486,30 +525,34 @@ export default function MangaDetail({ params }) {
     setChPage(1);
     let loaded = false;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const res = await fetchApi(`/api/manga/source-chapters?title=${encodeURIComponent(manga.title)}&source=${newSourceId}`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          setChapters(data.data.chapters || []);
-          setSourceId(data.data.sourceId || "");
-          setSourceUrl(data.data.url || "");
-          if (data.data.cover) {
-            setManga(prev => prev ? { ...prev, cover: data.data.cover } : prev);
+    const candidateTitles = [
+      manga.romajiTitle,
+      manga.title,
+      manga.englishTitle,
+      ...(manga.synonyms || [])
+    ].filter((t, i, arr) => t && arr.indexOf(t) === i);
+
+    for (const qTitle of candidateTitles) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const res = await fetchApi(`/api/manga/source-chapters?title=${encodeURIComponent(qTitle)}&source=${newSourceId}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.data?.chapters?.length > 0) {
+            setChapters(data.data.chapters || []);
+            setSourceId(data.data.sourceId || newSourceId);
+            setSourceUrl(data.data.url || "");
+            loaded = true;
+            break;
           }
-          if (data.data.title) {
-            setManga(prev => prev ? { ...prev, title: data.data.title, description: data.data.description || prev.description, status: prev?.status, genres: prev?.genres } : prev);
-          }
-          loaded = true;
         }
+      } catch (err) {
+        console.warn("Backend source switch attempt failed:", err.message);
       }
-    } catch (err) {
-      console.warn("Backend source switch failed:", err.message);
     }
 
     if (!loaded) {
@@ -574,7 +617,7 @@ export default function MangaDetail({ params }) {
     const chNum = totalChapters - idx;
     addToHistory(manga.title, ch.title || `Chapter ${chNum}`, chNum, ch.href, sourceId, mangaId, manga.cover);
     preloadOfflineChapter(mangaId, chNum, manga.title);
-    router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(manga.cover || "")}`);
+    router.push(`/reader/${chNum}?url=${encodeURIComponent(ch.href || "")}&source=${sourceId}&title=${encodeURIComponent(manga.title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(manga.cover || "")}&romaji=${encodeURIComponent(manga.romajiTitle || "")}`);
   };
 
   const handleDownloadChapterClick = async (ch, idx) => {
