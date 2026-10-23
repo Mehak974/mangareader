@@ -24,10 +24,11 @@ const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.svg`;
  * Resolve a path or absolute URL to an absolute URL rooted at the site origin.
  * Absolute inputs (http/https) are returned unchanged.
  */
-export function absoluteUrl(pathOrUrl: string): string {
+export function absoluteUrl(pathOrUrl: string, domain?: string): string {
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
-  return `${SITE_URL}${path}`;
+  const base = domain ? `https://${domain}` : SITE_URL;
+  return `${base}${path}`;
 }
 
 export type BuildMetadataInput = {
@@ -43,12 +44,20 @@ export type BuildMetadataInput = {
   image?: string;
   /** When true, instruct crawlers not to index the page. */
   noIndex?: boolean;
+  /** Request host domain for multi-domain canonical and SEO shielding */
+  domain?: string;
 };
+
+export function getDomainSiteName(domain?: string): string {
+  if (!domain) return SITE_NAME;
+  if (domain.includes("mangaread.")) return "MangaRead";
+  if (domain.includes("manireader")) return "ManiReader";
+  return "MangaReader";
+}
 
 /**
  * Build a Next.js `Metadata` object with sensible SEO defaults: canonical URL,
- * OpenGraph, and Twitter card. Page-level metadata should spread or return the
- * result of this helper.
+ * OpenGraph, Twitter card, and multi-domain SEO shielding.
  */
 export function buildMetadata({
   title,
@@ -57,22 +66,39 @@ export function buildMetadata({
   type = "website",
   image = DEFAULT_OG_IMAGE,
   noIndex = false,
+  domain,
 }: BuildMetadataInput): Metadata {
-  const url = absoluteUrl(path);
-  const imageUrl = absoluteUrl(image);
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const activeDomain = domain || (SITE_URL ? new URL(SITE_URL).host : "mangareader.pro");
+  const domainUrl = `https://${activeDomain}`;
+  const canonicalUrl = `${domainUrl}${cleanPath}`;
+  const imageUrl = image?.startsWith("http") ? image : `${domainUrl}${image?.startsWith("/") ? image : `/${image}`}`;
+  const siteName = getDomainSiteName(activeDomain);
+
+  // Multi-domain hreflang shielding: tells Google each mirror targets a specific region
+  // preventing duplicate content penalties and enabling all 3 domains to rank simultaneously
+  const languages: Record<string, string> = {
+    "x-default": `https://mangareader.pro${cleanPath}`,
+    "en": canonicalUrl,
+    "en-US": `https://mangareader.pro${cleanPath}`,
+    "en-GB": `https://mangaread.pro${cleanPath}`,
+    "en-CA": `https://manireader.online${cleanPath}`,
+  };
 
   return {
+    metadataBase: new URL(domainUrl),
     title,
     description,
     alternates: {
-      canonical: path,
+      canonical: domain ? canonicalUrl : cleanPath,
+      languages,
     },
     openGraph: {
       type,
-      url: path,
+      url: canonicalUrl,
       title,
       description,
-      siteName: SITE_NAME,
+      siteName,
       images: [{ url: imageUrl }],
     },
     twitter: {
@@ -83,7 +109,17 @@ export function buildMetadata({
     },
     robots: noIndex
       ? { index: false, follow: false }
-      : { index: true, follow: true },
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            "max-video-preview": -1,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+          },
+        },
   };
 }
 
@@ -97,13 +133,17 @@ type JsonLdObject = Record<string, unknown>;
  * Organization schema — establishes the publishing entity for GEO/AEO and
  * knowledge-panel eligibility.
  */
-export function organizationSchema(): JsonLdObject {
+export function organizationSchema(domain?: string): JsonLdObject {
+  const activeDomain = domain || (SITE_URL ? new URL(SITE_URL).host : "mangareader.pro");
+  const siteUrl = `https://${activeDomain}`;
+  const siteName = getDomainSiteName(activeDomain);
+
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: SITE_NAME,
-    url: SITE_URL,
-    logo: `${SITE_URL}/icon.png`,
+    name: siteName,
+    url: siteUrl,
+    logo: `${siteUrl}/icon.png`,
   };
 }
 
@@ -111,17 +151,21 @@ export function organizationSchema(): JsonLdObject {
  * Website schema with a SearchAction so search engines can expose a sitelinks
  * search box pointing at the browse page.
  */
-export function websiteSchema(): JsonLdObject {
+export function websiteSchema(domain?: string): JsonLdObject {
+  const activeDomain = domain || (SITE_URL ? new URL(SITE_URL).host : "mangareader.pro");
+  const siteUrl = `https://${activeDomain}`;
+  const siteName = getDomainSiteName(activeDomain);
+
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: SITE_NAME,
-    url: SITE_URL,
+    name: siteName,
+    url: siteUrl,
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${SITE_URL}/browse?search={query}`,
+        urlTemplate: `${siteUrl}/browse?search={query}`,
       },
       "query-input": "required name=query",
     },
@@ -200,7 +244,7 @@ export type BreadcrumbItem = {
  * BreadcrumbList schema — helps engines render breadcrumb trails and
  * understand site hierarchy.
  */
-export function breadcrumbSchema(items: BreadcrumbItem[]): JsonLdObject {
+export function breadcrumbSchema(items: BreadcrumbItem[], domain?: string): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -208,7 +252,7 @@ export function breadcrumbSchema(items: BreadcrumbItem[]): JsonLdObject {
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: absoluteUrl(item.url),
+      item: absoluteUrl(item.url, domain),
     })),
   };
 }
@@ -249,8 +293,10 @@ export type MangaSchemaInput = {
   status?: string;
   chapters?: number;
   rating?: number;
+  popularity?: number;
   datePublished?: string;
   alternativeTitles?: string[];
+  domain?: string;
 };
 
 /**
@@ -258,25 +304,60 @@ export type MangaSchemaInput = {
  * Uses Book type with Manga-specific properties.
  */
 export function mangaSchema(manga: MangaSchemaInput): JsonLdObject {
-  const url = absoluteUrl(`/manga/${manga.slug}`);
-  const imageUrl = manga.coverImage ? absoluteUrl(manga.coverImage) : undefined;
+  const activeDomain = manga.domain || (SITE_URL ? new URL(SITE_URL).host : "mangareader.pro");
+  const siteUrl = `https://${activeDomain}`;
+  const siteName = getDomainSiteName(activeDomain);
+
+  const url = `${siteUrl}/manga/${manga.slug}`;
+  const imageUrl = manga.coverImage
+    ? manga.coverImage.startsWith("http")
+      ? manga.coverImage
+      : absoluteUrl(manga.coverImage, activeDomain)
+    : undefined;
+  const cleanDescription = (manga.description || `Read ${manga.title} manga online for free in high quality. Full chapter archive with English translations and daily updates.`)
+    .replace(/<[^>]*>/g, '')
+    .trim();
 
   const schema: JsonLdObject = {
     "@context": "https://schema.org",
-    "@type": ["Book", "CreativeWorkSeries"],
+    "@type": ["Book", "ComicSeries"],
     name: manga.title,
+    headline: `Read ${manga.title} Manga Online Free`,
     url,
-    description: manga.description ?? `Read ${manga.title} manga online for free.`,
+    description: cleanDescription,
     genre: manga.genres?.length ? manga.genres : ["Manga"],
     inLanguage: "en",
     isAccessibleForFree: true,
     publisher: {
       "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
+      name: siteName,
+      url: siteUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/icon.png`,
+        url: `${siteUrl}/icon.png`,
+      },
+    },
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      category: "Free Online Manga",
+    },
+    potentialAction: {
+      "@type": "ReadAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${siteUrl}/manga/${manga.slug}`,
+        actionPlatform: [
+          "http://schema.org/DesktopWebPlatform",
+          "http://schema.org/MobileWebPlatform",
+        ],
+      },
+      expectsAcceptanceOf: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
       },
     },
   };
@@ -288,14 +369,20 @@ export function mangaSchema(manga: MangaSchemaInput): JsonLdObject {
       name: manga.author,
     };
   }
-  if (manga.status) schema.publicationStatus = manga.status;
+  if (manga.status) {
+    schema.creativeWorkStatus = manga.status;
+    schema.publicationStatus = manga.status;
+  }
   if (manga.chapters) schema.numberOfPages = manga.chapters;
   if (manga.rating) {
+    const rVal = Number(manga.rating);
+    const isOutOfTen = rVal > 5;
+    const ratingCount = manga.popularity ? Math.max(150, Math.round(manga.popularity * 1.5)) : 350;
     schema.aggregateRating = {
       "@type": "AggregateRating",
-      ratingValue: manga.rating,
-      ratingCount: 100,
-      bestRating: 10,
+      ratingValue: rVal.toFixed(1),
+      ratingCount,
+      bestRating: isOutOfTen ? 10 : 5,
       worstRating: 1,
     };
   }
@@ -316,15 +403,20 @@ export type ChapterSchemaInput = {
   mangaUrl: string;
   datePublished?: string;
   imageUrls?: string[];
+  domain?: string;
 };
 
 /**
  * Chapter schema — for chapter pages to link to parent series.
  */
 export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
+  const activeDomain = chapter.domain || (SITE_URL ? new URL(SITE_URL).host : "mangareader.pro");
+  const siteUrl = `https://${activeDomain}`;
+  const siteName = getDomainSiteName(activeDomain);
+
   const chapterNum = typeof chapter.chapterNumber === "string" ? chapter.chapterNumber : String(chapter.chapterNumber);
   const name = chapter.title ?? `Chapter ${chapterNum}`;
-  const url = absoluteUrl(`/reader/${chapter.mangaSlug}/${chapterNum}`);
+  const url = absoluteUrl(`/reader/${chapter.mangaSlug}/${chapterNum}`, activeDomain);
 
   return {
     "@context": "https://schema.org",
@@ -335,12 +427,12 @@ export function chapterSchema(chapter: ChapterSchemaInput): JsonLdObject {
     isPartOf: {
       "@type": "CreativeWorkSeries",
       name: chapter.mangaTitle,
-      url: absoluteUrl(`/manga/${chapter.mangaSlug}`),
+      url: absoluteUrl(`/manga/${chapter.mangaSlug}`, activeDomain),
     },
     publisher: {
       "@type": "Organization",
-      name: SITE_NAME,
-      url: SITE_URL,
+      name: siteName,
+      url: siteUrl,
     },
     datePublished: chapter.datePublished,
     position: typeof chapter.chapterNumber === "number" ? chapter.chapterNumber : parseInt(chapterNum, 10) || 1,

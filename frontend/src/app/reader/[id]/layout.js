@@ -2,34 +2,33 @@ export const revalidate = 86400;
 
 import { buildMetadata, absoluteUrl, chapterSchema, breadcrumbSchema } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
+import { headers } from "next/headers";
 
-/**
- * Same pattern as app/manga/[title]/layout.js — page.js here is a client
- * component, so metadata has to come from a sibling server layout instead.
- *
- * Limitation: this route reads the manga title and manga id from the query
- * string (?title=...&mangaId=...), and Next.js does NOT pass searchParams
- * into a layout's generateMetadata (only route params) — layouts persist
- * across searchParam changes, by design, so they can't react to them. That
- * means this can only use the `id` route param (the chapter number) here,
- * not the manga's name. It's still a real improvement over every reader
- * page sharing one title, but the full fix — a unique title per manga+chapter
- * — needs the manga slug moved into the route path itself, e.g.
- * `/reader/[mangaSlug]/[chapterId]`, which is a URL-structure change beyond
- * the scope of a drop-in metadata fix.
- */
+async function getRequestDomain() {
+  try {
+    const headersList = await headers();
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+    if (host.includes('mangaread.pro')) return 'mangaread.pro';
+    if (host.includes('manireader.online') || host.includes('manireader.pro')) return 'manireader.online';
+  } catch {}
+  return 'mangareader.pro';
+}
+
 export async function generateMetadata({ params }) {
   const { id } = await params;
+  const domain = await getRequestDomain();
   return buildMetadata({
     title: `Chapter ${id}`,
     description: `Read chapter ${id} online.`,
     path: `/reader/${id}`,
     noIndex: true, // reader pages are session/query-param driven, not canonical content URLs
+    domain,
   });
 }
 
 export default async function ReaderLayout({ children, params }) {
   const { id } = await params;
+  const domain = await getRequestDomain();
   const mangaTitle = "Manga";
   const mangaSlug = "";
   
@@ -37,15 +36,16 @@ export default async function ReaderLayout({ children, params }) {
     chapterNumber: id,
     mangaTitle,
     mangaSlug,
-    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/"),
+    mangaUrl: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`, domain) : absoluteUrl("/", domain),
+    domain,
   });
   
   const breadcrumbs = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Browse", url: "/browse" },
-    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`) : absoluteUrl("/") },
-    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`) },
-  ]);
+    { name: mangaTitle, url: mangaSlug ? absoluteUrl(`/manga/${mangaSlug}`, domain) : absoluteUrl("/", domain) },
+    { name: `Chapter ${id}`, url: absoluteUrl(`/reader/${mangaSlug}/${id}`, domain) },
+  ], domain);
 
   return (
     <>

@@ -146,6 +146,9 @@ export async function generateMetadata(): Promise<Metadata> {
       languages: {
         'x-default': 'https://mangareader.pro',
         'en': domainUrl,
+        'en-US': 'https://mangareader.pro',
+        'en-GB': 'https://mangaread.pro',
+        'en-CA': 'https://manireader.online',
       },
     },
 
