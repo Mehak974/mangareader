@@ -200,21 +200,23 @@ export const RECENT_MANGA_QUERY = `
 `;
 
 export function mapAnilistMedia(media) {
+  if (!media) return null;
   // Collect tag names (AniList tags carry an isAdult flag of their own) so the
   // classifier can inspect them alongside genres.
-  const tags = (media.tags || []).map((t) => t.name);
+  const tags = (media.tags || []).map((t) => t.name || t);
+  const mediaTitle = media.title?.english || media.title?.romaji || media.title?.userPreferred || media.t || "Untitled";
   return {
     id: String(media.id),
     countryOfOrigin: media.countryOfOrigin || "",
     country: media.countryOfOrigin || "",
-    t: media.title.english || media.title.romaji || media.title.userPreferred,
-    g: media.genres && media.genres.length ? media.genres[0] : "Action",
-    ch: media.chapters ? `Ch ${media.chapters}` : "Ongoing",
-    hot: media.trending > 40,
-    rating: media.averageScore ? media.averageScore / 20 : 4.0,
+    t: mediaTitle,
+    g: media.genres && media.genres.length ? media.genres[0] : (media.g || "Action"),
+    ch: media.chapters ? `Ch ${media.chapters}` : (media.ch || "Ongoing"),
+    hot: (media.trending || 0) > 40,
+    rating: media.averageScore ? media.averageScore / 20 : (media.rating || 4.0),
     ongoing: media.status === "RELEASING",
-    cover: media.coverImage?.large || media.coverImage?.medium || "",
-    genres: media.genres || [],
+    cover: media.coverImage?.large || media.coverImage?.medium || media.cover || "",
+    genres: media.genres || (media.g ? [media.g] : []),
     tags,
     isAdult: !!media.isAdult,
   };
@@ -363,16 +365,51 @@ function getSearchVariations(query) {
   const q = String(query || "").trim();
   if (!q) return [];
   const candidates = [];
+
+  // 1. "I am" / "I'm" / "Im" contractions (e.g. "I am max level newbie" -> "I'm max level newbie", "max level newbie")
+  if (/\bi\s*am\b/i.test(q)) {
+    candidates.push(q.replace(/\bi\s*am\b/gi, "I'm"));
+    candidates.push(q.replace(/\bi\s*am\s+(the\s+)?/gi, ""));
+    candidates.push(q.replace(/\bi\s*am\b/gi, "I'm the"));
+  }
+  if (/\bi'?m\b/i.test(q)) {
+    candidates.push(q.replace(/\bi'?m\b/gi, "I am"));
+    candidates.push(q.replace(/\bi'?m\s+(the\s+)?/gi, ""));
+    candidates.push(q.replace(/\bi'?m\b/gi, "I'm the"));
+  }
+
+  // 2. Trailing 's / plural
   const withApostrophe = q.replace(/([a-zA-Z]{3,})s\b/g, "$1's");
   if (withApostrophe !== q) candidates.push(withApostrophe);
   const withoutS = q.replace(/([a-zA-Z]{3,})s\b/g, "$1");
   if (withoutS !== q && withoutS !== withApostrophe) candidates.push(withoutS);
-  if (/^the\s+/i.test(q)) {
-    const noThe = q.replace(/^the\s+/i, '');
-    candidates.push(noThe);
-    candidates.push(noThe.replace(/([a-zA-Z]{3,})s\b/g, "$1's"));
+
+  // 3. Leading "the ", "a ", "an "
+  if (/^(the|a|an)\s+/i.test(q)) {
+    const noArticle = q.replace(/^(the|a|an)\s+/i, '');
+    candidates.push(noArticle);
+    candidates.push(noArticle.replace(/([a-zA-Z]{3,})s\b/g, "$1's"));
   }
-  return [...new Set(candidates)];
+
+  // 4. "Solo " prefix (common in Korean manhwa, e.g. "Solo Max-Level Newbie")
+  if (/^solo\s+/i.test(q)) {
+    candidates.push(q.replace(/^solo\s+/i, ''));
+  }
+
+  // 5. Hyphens vs spaces (e.g. "max-level" vs "max level")
+  if (q.includes('-')) {
+    candidates.push(q.replace(/-/g, ' '));
+  } else if (/\b(max|high|low|mid|top|first|second)\s+(level|tier|class|rank)\b/i.test(q)) {
+    candidates.push(q.replace(/\b(max|high|low|mid|top|first|second)\s+(level|tier|class|rank)\b/gi, '$1-$2'));
+  }
+
+  // 6. Clean punctuation
+  const cleanPunct = q.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (cleanPunct !== q) {
+    candidates.push(cleanPunct);
+  }
+
+  return [...new Set(candidates.filter(c => c && c.toLowerCase() !== q.toLowerCase()))];
 }
 
 export async function getMangaList(variables = {}) {

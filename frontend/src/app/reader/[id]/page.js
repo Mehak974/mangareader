@@ -25,6 +25,7 @@ import PartnerSpotlight from "@/components/PartnerSpotlight";
 import MangaCard from "@/components/MangaCard";
 import { slugify } from "@/utils/slugify";
 import { isExplicitNSFW } from "@/utils/anilist";
+import { readDetail } from "@/utils/detailCache";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
 
@@ -586,7 +587,30 @@ function ReaderContent({ params }) {
     async function loadReaderRecommendations() {
       setLoadingRecommended(true);
       try {
-        const res = await fetch('/api/manga/browse?sort=Trending&perPage=8');
+        const cachedDetail = title ? readDetail(slugify(title)) : null;
+        const cachedRecs = cachedDetail?.manga?.recommendations;
+        if (cachedRecs && cachedRecs.length > 0) {
+          const seen = new Set();
+          const list = cachedRecs.filter((item) => {
+            if (!item) return false;
+            const itemTitle = item.t || item.title?.userPreferred || item.title?.english || item.title?.romaji || "";
+            const itemSlug = slugify(itemTitle);
+            if (title && itemSlug === slugify(title)) return false;
+            if (seen.has(itemSlug)) return false;
+            seen.add(itemSlug);
+            return !isExplicitNSFW(item.genres || (item.g ? [item.g] : []), itemTitle, { isAdult: item.isAdult });
+          }).slice(0, 6);
+          if (list.length > 0) {
+            if (active) {
+              setRecommendedManga(list);
+              setLoadingRecommended(false);
+            }
+            return;
+          }
+        }
+
+        const genreParam = cachedDetail?.manga?.genres?.[0] ? `&genre=${encodeURIComponent(cachedDetail.manga.genres[0])}` : '';
+        const res = await fetch(`/api/manga/browse?sort=Trending&perPage=8${genreParam}`);
         if (res.ok) {
           const json = await res.json();
           if (active && json?.media?.length > 0) {

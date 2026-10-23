@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams, usePathname, notFound } from "next/navigation";
 import { isBlockedManga } from "@/lib/dmcaBlacklist";
 import { useApp } from "@/context/AppContext";
-import { fetchAnilist, getMangaList, isExplicitNSFW } from "@/utils/anilist";
+import { fetchAnilist, getMangaList, mapAnilistMedia, isExplicitNSFW } from "@/utils/anilist";
 import { slugify } from "@/utils/slugify";
 import { sanitizeHtml } from "@/utils/sanitize";
 import MangaCard from "@/components/MangaCard";
@@ -55,6 +55,31 @@ const SINGLE_MANGA_QUERY = `
       popularity
       startDate {
         year
+      }
+      recommendations (sort: RATING_DESC, perPage: 12) {
+        nodes {
+          rating
+          mediaRecommendation {
+            id
+            countryOfOrigin
+            title {
+              english
+              romaji
+              native
+              userPreferred
+            }
+            coverImage {
+              large
+              medium
+            }
+            genres
+            averageScore
+            status
+            chapters
+            trending
+            isAdult
+          }
+        }
       }
     }
   }
@@ -188,24 +213,31 @@ export default function MangaDetail({ params }) {
         const isKorean = manga?.countryOfOrigin === "KR" || manga?.country === "KR" || manga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
         const country = isKorean ? "KR" : undefined;
 
-        let res = null;
-        try {
-          res = await getMangaList({
-            genre: primaryGenre,
-            countryOfOrigin: country,
-            perPage: 12,
-            sort: ["TRENDING_DESC", "POPULARITY_DESC"],
-          });
-        } catch {}
+        let list = (manga?.recommendations || []).filter(Boolean);
 
-        let list = res?.media || [];
         if (!list || list.length < 4) {
+          let res = null;
           try {
-            const fallbackRes = await fetch(`/api/manga/browse?sort=Trending&perPage=12`).then(r => r.json());
-            if (fallbackRes?.media?.length) {
-              list = [...list, ...fallbackRes.media];
-            }
+            res = await getMangaList({
+              genre: primaryGenre,
+              countryOfOrigin: country,
+              perPage: 12,
+              sort: ["TRENDING_DESC", "POPULARITY_DESC"],
+            });
           } catch {}
+
+          if (res?.media?.length) {
+            list = [...list, ...res.media];
+          }
+
+          if (!list || list.length < 4) {
+            try {
+              const fallbackRes = await fetch(`/api/manga/browse?sort=Trending&perPage=12`).then(r => r.json());
+              if (fallbackRes?.media?.length) {
+                list = [...list, ...fallbackRes.media];
+              }
+            } catch {}
+          }
         }
 
         if (active && list.length > 0) {
@@ -232,7 +264,7 @@ export default function MangaDetail({ params }) {
 
     fetchRelated();
     return () => { active = false; };
-  }, [manga?.title, titleSlug, manga?.genres?.[0], manga?.countryOfOrigin, manga?.country]);
+  }, [manga?.title, titleSlug, manga?.genres?.[0], manga?.countryOfOrigin, manga?.country, manga?.recommendations]);
 
   useEffect(() => {
     if (!mangaId && !manga?.title && !titleSlug) return;
@@ -325,11 +357,18 @@ export default function MangaDetail({ params }) {
 
         const searchRes = await getMangaList({ search: searchTitle, perPage: 5 });
         if (searchRes && searchRes.media && searchRes.media.length > 0) {
-          // Find an exact slug match first, fall back to first result
+          // Find an exact slug match first, or keyword match, fall back to first result
+          const titleWords = titleSlug.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !isStopWord(w));
           const exactMatch = searchRes.media.find(
             (m) => slugify(m.t) === titleSlug
           );
-          const bestMatch = exactMatch || searchRes.media[0];
+          const keywordMatch = !exactMatch && titleWords.length > 0
+            ? searchRes.media.find((m) => {
+                const mWords = (m.t || "").toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/);
+                return titleWords.every(w => mWords.includes(w));
+              })
+            : null;
+          const bestMatch = exactMatch || keywordMatch || searchRes.media[0];
           resolvedId = bestMatch.id;
 
           // If the slug doesn't match exactly, redirect to the canonical slug
@@ -359,6 +398,13 @@ export default function MangaDetail({ params }) {
 
         if (media) {
           const aniTitle = media.title.english || media.title.romaji || media.title.userPreferred;
+          const recNodes = media.recommendations?.nodes || [];
+          const directRecs = recNodes
+            .map((n) => n.mediaRecommendation)
+            .filter(Boolean)
+            .map(mapAnilistMedia)
+            .filter(Boolean);
+
           normalizedManga = {
             id: String(media.id),
             title: aniTitle,
@@ -374,6 +420,7 @@ export default function MangaDetail({ params }) {
             genres: media.genres || [],
             year: media.startDate?.year || "Unknown",
             popularity: media.popularity || 0,
+            recommendations: directRecs,
           };
           resolvedId = String(media.id);
 
@@ -1440,7 +1487,7 @@ export default function MangaDetail({ params }) {
               </div>
             </div>
             <span style={{ fontSize: "13px", color: "var(--text3)" }}>
-              Top picks in {manga?.genres?.[0] || 'Popular'}
+              {manga?.recommendations?.length ? `Similar to ${manga?.title || 'this series'}` : `Top picks in ${manga?.genres?.[0] || 'Popular'}`}
             </span>
           </div>
           <div className="manga-grid">

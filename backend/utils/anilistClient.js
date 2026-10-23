@@ -118,6 +118,36 @@ async function getMangaById(id) {
   );
 }
 
+function getSearchVariations(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  const candidates = [];
+  if (/\bi\s*am\b/i.test(q)) {
+    candidates.push(q.replace(/\bi\s*am\b/gi, "I'm"));
+    candidates.push(q.replace(/\bi\s*am\s+(the\s+)?/gi, ""));
+    candidates.push(q.replace(/\bi\s*am\b/gi, "I'm the"));
+  }
+  if (/\bi'?m\b/i.test(q)) {
+    candidates.push(q.replace(/\bi'?m\b/gi, "I am"));
+    candidates.push(q.replace(/\bi'?m\s+(the\s+)?/gi, ""));
+    candidates.push(q.replace(/\bi'?m\b/gi, "I'm the"));
+  }
+  const withApostrophe = q.replace(/([a-zA-Z]{3,})s\b/g, "$1's");
+  if (withApostrophe !== q) candidates.push(withApostrophe);
+  const withoutS = q.replace(/([a-zA-Z]{3,})s\b/g, "$1");
+  if (withoutS !== q && withoutS !== withApostrophe) candidates.push(withoutS);
+  if (/^(the|a|an)\s+/i.test(q)) {
+    const noArticle = q.replace(/^(the|a|an)\s+/i, '');
+    candidates.push(noArticle);
+    candidates.push(noArticle.replace(/([a-zA-Z]{3,})s\b/g, "$1's"));
+  }
+  if (/^solo\s+/i.test(q)) candidates.push(q.replace(/^solo\s+/i, ''));
+  if (q.includes('-')) candidates.push(q.replace(/-/g, ' '));
+  const cleanPunct = q.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (cleanPunct !== q) candidates.push(cleanPunct);
+  return [...new Set(candidates.filter(c => c && c.toLowerCase() !== q.toLowerCase()))];
+}
+
 async function searchManga(searchQuery, perPage = 12) {
   return cache.getOrFetch(
     'anilist_meta_search',
@@ -125,7 +155,20 @@ async function searchManga(searchQuery, perPage = 12) {
     cache.TTL.anilist_meta_search,
     async () => {
       const data = await callAniList(MEDIA_SEARCH_QUERY, { search: searchQuery, perPage });
-      return data?.data?.Page?.media || [];
+      let results = data?.data?.Page?.media || [];
+      if (!results.length) {
+        const variations = getSearchVariations(searchQuery);
+        for (const variant of variations) {
+          try {
+            const vData = await callAniList(MEDIA_SEARCH_QUERY, { search: variant, perPage });
+            if (vData?.data?.Page?.media?.length) {
+              results = vData.data.Page.media;
+              break;
+            }
+          } catch {}
+        }
+      }
+      return results;
     }
   );
 }
