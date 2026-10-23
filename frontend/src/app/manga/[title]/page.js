@@ -122,7 +122,60 @@ export default function MangaDetail({ params }) {
   const [selected, setSelected] = useState(() => new Set()); // chapter numbers
   const [offlineChapters, setOfflineChapters] = useState(() => new Set());
   const [downloadingChapters, setDownloadingChapters] = useState({}); // { [chNum]: percent }
+  const [relatedManga, setRelatedManga] = useState([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const CHS_PER_PAGE = 20;
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchRelated() {
+      setLoadingRelated(true);
+      try {
+        const primaryGenre = manga?.genres?.[0] || manga?.g || "Action";
+        const isKorean = manga?.countryOfOrigin === "KR" || manga?.country === "KR" || manga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
+        const country = isKorean ? "KR" : undefined;
+
+        let res = await getMangaList({
+          genre: primaryGenre,
+          countryOfOrigin: country,
+          perPage: 12,
+          sort: ["TRENDING_DESC", "POPULARITY_DESC"],
+        });
+
+        let list = res?.media || [];
+        if (!list || list.length < 3) {
+          const fallbackRes = await getMangaList({
+            perPage: 12,
+            sort: ["TRENDING_DESC", "POPULARITY_DESC"],
+          });
+          if (fallbackRes?.media) {
+            list = fallbackRes.media;
+          }
+        }
+
+        if (active && list.length > 0) {
+          const filtered = list.filter((item) => {
+            if (!item) return false;
+            const itemTitle = item.t || item.title?.userPreferred || item.title?.english || item.title?.romaji || "";
+            const itemSlug = slugify(itemTitle);
+            if (itemSlug === titleSlug) return false;
+            if (manga?.id && item.id && String(item.id) === String(manga.id)) return false;
+            return !isExplicitNSFW(item.genres, itemTitle, { isAdult: item.isAdult });
+          }).slice(0, 6);
+
+          setRelatedManga(filtered);
+        }
+      } catch (err) {
+        console.warn("Failed to load related recommendations:", err);
+      } finally {
+        if (active) setLoadingRelated(false);
+      }
+    }
+
+    fetchRelated();
+    return () => { active = false; };
+  }, [manga?.title, titleSlug, manga?.genres?.[0], manga?.countryOfOrigin, manga?.country]);
 
   useEffect(() => {
     if (!mangaId && !manga?.title && !titleSlug) return;
@@ -1277,7 +1330,29 @@ export default function MangaDetail({ params }) {
         </div>
       </div>
 
-
+      {/* RELATED MANGA RECOMMENDATIONS ("READERS ALSO READ") */}
+      {relatedManga.length > 0 && (
+        <div className="section related-section" style={{ maxWidth: "1200px", margin: "40px auto 20px", padding: "0 20px" }}>
+          <div className="s-hd" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
+            <div>
+              <div className="eyebrow" style={{ fontSize: "12px", color: "var(--accent)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: "600", marginBottom: "4px" }}>
+                ✨ Recommended For You
+              </div>
+              <div className="s-title" style={{ fontSize: "22px", fontWeight: "700", color: "var(--text)" }}>
+                Readers Also Read
+              </div>
+            </div>
+            <span style={{ fontSize: "13px", color: "var(--text3)" }}>
+              Top picks in {manga?.genres?.[0] || 'Popular'}
+            </span>
+          </div>
+          <div className="manga-grid">
+            {relatedManga.map((m, idx) => (
+              <MangaCard key={m.id || idx} manga={m} index={idx} priority={idx < 3} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

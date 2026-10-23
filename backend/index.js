@@ -73,6 +73,7 @@ const { initDB } = require('./db');
 const { getOrFetchMangaMetadata } = require('./utils/metadataFetcher');
 const cache = require('./utils/cache');
 const anilistClient = require('./utils/anilistClient');
+const indexnow = require('./utils/indexnow');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -530,6 +531,7 @@ app.get('/api/manga/track-view', rateLimit(60000, 60), async (req, res) => {
          last_viewed_at = NOW()`,
       [helpers.san(slug, 200), helpers.san(title, 300), chapterCount ? parseInt(chapterCount) : null]
     );
+    indexnow.queuePath(`/manga/${helpers.san(slug, 200)}`);
     res.json({ success: true });
   } catch (err) {
     // track-view is a non-critical analytics call — don't surface DB errors
@@ -1756,6 +1758,23 @@ app.use((err, req, res, next) => {
     console.error('[DB] initDB failed:', err.message);
   }
 })();
+
+// Hourly automated IndexNow crawl ping (runs once at startup after 2 mins, then every 60 mins)
+setTimeout(() => {
+  indexnow.runHourlySync(db).catch(() => {});
+  setInterval(() => {
+    indexnow.runHourlySync(db).catch(() => {});
+  }, 60 * 60 * 1000).unref();
+}, 2 * 60 * 1000).unref();
+
+app.post('/api/admin/indexnow/sync', requireAdmin, async (req, res) => {
+  try {
+    await indexnow.runHourlySync(db);
+    res.json({ success: true, message: 'IndexNow synchronization completed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Manga Reader API on http://localhost:${PORT}`);

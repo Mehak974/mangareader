@@ -278,6 +278,11 @@ export default function AdScriptLoader() {
             console.error(`[AdWaterfall] Failed to load ${network.name}`);
             purgeCurrentNetworkArtifacts();
             activeNode = null;
+            const nextStage = targetStage + 1;
+            localStorage.setItem(STORAGE_STAGE, nextStage.toString());
+            if (nextStage < NETWORKS.length) {
+              scheduleInject(1000, nextStage);
+            }
           };
         }
       }, Math.max(delayMs, 100));
