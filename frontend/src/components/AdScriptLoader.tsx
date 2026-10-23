@@ -44,7 +44,7 @@ function getActiveAdConfig(): DomainAdConfig {
 // ── Waterfall Schedule (Sequential 4-Pop Cycle) ─────────────────────
 // Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra
 const STAGE_INTERVAL_MS = 50 * 1000; // 50 seconds gap between pops
-const CYCLE_RESET_MS    = 2 * 60 * 60 * 1000; // 2-hour session reset (monetizes returning readers without session dilution)
+const CYCLE_RESET_MS    = 4 * 60 * 60 * 1000; // 4-hour session reset (monetizes returning readers without session dilution)
 
 const STORAGE_LAST_POP = 'manga_waterfall_last_pop';
 const STORAGE_STAGE    = 'manga_waterfall_stage';

@@ -24,6 +24,7 @@ import { HILLTOP_DIRECT_LINK, getDirectLink } from "@/lib/site-config";
 import PartnerSpotlight from "@/components/PartnerSpotlight";
 
 const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false });
+const AdsterraNativeBanner = dynamic(() => import("@/components/AdsterraNativeBanner"), { ssr: false });
 
 /**
  * Exactly one 300x250 slot per chapter, after the 3rd page image:
@@ -1114,6 +1115,7 @@ function ReaderContent({ params }) {
                   : "Next Chapter →"}
               </button>
             </div>
+            <AdsterraNativeBanner style={{ marginTop: 16 }} />
             <AAdsBanner style={{ marginTop: 12 }} />
         </div>
 

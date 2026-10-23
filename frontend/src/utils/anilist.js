@@ -327,7 +327,7 @@ async function fetchKitsuFallback(variables = {}) {
       const isAdult = attr.ageRating === "R18";
 
       return {
-        id: String(m.id),
+        id: `kitsu-${m.id}`,
         countryOfOrigin: country,
         country,
         t: title,
@@ -357,6 +357,22 @@ async function fetchKitsuFallback(variables = {}) {
     console.warn("Kitsu fallback failed:", err.message);
     return null;
   }
+}
+
+function getSearchVariations(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  const candidates = [];
+  const withApostrophe = q.replace(/([a-zA-Z]{3,})s\b/g, "$1's");
+  if (withApostrophe !== q) candidates.push(withApostrophe);
+  const withoutS = q.replace(/([a-zA-Z]{3,})s\b/g, "$1");
+  if (withoutS !== q && withoutS !== withApostrophe) candidates.push(withoutS);
+  if (/^the\s+/i.test(q)) {
+    const noThe = q.replace(/^the\s+/i, '');
+    candidates.push(noThe);
+    candidates.push(noThe.replace(/([a-zA-Z]{3,})s\b/g, "$1's"));
+  }
+  return [...new Set(candidates)];
 }
 
 export async function getMangaList(variables = {}) {
@@ -393,7 +409,17 @@ export async function getMangaList(variables = {}) {
     if (cleanVariables.search && String(cleanVariables.search).trim()) {
       delete cleanVariables.sort;
     }
-    const data = await fetchAnilist(MANGA_QUERY, cleanVariables, 2, 1000);
+    let data = await fetchAnilist(MANGA_QUERY, cleanVariables, 2, 1000);
+    if (!data?.Page?.media?.length && cleanVariables.search) {
+      const variations = getSearchVariations(cleanVariables.search);
+      for (const variant of variations) {
+        const vData = await fetchAnilist(MANGA_QUERY, { ...cleanVariables, search: variant }, 1, 600);
+        if (vData?.Page?.media?.length > 0) {
+          data = vData;
+          break;
+        }
+      }
+    }
     if (data && data.Page && data.Page.media?.length > 0) {
       return {
         pageInfo: data.Page.pageInfo,

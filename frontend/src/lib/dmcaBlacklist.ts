@@ -64,6 +64,10 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'tangled-feelings-tugged-loose',
   'my-childhood-friends-are-trying-to-kill-me',
   'lili-men',
+  'harem-ou-no-isekai-press-manyuuki-saikyou-musou-no-oji-san-wa-arayuru-shuzoku-wo-yome-ni-suru',
+  'shadow-of-the-supreme',
+  'cheonhwa-archives-young-master',
+  'baby-tyrant',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

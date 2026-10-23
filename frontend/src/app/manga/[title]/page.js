@@ -216,8 +216,8 @@ export default function MangaDetail({ params }) {
             return;
           }
 
-          // Now fetch full details from AniList using the resolved ID
-          if (resolvedId && !resolvedId.startsWith("mal-")) {
+          // Now fetch full details from AniList using the resolved ID (skip MAL and Kitsu IDs)
+          if (resolvedId && !resolvedId.startsWith("mal-") && !resolvedId.startsWith("kitsu-")) {
             try {
               const cleanId = resolvedId.startsWith("anilist-")
                 ? resolvedId.replace("anilist-", "")
