@@ -115,10 +115,19 @@ const WORKER_SOURCE_MAP = {
   mangakatana: '/api/mangakatana',
   mangaread: '/api/mangaread',
   mdr: '/api/mangaread',
+  mangabuddy: '/api/mangabuddy',
+  asura: '/api/asura',
 };
 
 function getWorkerSourceRoute(source, url) {
-  if (!source) source = url.includes('mangakatana') ? 'mangakatana' : url.includes('manganato') ? 'manganato' : url.includes('mangaread') ? 'mangaread' : 'manganato';
+  if (!source) {
+    if (url.includes('mangakatana')) source = 'mangakatana';
+    else if (url.includes('manganato')) source = 'manganato';
+    else if (url.includes('mangaread')) source = 'mangaread';
+    else if (url.includes('mangabuddy')) source = 'mangabuddy';
+    else if (url.includes('asurascans') || url.includes('asura')) source = 'asura';
+    else source = 'manganato';
+  }
   return WORKER_SOURCE_MAP[source] || '/api/manganato';
 }
 

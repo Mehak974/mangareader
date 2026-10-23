@@ -391,26 +391,34 @@ app.get('/api/manga/map', rateLimit(60000, 30), async (req, res) => {
     }
 
     const isManga = mData?.country === 'JP' || mData?.country === 'Japan';
-    const sourceIds = ['mangaread', 'manganato', 'mangakatana'];
+    const sourceIds = ['manganato', 'mangaread', 'mangakatana'];
+    const backupSourceIds = ['mangabuddy', 'asura'];
 
     let mappings = (await db.query('SELECT source_id,source_slug FROM source_mappings WHERE manga_id=$1', [mangaId])).rows;
     if (!mappings.length) {
       const resolvedMappings = [];
-      const promises = sourceIds.map(async sid => {
-        const url = await searchSource(sid, title, mangaId);
-        if (url) {
-          await db.query(`INSERT INTO source_mappings(manga_id,source_id,source_slug)VALUES($1,$2,$3)ON CONFLICT(manga_id,source_id)DO UPDATE SET source_slug=EXCLUDED.source_slug`, [mangaId, sid, url]);
-          const mapping = { source_id: sid, source_slug: url };
-          resolvedMappings.push(mapping);
-          return mapping;
-        }
-        throw new Error('Not found');
-      });
+      const resolveSources = async (sourcesList) => {
+        const promises = sourcesList.map(async sid => {
+          const url = await searchSource(sid, title, mangaId);
+          if (url) {
+            await db.query(`INSERT INTO source_mappings(manga_id,source_id,source_slug)VALUES($1,$2,$3)ON CONFLICT(manga_id,source_id)DO UPDATE SET source_slug=EXCLUDED.source_slug`, [mangaId, sid, url]);
+            const mapping = { source_id: sid, source_slug: url };
+            resolvedMappings.push(mapping);
+            return mapping;
+          }
+          throw new Error('Not found');
+        });
+        await Promise.allSettled(promises.map(p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5500))])));
+      };
 
-      await Promise.allSettled(promises.map(p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5500))])));
+      await resolveSources(sourceIds);
+      // If primary servers (manganato, mangaread, mangakatana) fail, cascade silently to backups
+      if (!resolvedMappings.length) {
+        console.log(`[manga/map] Primary sources yielded no results for "${title}". Cascading to backup sources...`);
+        await resolveSources(backupSourceIds);
+      }
 
       mappings = [...resolvedMappings];
-      Promise.allSettled(promises).catch(() => { });
     }
     if (!mappings.length) return res.status(404).json({ error: 'No source mappings found' });
     const TTL_MS = cache.TTL.chapter_list * 1000;
@@ -704,6 +712,30 @@ async function performSearch(sourceId, query, origTitle) {
     }
     return found;
   }
+  if (sourceId === 'mangabuddy') {
+    const s = SOURCE_SCRAPERS.mangabuddy;
+    if (s && s.search) {
+      try {
+        const items = await s.search(query);
+        for (const item of items) {
+          if (helpers.isGoodMatch(origTitle, item.title)) return item.href;
+        }
+        return items[0]?.href || null;
+      } catch (e) { console.warn('[performSearch] mangabuddy error:', e.message); }
+    }
+  }
+  if (sourceId === 'asura') {
+    const s = SOURCE_SCRAPERS.asura;
+    if (s && s.search) {
+      try {
+        const items = await s.search(query);
+        for (const item of items) {
+          if (helpers.isGoodMatch(origTitle, item.title)) return item.href;
+        }
+        return items[0]?.href || null;
+      } catch (e) { console.warn('[performSearch] asura error:', e.message); }
+    }
+  }
   return null;
 }
 
@@ -811,6 +843,8 @@ function detectSource(url) {
   if (h === 'mangakatana.com') return 'mangakatana';
   if (h === 'www.manganato.gg' || h === 'manganato.gg') return 'manganato';
   if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg') return 'manganato';
+  if (h.includes('mangabuddy')) return 'mangabuddy';
+  if (h.includes('asurascans') || h.includes('asura')) return 'asura';
   return null;
 }
 

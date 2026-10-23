@@ -60,14 +60,17 @@ const SINGLE_MANGA_QUERY = `
   }
 `;
 
-// Reading servers are exposed generically — provider brands are never shown to users.
 const AVAILABLE_SOURCES = [
-  { id: "mangaread", name: "Server 1" },
-  { id: "mangakatana", name: "Server 2" },
-  { id: "manganato", name: "Server 3" }
+  { id: "manganato", name: "Server 1" },
+  { id: "mangaread", name: "Server 2" },
+  { id: "mangakatana", name: "Server 3" }
 ];
 
-const sourceLabel = (id) => AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
+const sourceLabel = (id) => {
+  if (id === "mangabuddy") return "Backup Server";
+  if (id === "asura") return "Backup Server (Manhwa)";
+  return AVAILABLE_SOURCES.find((s) => s.id === id)?.name || "Auto";
+};
 
 export default function MangaDetail({ params }) {
   const router = useRouter();

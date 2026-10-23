@@ -1338,6 +1338,299 @@ const SOURCE_SCRAPERS = {
         return { images: [], source: 'manganato' };
       }
     }
+  },
+
+  // ── MANGABUDDY (Server 4 / Backup) ──────────────────────────────────────────
+  mangabuddy: {
+    id: 'mangabuddy',
+    name: 'MangaBuddy',
+    baseUrl: 'https://mangabuddy1.co.uk',
+    color: '#8e44ad',
+
+    async getHome() {
+      try {
+        const html = await fetchHTML('https://mangabuddy1.co.uk/');
+        const $ = cheerio.load(html);
+        const items = [];
+        $('.item, .book-item').each((_, el) => {
+          const $a = $(el).find('a[href*="/series/"]').first();
+          const href = $a.attr('href') || '';
+          const title = $(el).find('.title, h3, h4').text().trim() || $a.attr('title') || '';
+          const cover = $(el).find('img').attr('data-src') || $(el).find('img').attr('src') || '';
+          const chapter = $(el).find('.chapter-item, .latest-chapter').first().text().trim() || '';
+          if (title && href && !href.includes('/chapter-')) {
+            items.push({ title, href: toAbsolute(href, 'https://mangabuddy1.co.uk'), cover: toAbsolute(cover, 'https://mangabuddy1.co.uk'), chapter });
+          }
+        });
+        return { section: 'Latest Updates', items };
+      } catch (err) {
+        console.warn('[mangabuddy] getHome failed:', err.message);
+        return { section: 'Latest Updates', items: [] };
+      }
+    },
+
+    async search(query) {
+      try {
+        const searchUrl = `https://mangabuddy1.co.uk/series?searchTerm=${encodeURIComponent(query)}`;
+        const html = await fetchHTML(searchUrl);
+        const $ = cheerio.load(html);
+        const items = [];
+        $('a[href*="/series/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          const title = $(el).attr('title') || $(el).text().trim();
+          const cover = $(el).find('img').attr('data-src') || $(el).find('img').attr('src') || '';
+          if (href.includes('/series/') && !href.includes('/chapter-') && title && title.length > 1) {
+            const abs = toAbsolute(href, 'https://mangabuddy1.co.uk');
+            if (!items.some(i => i.href === abs)) {
+              items.push({
+                title,
+                href: abs,
+                cover: toAbsolute(cover, 'https://mangabuddy1.co.uk'),
+                chapter: ''
+              });
+            }
+          }
+        });
+        return items;
+      } catch (err) {
+        console.warn('[mangabuddy] search error:', err.message);
+        return [];
+      }
+    },
+
+    async getMangaDetail(url) {
+      try {
+        const html = await fetchHTML(url);
+        const $ = cheerio.load(html);
+        const title = $('h1').first().text().trim() || $('.detail-title').text().trim() || '';
+        const cover = $('img.image-thumb').attr('data-src') || $('img.image-thumb').attr('src') || '';
+        const description = $('.summary__content').text().trim() || $('.description').text().trim() || '';
+        const status = $('.genres-content').parent().text().includes('Completed') ? 'Completed' : 'Ongoing';
+        const genres = [];
+        $('.genres-content a, a[href*="/genre/"]').each((_, el) => {
+          const g = $(el).text().trim();
+          if (g && !genres.includes(g)) genres.push(g);
+        });
+
+        let slug = '';
+        const seriesDataMatch = html.match(/(?:window\.)?seriesData\s*=\s*({[\s\S]*?});/i);
+        if (seriesDataMatch) {
+          try {
+            const sd = Function(`"use strict"; return (${seriesDataMatch[1]});`)();
+            slug = sd.slug || '';
+          } catch (_) {}
+        }
+        if (!slug) {
+          const m = url.match(/\/series\/([^\/\.]+)/);
+          slug = m ? m[1] : '';
+        }
+
+        const chapters = [];
+        if (slug) {
+          try {
+            const apiRes = await fetch(`https://mangabuddy1.co.uk/get-chapter-list?slug=${encodeURIComponent(slug)}`, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Referer': url
+              }
+            });
+            if (apiRes.ok) {
+              const json = await apiRes.json();
+              if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                const urlSlugHash = url.split('/series/')[1]?.replace(/\/$/, '') || slug;
+                for (const ch of json.data) {
+                  const chNum = parseFloat(ch.chapter_num) || 0;
+                  chapters.push({
+                    title: ch.chapter_name || `Chapter ${ch.chapter_num}`,
+                    href: `https://mangabuddy1.co.uk/series/${urlSlugHash}/${ch.chapter_slug}`,
+                    date: ch.updated_at ? new Date(ch.updated_at).toISOString().split('T')[0] : null,
+                    chNum
+                  });
+                }
+              }
+            }
+          } catch (apiErr) {
+            console.warn('[mangabuddy] get-chapter-list API failed:', apiErr.message);
+          }
+        }
+
+        if (chapters.length === 0) {
+          $('a[href*="/chapter-"]').each((_, el) => {
+            const href = $(el).attr('href') || '';
+            const chTitle = $(el).text().trim();
+            if (href && !chapters.some(c => c.href === href)) {
+              const numMatch = href.match(/chapter-(\d+(?:\.\d+)?)/i);
+              const chNum = numMatch ? parseFloat(numMatch[1]) : 0;
+              chapters.push({
+                title: chTitle || `Chapter ${chNum}`,
+                href: toAbsolute(href, 'https://mangabuddy1.co.uk'),
+                date: null,
+                chNum
+              });
+            }
+          });
+        }
+
+        return { title, cover, description, status, genres, chapters };
+      } catch (err) {
+        console.warn('[mangabuddy] getMangaDetail error:', err.message);
+        return { title: '', cover: '', description: '', status: 'Ongoing', genres: [], chapters: [] };
+      }
+    },
+
+    async getChapterImages(url) {
+      try {
+        const html = await fetchHTML(url);
+        const $ = cheerio.load(html);
+        const images = [];
+        $('img').each((_, el) => {
+          const src = $(el).attr('data-src') || $(el).attr('src') || '';
+          if (src && /^https?:\/\//i.test(src) && !src.includes('avatar') && !src.includes('logo') && !src.includes('thumb')) {
+            if (src.includes('sags2mobile') || src.includes('mangabuddy') || src.includes('cdn')) {
+              if (!images.includes(src)) images.push(src);
+            }
+          }
+        });
+        return { images, source: 'mangabuddy' };
+      } catch (err) {
+        console.warn('[mangabuddy] getChapterImages error:', err.message);
+        return { images: [], source: 'mangabuddy' };
+      }
+    }
+  },
+
+  // ── ASURA SCANS (Manhwa / Webtoons Backup) ──────────────────────────────────
+  asura: {
+    id: 'asura',
+    name: 'Asura Scans',
+    baseUrl: 'https://asurascans.com',
+    color: '#e67e22',
+
+    async getHome() {
+      try {
+        const html = await fetchHTML('https://asurascans.com/');
+        const $ = cheerio.load(html);
+        const items = [];
+        $('a[href*="/comics/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          if (href.startsWith('/comics/') && !href.includes('/chapter/')) {
+            let title = $(el).find('span.block, .title, h3, h4, span.font-bold').first().text().trim() || $(el).attr('title') || '';
+            const cover = $(el).find('img').attr('src') || $(el).find('img').attr('data-src') || '';
+            if (title && !items.some(i => i.href === href)) {
+              items.push({
+                title,
+                href: toAbsolute(href, 'https://asurascans.com'),
+                cover: toAbsolute(cover, 'https://asurascans.com'),
+                chapter: ''
+              });
+            }
+          }
+        });
+        return { section: 'Latest Updates', items };
+      } catch (err) {
+        console.warn('[asura] getHome failed:', err.message);
+        return { section: 'Latest Updates', items: [] };
+      }
+    },
+
+    async search(query) {
+      try {
+        const searchUrl = `https://asurascans.com/browse/comics?search=${encodeURIComponent(query)}`;
+        const html = await fetchHTML(searchUrl);
+        const $ = cheerio.load(html);
+        const items = [];
+        $('a[href*="/comics/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          let title = $(el).find('span.block, .title, h3, h4, span.font-bold').first().text().trim();
+          if (!title) title = $(el).find('img').attr('alt') || $(el).attr('title') || '';
+          if (!title && href.startsWith('/comics/')) {
+            const slug = href.replace('/comics/', '').replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ');
+            title = slug.replace(/\b\w/g, c => c.toUpperCase());
+          }
+          const cover = $(el).find('img').attr('src') || $(el).find('img').attr('data-src') || '';
+          if (href.startsWith('/comics/') && !href.includes('/chapter/') && title.length > 2) {
+            const abs = toAbsolute(href, 'https://asurascans.com');
+            if (!items.some(i => i.href === abs)) {
+              items.push({
+                title,
+                href: abs,
+                cover: toAbsolute(cover, 'https://asurascans.com'),
+                chapter: ''
+              });
+            }
+          }
+        });
+        return items;
+      } catch (err) {
+        console.warn('[asura] search error:', err.message);
+        return [];
+      }
+    },
+
+    async getMangaDetail(url) {
+      try {
+        const html = await fetchHTML(url);
+        const $ = cheerio.load(html);
+        const title = $('h1').first().text().trim() || '';
+        const cover = $('img[src*="covers"]').attr('src') || $('img').first().attr('src') || '';
+        const description = $('p').filter((_, el) => $(el).text().length > 50).first().text().trim() || '';
+        const status = html.includes('Completed') ? 'Completed' : 'Ongoing';
+        const genres = [];
+        $('a[href*="/genres/"], a[href*="/genre/"]').each((_, el) => {
+          const g = $(el).text().trim();
+          if (g && !genres.includes(g)) genres.push(g);
+        });
+
+        const chapters = [];
+        $('a[href*="/chapter/"]').each((_, el) => {
+          const href = $(el).attr('href') || '';
+          const rawTitle = $(el).find('span').first().text().trim() || $(el).text().trim();
+          const absHref = toAbsolute(href, 'https://asurascans.com');
+          if (href && !chapters.some(c => c.href === absHref)) {
+            const numMatch = href.match(/\/chapter\/(\d+(?:\.\d+)?)/i);
+            const chNum = numMatch ? parseFloat(numMatch[1]) : 0;
+            const cleanTitle = rawTitle.replace(/\d+\s*(?:days?|hours?|mins?|secs?|ago|new)\b.*$/i, '').trim() || `Chapter ${chNum}`;
+            chapters.push({
+              title: cleanTitle,
+              href: absHref,
+              date: null,
+              chNum
+            });
+          }
+        });
+
+        chapters.sort((a, b) => b.chNum - a.chNum);
+        return { title, cover, description, status, genres, chapters };
+      } catch (err) {
+        console.warn('[asura] getMangaDetail error:', err.message);
+        return { title: '', cover: '', description: '', status: 'Ongoing', genres: [], chapters: [] };
+      }
+    },
+
+    async getChapterImages(url) {
+      try {
+        const html = await fetchHTML(url);
+        const $ = cheerio.load(html);
+        const images = [];
+        $('img').each((_, el) => {
+          const src = $(el).attr('src') || $(el).attr('data-src') || '';
+          if (src && !src.includes('logo') && !src.includes('icon') && !src.includes('avatar')) {
+            if (src.includes('cdn.asurascans.com') || src.includes('asura-images') || src.includes('.webp') || src.includes('.jpg')) {
+              const abs = toAbsolute(src, 'https://asurascans.com');
+              if (/^https?:\/\//i.test(abs) && !images.includes(abs)) {
+                images.push(abs);
+              }
+            }
+          }
+        });
+        return { images, source: 'asura' };
+      } catch (err) {
+        console.warn('[asura] getChapterImages error:', err.message);
+        return { images: [], source: 'asura' };
+      }
+    }
   }
 };
 

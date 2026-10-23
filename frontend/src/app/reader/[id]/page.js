@@ -45,9 +45,11 @@ const AAdsBanner = dynamic(() => import("@/components/AAdsBanner"), { ssr: false
 const AD_AFTER_PAGE = 3;
 
 const SERVER_NAMES = {
-  mangaread: "Server 1",
-  mangakatana: "Server 2",
-  manganato: "Server 3",
+  manganato: "Server 1",
+  mangaread: "Server 2",
+  mangakatana: "Server 3",
+  mangabuddy: "Backup Server",
+  asura: "Backup Server (Manhwa)",
 };
 const getServerName = (s) => SERVER_NAMES[s] || "Server 1";
 
@@ -330,7 +332,7 @@ function ReaderContent({ params }) {
 
         // Automatic Server Failover: If primary server failed, seamlessly try alternate servers
         if (title && id) {
-          const alternateSources = ['manganato', 'mangaread', 'mangakatana'].filter(s => s !== source);
+          const alternateSources = ['manganato', 'mangaread', 'mangakatana', 'mangabuddy', 'asura'].filter(s => s !== source);
           const currentChNum = parseInt(id) || 1;
 
           for (const altSource of alternateSources) {
@@ -782,9 +784,9 @@ function ReaderContent({ params }) {
             aria-label="Select server"
             title="Switch server"
           >
-            <option value="mangaread" style={{ background: "#180e25", color: "#fff" }}>Server 1</option>
-            <option value="mangakatana" style={{ background: "#180e25", color: "#fff" }}>Server 2</option>
-            <option value="manganato" style={{ background: "#180e25", color: "#fff" }}>Server 3</option>
+            <option value="manganato" style={{ background: "#180e25", color: "#fff" }}>Server 1</option>
+            <option value="mangaread" style={{ background: "#180e25", color: "#fff" }}>Server 2</option>
+            <option value="mangakatana" style={{ background: "#180e25", color: "#fff" }}>Server 3</option>
           </select>
 
           <div className="rt-sep"></div>

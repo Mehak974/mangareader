@@ -101,6 +101,8 @@ function detectSource(url) {
   if (h === 'mangakatana.com') return 'mangakatana';
   if (h === 'www.manganato.gg' || h === 'manganato.gg' || h === 'www.manganato.com' || h === 'manganato.com') return 'manganato';
   if (h === 'www.mangakakalot.gg' || h === 'mangakakalot.gg' || h === 'www.mangakakalot.com' || h === 'mangakakalot.com') return 'manganato';
+  if (h.includes('mangabuddy')) return 'mangabuddy';
+  if (h.includes('asurascans') || h.includes('asura')) return 'asura';
   return null;
 }
 

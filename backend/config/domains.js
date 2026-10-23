@@ -29,8 +29,7 @@ const DOMAIN_CONFIGS = {
     siteName: 'MangaReader',
     tagline: 'Read manga free online — the premier experience',
     allowedOrigins: [...SISTER_DOMAINS],
-    // Scraper source preference order for this domain
-    preferredSources: ['manganato', 'mangaread', 'mangakatana'],
+    preferredSources: ['manganato', 'mangaread', 'mangakatana', 'mangabuddy', 'asura'],
     // Cache TTL multipliers (1.0 = default, higher = cache longer)
     cacheTtlMultiplier: 1.0,
     // Rate limit overrides for the public API
@@ -46,8 +45,7 @@ const DOMAIN_CONFIGS = {
   'mangaread.pro': {
     siteName: 'MangaRead',
     tagline: 'Fast manga reading — blazing speed, zero fuss',
-    allowedOrigins: [...SISTER_DOMAINS],
-    preferredSources: ['mangaread', 'manganato', 'mangakatana'],
+    preferredSources: ['mangaread', 'manganato', 'mangakatana', 'mangabuddy', 'asura'],
     cacheTtlMultiplier: 1.2,  // cache slightly longer — "speed" UX focus
     rateLimit: {
       windowMs: 60000,
@@ -60,8 +58,7 @@ const DOMAIN_CONFIGS = {
   'manireader.online': {
     siteName: 'ManiReader',
     tagline: 'Discover your next manga obsession',
-    allowedOrigins: [...SISTER_DOMAINS],
-    preferredSources: ['mangakatana', 'manganato', 'mangaread'],
+    preferredSources: ['mangakatana', 'manganato', 'mangaread', 'mangabuddy', 'asura'],
     cacheTtlMultiplier: 0.8,  // fresher content — discovery focus
     rateLimit: {
       windowMs: 60000,
@@ -76,7 +73,7 @@ const DEV_CONFIG = {
   siteName: 'MangaReader (Dev)',
   tagline: 'Development mode',
   allowedOrigins: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', ...SISTER_DOMAINS],
-  preferredSources: ['manganato', 'mangaread', 'mangakatana'],
+  preferredSources: ['manganato', 'mangaread', 'mangakatana', 'mangabuddy', 'asura'],
   cacheTtlMultiplier: 0.1,  // short cache in dev
   rateLimit: { windowMs: 60000, max: 1000 },
   maintenanceMode: false,

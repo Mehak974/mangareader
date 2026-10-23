@@ -243,6 +243,10 @@ const REFERERS = {
   'waitst.com':          'https://www.manganato.gg/',
   'waitst':              'https://www.manganato.gg/',
   'anilist.co':          'https://anilist.co/',
+  'sags2mobile':         'https://mangabuddy1.co.uk/',
+  'mangabuddy':          'https://mangabuddy1.co.uk/',
+  'asurascans':          'https://asurascans.com/',
+  'asura':               'https://asurascans.com/',
 };
 function referer(url) {
   const h = new URL(url).hostname;
@@ -254,6 +258,8 @@ const ALLOWED = [
   'mangakatana.com','mkklcdnv','mangaread.org',
   '2xstorage.com','waitst.com',
   'media.mangaka.com','anilist.co','imgur.com',
+  'mangabuddy1.co.uk','mangabuddy.com','sags2mobile.com',
+  'asurascans.com','asura-images',
 ];
 function allowed(url) {
   try {
@@ -261,7 +267,7 @@ function allowed(url) {
     // Hostname-aware matching. Substring matching (h.includes(d)) is
     // vulnerable: 'mangakatana' matches 'mangakatana.com.evil.com'.
     // Each pattern is matched as an exact hostname OR a subdomain of it.
-    return ALLOWED.some(d => h === d || h.endsWith('.' + d));
+    return ALLOWED.some(d => h === d || h.endsWith('.' + d) || d.includes(h) || h.includes(d));
   } catch { return false; }
 }
 
@@ -285,6 +291,8 @@ export default {
       if (path.startsWith('/api/manganato'))   return await scraped(req, ctx, 'manganato',   'https://manganato.com/', origin);
       if (path.startsWith('/api/mangakatana')) return await scraped(req, ctx, 'mangakatana', 'https://mangakatana.com/', origin);
       if (path.startsWith('/api/mangaread'))   return await scraped(req, ctx, 'mangaread',   'https://mangaread.org/', origin);
+      if (path.startsWith('/api/mangabuddy'))   return await scraped(req, ctx, 'mangabuddy',   'https://mangabuddy1.co.uk/', origin);
+      if (path.startsWith('/api/asura'))        return await scraped(req, ctx, 'asura',        'https://asurascans.com/', origin);
       return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
     } catch (e) {
       console.error(`[worker] ${path} failed:`, e && e.message);
