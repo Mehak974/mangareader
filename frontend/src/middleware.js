@@ -46,7 +46,15 @@ export function middleware(request) {
     return url;
   };
 
-  // (Canonical www -> apex redirect is handled at Cloudflare edge)
+  // ── Canonical domain redirect: www.* -> root domain (301 Permanent) ─
+  if (!isLocal && host.startsWith("www.")) {
+    const cleanHost = host.replace(/^www\./, "").split(":")[0];
+    const url = new URL(request.url);
+    url.protocol = "https:";
+    url.hostname = cleanHost;
+    url.port = "";
+    return NextResponse.redirect(url, { status: 301 });
+  }
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
