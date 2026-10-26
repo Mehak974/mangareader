@@ -68,6 +68,11 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'shadow-of-the-supreme',
   'cheonhwa-archives-young-master',
   'baby-tyrant',
+  'asha-of-the-borderlands',
+  'circuit-breaker',
+  'high-society',
+  'your-eternal-lies',
+  'the-taming-of-the-tyrant',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

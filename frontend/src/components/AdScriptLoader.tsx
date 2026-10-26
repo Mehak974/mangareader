@@ -16,8 +16,8 @@ interface DomainAdConfig {
 const DOMAIN_ADS: Record<string, DomainAdConfig> = {
   'mangareader.pro': {
     hilltopPop: '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
-    adsterraPop: 'https://pl30844032.profitableratecpmnetwork.com/90/5d/47/905d4791e244975132854b89993a6975.js',
-    adsterraSocialBar: 'https://pl31917680.profitableratecpmnetwork.com/81/54/91/815491afa1ed9cdee8235b34c6f2cf6b.js',
+    adsterraPop: 'https://abscloud.org/1/905d4791e244975132854b89993a6975',
+    adsterraSocialBar: 'https://bauval.org/14/815491afa1ed9cdee8235b34c6f2cf6b',
   },
   'mangaread.pro': {
     hilltopPop: '//purple-text.com/cjDK9y6.bF2a5eluSWW/Qt9tNezsMiykNCTZUTzXMly_0-3AMFzmIL1ZN/TRMI3c',
@@ -69,6 +69,7 @@ const injectAdsterra = (): HTMLScriptElement => {
   (s as any).settings = {};
   s.src = getActiveAdConfig().adsterraPop;
   s.async = true;
+  s.setAttribute('data-cfasync', 'false');
   s.referrerPolicy = 'no-referrer-when-downgrade';
   document.head.appendChild(s);
   return s;
@@ -272,6 +273,7 @@ export default function AdScriptLoader() {
         const sb = document.createElement('script');
         sb.src = cfg.adsterraSocialBar;
         sb.async = true;
+        sb.setAttribute('data-cfasync', 'false');
         sb.setAttribute('data-socialbar', 'true');
         document.head.appendChild(sb);
         lastSocialBarMountedAt = now;
