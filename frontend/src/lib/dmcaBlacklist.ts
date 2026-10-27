@@ -73,6 +73,13 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'high-society',
   'your-eternal-lies',
   'the-taming-of-the-tyrant',
+  'firefly-wedding',
+  'from-far-away',
+  'gal-x-gal-yuri',
+  'kubo-wont-let-me-be-invisible',
+  'rainbow-days',
+  'snowball-earth',
+  'the-skeleton-soldier-failed-to-defend-the-dungeon',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

@@ -326,6 +326,13 @@ const BLOCKED_MANGA_TITLES = new Set([
   'high-society',
   'your-eternal-lies',
   'the-taming-of-the-tyrant',
+  'firefly-wedding',
+  'from-far-away',
+  'gal-x-gal-yuri',
+  'kubo-wont-let-me-be-invisible',
+  'rainbow-days',
+  'snowball-earth',
+  'the-skeleton-soldier-failed-to-defend-the-dungeon',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;
