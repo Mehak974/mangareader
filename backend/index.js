@@ -319,21 +319,8 @@ initAuth();
 app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
 app.use('/api/auth', require('./routes/anilistAuth'));
 
-const BLOCKED_MANGA_TITLES = new Set([
-  'hypnotist-security-guard',
-  'asha-of-the-borderlands',
-  'circuit-breaker',
-  'high-society',
-  'your-eternal-lies',
-  'the-taming-of-the-tyrant',
-  'firefly-wedding',
-  'from-far-away',
-  'gal-x-gal-yuri',
-  'kubo-wont-let-me-be-invisible',
-  'rainbow-days',
-  'snowball-earth',
-  'the-skeleton-soldier-failed-to-defend-the-dungeon',
-]);
+// ── DMCA / Copyright Blacklist (Backend hard-delete only) ───────────────────
+const BLOCKED_MANGA_TITLES = new Set(['hypnotist-security-guard']);
 function isBlockedManga(str) {
   if (!str) return false;
   const n = String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
