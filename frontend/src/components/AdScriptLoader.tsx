@@ -41,9 +41,9 @@ function getActiveAdConfig(): DomainAdConfig {
   return DOMAIN_ADS['mangareader.pro'];
 }
 
-// ── Waterfall Schedule (Sequential 4-Pop Cycle) ─────────────────────
-// Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra
-const STAGE_INTERVAL_MS = 50 * 1000; // 50 seconds gap between pops
+// ── Waterfall Schedule (Sequential 6-Pop Cycle) ─────────────────────
+// Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra  -->  Pop 5: Hilltop  -->  Pop 6: Adsterra
+const STAGE_INTERVAL_MS = 40 * 1000; // 40 seconds gap between pops
 const CYCLE_RESET_MS    = 1 * 60 * 60 * 1000; // 1-hour session reset
 
 const STORAGE_LAST_POP = 'manga_waterfall_last_pop';
@@ -76,6 +76,8 @@ const injectAdsterra = (): HTMLScriptElement => {
 };
 
 const NETWORKS: AdNetworkConfig[] = [
+  { name: 'Hilltop',  inject: injectHilltop },
+  { name: 'Adsterra', inject: injectAdsterra },
   { name: 'Hilltop',  inject: injectHilltop },
   { name: 'Adsterra', inject: injectAdsterra },
   { name: 'Hilltop',  inject: injectHilltop },
