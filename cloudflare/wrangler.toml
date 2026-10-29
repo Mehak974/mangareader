@@ -68,9 +68,8 @@ R2_CACHE = "off"
 # R2 writes (Class A ops like PUT/DELETE/LIST) are strictly forbidden and disabled.
 R2_WRITE = "off"
 
-[observability.logs]
-enabled = true
-invocation_logs = true
+[observability]
+enabled = false
 
 # NOTE: wrangler envs do NOT inherit bindings, routes or observability, so every
 # block from the top-level config is repeated below.
@@ -83,9 +82,8 @@ routes = [
   { pattern = "cdn.mangareader.pro", custom_domain = true },
 ]
 
-[env.production.observability.logs]
-enabled = true
-invocation_logs = true
+[env.production.observability]
+enabled = false
 
 [env.production.images]
 binding = "IMAGES"
