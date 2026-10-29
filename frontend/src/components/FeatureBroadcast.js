@@ -48,6 +48,25 @@ export default function FeatureBroadcast() {
     };
   }, [pathname]);
 
+  const handleDismissBanner = (e) => {
+    e?.stopPropagation();
+    setBannerVisible(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(BANNER_STORAGE_KEY, "1");
+    }
+  };
+
+  const handleOpenModal = () => {
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(MODAL_STORAGE_KEY, "1");
+    }
+  };
+
   // Lock body scroll when modal is open
   useEffect(() => {
     if (modalOpen) {
@@ -70,25 +89,6 @@ export default function FeatureBroadcast() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [modalOpen]);
-
-  const handleDismissBanner = (e) => {
-    e?.stopPropagation();
-    setBannerVisible(false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(BANNER_STORAGE_KEY, "1");
-    }
-  };
-
-  const handleOpenModal = () => {
-    setModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(MODAL_STORAGE_KEY, "1");
-    }
-  };
 
   if (isReaderPage) return null;
 
