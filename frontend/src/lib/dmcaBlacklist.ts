@@ -80,6 +80,16 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'rainbow-days',
   'snowball-earth',
   'the-skeleton-soldier-failed-to-defend-the-dungeon',
+  'playmate-19',
+  'happy-twogether',
+  'my-childhood-friend-is-a-bl-novel-protagonist',
+  'tale-of-a-villain',
+  'oni-no-hanayome',
+  'dawning-light',
+  'miyahara-senpai-to-fujiwara-kun-fujikuma-kun-no-sei-de-nuigurumi-wo-sotsugyou-shichaimashita',
+  'please-excuse-my-younger-brothers',
+  'the-summer-hikaru-died',
+  'tempest-night',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
