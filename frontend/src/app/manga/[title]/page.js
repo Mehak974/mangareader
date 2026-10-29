@@ -153,13 +153,16 @@ export default function MangaDetail({ params }) {
   const router = useRouter();
   const pathname = usePathname();
   const { title: titleSlug } = use(params);
-  const isSeriesRoute = pathname?.startsWith("/series") || pathname?.startsWith("/manga/series");
-  if (!isSeriesRoute && isBlockedManga(titleSlug)) {
-    router.replace(`/manga/series/${titleSlug}`);
-    return null;
-  }
   const searchParams = useSearchParams();
   const queryCover = searchParams ? searchParams.get("cover") || "" : "";
+  const isSeriesRoute = pathname?.startsWith("/series") || pathname?.startsWith("/manga/series");
+  const isBlocked = !isSeriesRoute && isBlockedManga(titleSlug);
+
+  useEffect(() => {
+    if (isBlocked) {
+      router.replace(`/manga/series/${titleSlug}`);
+    }
+  }, [isBlocked, titleSlug, router]);
   const {
     isBookmarked,
     toggleBookmark,
@@ -659,6 +662,10 @@ export default function MangaDetail({ params }) {
 
     setLoadingChapters(false);
   };
+
+  if (isBlocked) {
+    return null;
+  }
 
   if (loading) {
     return (
