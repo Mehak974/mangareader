@@ -21,7 +21,7 @@ const { initAuth, requireAdmin } = require('./middleware/auth');
 const { initRateLimit, rateLimit, getRedisClient } = require('./middleware/rateLimit');
 const helpers = require('./utils/helpers');
 
-dns.setServers(['8.8.8.8', '1.1.1.1']);
+if (process.env.DNS_SERVERS) { try { dns.setServers(process.env.DNS_SERVERS.split(',')); } catch (e) { console.warn('[DNS] setServers failed:', e.message); } }
 
 // libvips defaults to one worker thread per CPU and keeps a 50MB decoded-image
 // cache. Combined with the per-request Buffer copies in /api/proxy-image that
@@ -320,7 +320,50 @@ app.use('/api/auth', rateLimit(15 * 60_000, 5), authRoutes);
 app.use('/api/auth', require('./routes/anilistAuth'));
 
 // ── DMCA / Copyright Blacklist (Backend hard-delete only) ───────────────────
-const BLOCKED_MANGA_TITLES = new Set(['hypnotist-security-guard']);
+const BLOCKED_MANGA_TITLES = new Set([
+  'hypnotist-security-guard',
+  'sakamoto-holidays',
+  'samurai-8-the-tale-of-hachimaru',
+  'so-cute-it-hurts',
+  'spell-of-desire',
+  'takopis-original-sin',
+  'the-exorcist-and-the-lovestruck-raven',
+  'tsumiki-ogamis-not-so-ordinary-life',
+  'akira-failing-in-love',
+  'alice-in-borderland-retry',
+  'black-torch',
+  'bug-ego',
+  'daydream-darling',
+  'dick-fight-island',
+  'drcl-midnight-children',
+  'given-10th-mix',
+  'goodbye-eri',
+  'hirayasumi',
+  'ikigami-the-ultimate-limit',
+  'im-no-angel',
+  'in-the-name-of-the-mermaid-princess',
+  'insomniacs-after-school',
+  'junji-ito-horror-comic-collection',
+  'kirby-manga-mania',
+  'koyoharu-gotouge-before-demon-slayer-kimetsu-no-yaiba',
+  'library-wars-love-war',
+  'look-back',
+  'love-pistols',
+  'madk',
+  'mimis-tales-of-terror',
+  'mobile-suit-gundam-thunderbolt',
+  'moriarty-the-patriot',
+  'nausica-of-the-valley-of-the-wind',
+  'nausicaa-of-the-valley-of-the-wind',
+  'nisekoi-false-love',
+  'o-parts-hunter',
+  'phantom-thief-jeanne',
+  'rainbows-after-storms',
+  'rasetsu',
+  'remina',
+  'crimson-hero',
+  'the-little-princess-and-her-monster-prince',
+]);
 function isBlockedManga(str) {
   if (!str) return false;
   const n = String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');

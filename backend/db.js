@@ -313,6 +313,7 @@ async function ensureConnection(retries = 3, delay = 1000) {
 module.exports = {
   pool,
   query: (text, params) => pool.query(text, params),
+  initDB,
   ensureConnection,
   close: () => pool.end(),
 };
