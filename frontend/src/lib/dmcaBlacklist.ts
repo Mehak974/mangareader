@@ -18,6 +18,7 @@ import { slugify } from '@/utils/slugify';
 export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'buin-eun-milbat-eseo-gidaryeotda',
   'hypnotist-security-guard',
+  'hypnosis-security-guard',
   'empress-cesia-wears-knickerbockers',
   'obedient-pregnancy',
   'paljae-child-of-winter',
