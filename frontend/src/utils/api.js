@@ -13,17 +13,17 @@ export const API_BASE = (() => {
       if (typeof window !== 'undefined' && window.__USE_LOCAL_BACKEND__) return 'http://localhost:3003';
       return 'https://api.mangareader.pro';
     }
-    if (h.includes('mangaread.pro')) return 'https://api.mangaread.pro';
-    if (h.includes('manireader.online')) return 'https://api.manireader.online';
-    if (h.includes('mangareader.pro')) return 'https://api.mangareader.pro';
+    if (h.includes('mangaread.pro')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
+    if (h.includes('manireader.online')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
+    if (h.includes('mangareader.pro')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
   } else {
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').toLowerCase();
     const profile = (process.env.DOMAIN_PROFILE || '').toLowerCase();
     if (siteUrl.includes('mangaread.pro') || profile.includes('mangaread.pro')) {
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangaread.pro';
+      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
     }
     if (siteUrl.includes('manireader.online') || profile.includes('manireader.online')) {
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.manireader.online';
+      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
     }
   }
   const fallback =
