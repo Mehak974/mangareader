@@ -41,7 +41,7 @@ const formatUrl = (urlStr) => {
   return trimmed;
 };
 
-export const WORKER_URL = formatUrl(process.env.NEXT_PUBLIC_WORKER_URL) || "https://cdn.mangareader.pro";
+export const WORKER_URL = formatUrl(process.env.NEXT_PUBLIC_WORKER_URL) || "";
 
 export function isWorkerAvailable() {
   if (!WORKER_URL) return false;

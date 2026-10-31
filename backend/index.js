@@ -1040,7 +1040,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
       'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
-      '2xstorage.com', 'media.mangaka.com',
+      '2xstorage.com', 'media.mangaka.com', 'sags2mobile.com', 'iconify.design',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
     ];
     if (!ALLOWED_PATTERNS.some(p => parsed.hostname === p || parsed.hostname.endsWith('.' + p))) {
@@ -1372,7 +1372,7 @@ async function proxyImage(url, w, q, cacheKey) {
     // ponytail: referer detection by substring — no map to maintain.
     const referer =
       h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
-      h.includes('manganato.gg') || h.includes('waitst') ? 'https://www.manganato.gg/' :
+      h.includes('manganato.gg') || h.includes('waitst') || h.includes('sags2mobile') ? 'https://www.manganato.gg/' :
       h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') ? 'https://mangakakalot.com/' :
       h.includes('mangaread')   ? 'https://mangaread.org/' :
       `${parsed.origin}/`;
