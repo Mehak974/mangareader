@@ -15,23 +15,13 @@ export const API_BASE = (() => {
     }
     if (h.includes('mangaread.pro')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
     if (h.includes('manireader.online')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
-    if (h.includes('mangareader.pro')) return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
+    return process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
   } else {
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '').toLowerCase();
-    const profile = (process.env.DOMAIN_PROFILE || '').toLowerCase();
-    if (siteUrl.includes('mangaread.pro') || profile.includes('mangaread.pro')) {
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
-    }
-    if (siteUrl.includes('manireader.online') || profile.includes('manireader.online')) {
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.mangareader.pro';
-    }
+    // Server-side (Node.js runtime / SSR / API routes)
+    // Connecting directly to localhost:3003 has zero latency and is immune to Cloudflare WAF/403 blocks.
+    if (process.env.API_URL) return process.env.API_URL;
+    return 'http://127.0.0.1:3003';
   }
-  const fallback =
-    process.env.NEXT_PUBLIC_SCRAPER_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.API_URL ||
-    "https://api.mangareader.pro";
-  return fallback.includes(':3003') ? "https://api.mangareader.pro" : fallback;
 })();
 
 

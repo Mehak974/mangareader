@@ -11,11 +11,12 @@ export function slugify(title) {
   let slug = title
     .toLowerCase()
     .trim()
-    .replace(/['']/g, "")           // remove smart quotes
-    .replace(/[^\p{L}\p{N}\s-]/gu, "") // preserve letters/numbers from ANY language
-    .replace(/[\s_]+/g, "-")        // spaces/underscores → hyphens
-    .replace(/-+/g, "-")            // collapse consecutive hyphens
-    .replace(/^-|-$/g, "");         // trim leading/trailing hyphens
+    .replace(/[''"]/g, "")                // remove quotes
+    .replace(/[\u2010-\u2015\u2212]/g, "-") // normalize unicode dashes (em-dash, en-dash) to hyphens
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")    // preserve letters/numbers from ANY language
+    .replace(/[\s_]+/g, "-")             // spaces/underscores → hyphens
+    .replace(/-+/g, "-")                 // collapse consecutive hyphens
+    .replace(/^-|-$/g, "");              // trim leading/trailing hyphens
 
   if (!slug) {
     // Ultimate fallback if regex strips everything

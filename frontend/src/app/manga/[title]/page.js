@@ -374,15 +374,6 @@ export default function MangaDetail({ params }) {
           const bestMatch = exactMatch || keywordMatch || searchRes.media[0];
           resolvedId = bestMatch.id;
 
-          // If the slug doesn't match exactly, redirect to the canonical slug
-          const canonicalSlug = slugify(bestMatch.t);
-          if (canonicalSlug && canonicalSlug !== titleSlug) {
-            const isBlockedOrKorean = isBlockedManga(canonicalSlug) || bestMatch?.countryOfOrigin === 'KR' || bestMatch?.country === 'KR' || bestMatch?.genres?.some(g => String(g).toLowerCase() === 'manhwa');
-            const basePath = isBlockedOrKorean ? "/manga/series" : (pathname?.startsWith("/manga/series") ? "/manga/series" : (pathname?.startsWith("/series") ? "/series" : "/manga"));
-            router.replace(`${basePath}/${canonicalSlug}`);
-            return;
-          }
-
           // Now fetch full details from AniList using the resolved ID (skip MAL and Kitsu IDs)
           if (resolvedId && !resolvedId.startsWith("mal-") && !resolvedId.startsWith("kitsu-")) {
             try {
