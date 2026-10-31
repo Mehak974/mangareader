@@ -6,6 +6,10 @@ import { Heart, Sparkles, X } from 'lucide-react';
 
 const STORAGE_KEY = 'mr_downtime_apology_oct2026';
 
+// 24-hour lifetime: Auto-expires at 2026-11-01 17:00:00 UTC (24 hours from launch)
+// Once expired, it returns null for all users and automatically self-destructs.
+const EXPIRES_AT = new Date('2026-11-01T17:00:00Z').getTime();
+
 export default function DowntimeApologyBanner() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
@@ -15,6 +19,12 @@ export default function DowntimeApologyBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Self-destruct if 24 hours have elapsed
+    if (Date.now() > EXPIRES_AT) {
+      return;
+    }
+
     try {
       const dismissed = localStorage.getItem(STORAGE_KEY);
       if (!dismissed) {
@@ -32,7 +42,10 @@ export default function DowntimeApologyBanner() {
     } catch {}
   };
 
-  if (!visible || isReaderPage) return null;
+  // If expired, dismissed, or inside chapter reading mode, don't show
+  if (!visible || isReaderPage || (typeof window !== 'undefined' && Date.now() > EXPIRES_AT)) {
+    return null;
+  }
 
   return (
     <div className="relative z-40 bg-gradient-to-r from-purple-950/90 via-indigo-950/90 to-purple-950/90 border-b border-purple-500/30 text-white px-4 py-2.5 shadow-lg backdrop-blur-md transition-all duration-300">
