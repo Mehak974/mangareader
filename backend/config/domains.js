@@ -29,7 +29,7 @@ const DOMAIN_CONFIGS = {
     siteName: 'MangaReader',
     tagline: 'Read manga free online — the premier experience',
     allowedOrigins: [...SISTER_DOMAINS],
-    preferredSources: ['mangakatana', 'mangaread', 'manganato', 'mangabuddy', 'asura'],
+    preferredSources: ['mangaread', 'manganato', 'mangakatana', 'mangabuddy', 'asura'],
     // Cache TTL multipliers (1.0 = default, higher = cache longer)
     cacheTtlMultiplier: 1.0,
     // Rate limit overrides for the public API
