@@ -11,7 +11,12 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const bcrypt = require('bcryptjs');
 const NodeCache = require('node-cache');
-const sharp = require('sharp');
+let sharp = null;
+try {
+  sharp = require('sharp');
+} catch (e) {
+  console.warn('[SHARP] Native sharp unavailable, falling back to direct image streaming:', e.message);
+}
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const { getConfig, getAllowedOrigins } = require('./config/domains');
@@ -26,8 +31,8 @@ if (process.env.DNS_SERVERS) { try { dns.setServers(process.env.DNS_SERVERS.spli
 // libvips defaults to one worker thread per CPU and keeps a 50MB decoded-image
 // cache. Combined with the per-request Buffer copies in /api/proxy-image that
 // blows up RSS on a small container, so both are pinned to a fixed budget.
-sharp.concurrency(2);
-sharp.cache({ memory: 32, files: 0, items: 16 });
+if (sharp) sharp.concurrency(2);
+if (sharp) sharp.cache({ memory: 32, files: 0, items: 16 });
 
 const PROXY_URL = process.env.SCRAPER_PROXY_URL || null;
 const PROXY_ROTATION = process.env.SCRAPER_PROXY_ROTATION === 'true';
@@ -1414,6 +1419,7 @@ async function proxyImage(url, w, q, cacheKey) {
     // sharp pipelines are single-use, so build a fresh one per attempt instead
     // of reusing the instance after a failed encode.
     const encode = async (fmt) => {
+      if (!sharp) throw new Error("sharp unavailable");
       let p = sharp(r.data);
       if (resize) p = p.resize(resize);
       return fmt === 'webp' ? p.webp({ quality }).toBuffer() : p.jpeg({ quality, progressive: true }).toBuffer();
