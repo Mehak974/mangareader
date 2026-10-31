@@ -184,6 +184,6 @@ export const config = {
   matcher: [
     // Apply to everything except API routes, static assets and Next's own internals,
     // where a CSP header is irrelevant overhead.
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm)$).*)",
   ],
 };
