@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Top discovered manga (with 2.0s timeout)
+  // 3. Top discovered manga (optimized indexed join)
   try {
     const discovered = await withTimeout(
       prisma.$queryRaw<
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       >`
         SELECT d.slug, d.last_viewed_at AS "lastViewedAt", d.view_count AS "viewCount"
         FROM discovered_manga d
-        LEFT JOIN manga m ON m.id = d.slug OR LOWER(REGEXP_REPLACE(m.title, '[^a-zA-Z0-9]+', '-', 'g')) = d.slug
+        LEFT JOIN manga m ON m.id = d.slug
         WHERE (m.country IS NULL OR m.country != 'KR')
         ORDER BY d.view_count DESC, d.last_viewed_at DESC
         LIMIT ${SITEMAP_TOP_MANGA}
