@@ -15,7 +15,7 @@ function AAdsBannerInner() {
 
   useEffect(() => { setKey(k => k + 1); }, [pathname]);
 
-  if (!aadsUnitId || isHidden) return null;
+  if (!aadsUnitId || isHidden || pathname === '/aads' || pathname?.startsWith('/aads/')) return null;
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
   let unitId = aadsUnitId || '2454751';

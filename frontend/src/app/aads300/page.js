@@ -1,4 +1,4 @@
-import AAdsInline from "@/components/AAdsInline";
+import { headers } from "next/headers";
 
 export const metadata = {
   title: "Advertisements (300x250)",
@@ -8,8 +8,17 @@ export const metadata = {
   },
 };
 
-export default function Aads300Page() {
-  // Renders only the 300x250 banner ad in the center of the screen
+export default async function Aads300Page() {
+  const headersList = await headers();
+  const host = (headersList.get("x-forwarded-host") || headersList.get("host") || "").toLowerCase();
+
+  let unitId = "2457490";
+  if (host.includes("mangaread.pro")) {
+    unitId = "2458319";
+  } else if (host.includes("manireader.online") || host.includes("manireader.pro")) {
+    unitId = "2459321";
+  }
+
   return (
     <div
       style={{
@@ -23,8 +32,20 @@ export default function Aads300Page() {
         padding: "40px 20px",
       }}
     >
-      <div style={{ margin: "auto 0" }}>
-        <AAdsInline force={true} />
+      <div id="frame" style={{ width: "300px", margin: "auto 0", zIndex: 99998, height: "auto" }}>
+        <iframe
+          data-aa={unitId}
+          src={`//ad.a-ads.com/${unitId}/?size=300x250`}
+          style={{
+            border: 0,
+            padding: 0,
+            width: "300px",
+            height: "250px",
+            overflow: "hidden",
+            display: "block",
+            margin: "auto",
+          }}
+        />
       </div>
     </div>
   );
