@@ -15,17 +15,17 @@ interface DomainAdConfig {
 
 const DOMAIN_ADS: Record<string, DomainAdConfig> = {
   'mangareader.pro': {
-    hilltopPop: '//purple-text.com/cVDF9c6.bC2T5tlRS/WjQQ9bNgzLMgyWM/DBUByhOAS-0e3/MgzFIBwgNWTEM/zZ',
+    hilltopPop: '//purple-text.com/cRDo9.6VbJ2T5ZljSpW-Q/9hNazTMvyGM/DvUUytO-SI0o3MMuzlIUwWNVTWMPzb',
     adsterraPop: 'https://abscloud.org/1/905d4791e244975132854b89993a6975',
     adsterraSocialBar: 'https://bauval.org/14/815491afa1ed9cdee8235b34c6f2cf6b',
   },
   'mangaread.pro': {
-    hilltopPop: '//purple-text.com/cjDK9y6.bF2a5eluSWW/Qt9tNezsMiykNCTZUTzXMly_0-3AMFzmIL1ZN/TRMI3c',
+    hilltopPop: '//purple-text.com/cFD.9V6nb/2H5Ol/SGW_Qz9ANcziMty/NMTMUMz/M/y/0v3RMhzbI/1XNyT/Mi3v',
     adsterraPop: 'https://abscloud.org/1/7b7d010eb7fd655ac5200b25dff46189',
     adsterraSocialBar: 'https://bauval.org/14/bbbcaaedb9462b6e29aa7a475bc1cdfc',
   },
   'manireader.online': {
-    hilltopPop: '//purple-text.com/czDm9B6.be2V5BlhS/WVQN9LN/zTQt0CNYD/QF2/MlSB0L3/NZDbQ/0JNoDbYy1L',
+    hilltopPop: '//purple-text.com/cID.9/6fbJ2J5rlZSPWeQ_9FNez/Q/0TN/DUQu2oMNSb0E3uNSDaQa0/N/D/Yd1o',
     adsterraPop: 'https://abscloud.org/1/17fa2a0abb1619ea7086df42c7fa7d40',
     adsterraSocialBar: 'https://bauval.org/14/a4d5830ab740fb42a37d9777427ee81e',
   },
