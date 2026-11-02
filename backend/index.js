@@ -1251,7 +1251,7 @@ function releaseImageSlot() {
 // URL produce one upstream fetch and one sharp pipeline.
 const imageInFlight = new Map();
 
-app.get('/api/proxy-image', rateLimit(60000, 1000), async (req, res) => {
+app.get(['/api/proxy-image', '/api/proxy-image.webp', '/api/proxy-image.jpg'], rateLimit(60000, 1000), async (req, res) => {
   let { url, w, q } = req.query;
   if (!url) return res.status(400).send('Invalid url');
 
@@ -1438,7 +1438,7 @@ async function proxyImage(url, w, q, cacheKey) {
         buf = Buffer.from(r.data);
         ct = r.headers['content-type'] || 'image/jpeg';
         imageCacheSet(cacheKey, { buf, ct });
-        return { buf, ct, noStore: true };
+        return { buf, ct };
       }
     }
 

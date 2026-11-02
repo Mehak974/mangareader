@@ -63,12 +63,45 @@ function ReaderContent({ params }) {
   const { id } = use(params);
   const { addToHistory, markChapterRead } = useApp();
 
-  const url = searchParams.get("url") || "";
-  const source = searchParams.get("source") || "";
-  const title = searchParams.get("title") || "";
-  const mangaId = searchParams.get("mangaId") || "";
-  const cover = searchParams.get("cover") || "";
-  const romaji = searchParams.get("romaji") || "";
+  const [chapterContext, setChapterContext] = useState(() => {
+    const sUrl = searchParams.get("url") || "";
+    const sSource = searchParams.get("source") || "";
+    const sTitle = searchParams.get("title") || "";
+    const sMangaId = searchParams.get("mangaId") || "";
+    const sCover = searchParams.get("cover") || "";
+    const sRomaji = searchParams.get("romaji") || "";
+
+    if (sUrl) {
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem(`mr_ch_${id}`, JSON.stringify({ url: sUrl, source: sSource, title: sTitle, mangaId: sMangaId, cover: sCover, romaji: sRomaji }));
+        } catch (_) {}
+      }
+      return { url: sUrl, source: sSource, title: sTitle, mangaId: sMangaId, cover: sCover, romaji: sRomaji };
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem(`mr_ch_${id}`);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
+    return { url: "", source: "", title: "", mangaId: "", cover: "", romaji: "" };
+  });
+
+  const url = chapterContext.url;
+  const source = chapterContext.source;
+  const title = chapterContext.title;
+  const mangaId = chapterContext.mangaId;
+  const cover = chapterContext.cover;
+  const romaji = chapterContext.romaji;
+
+  // Clean ugly query parameters from browser address bar
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [id]);
 
   const isNotChapterImage = (img) => typeof img === 'string' && (
     /[_-]\d{2,4}x\d{2,4}\.(?:jpg|jpeg|png|webp|avif)/i.test(img) ||
@@ -105,6 +138,24 @@ function ReaderContent({ params }) {
   const hasTriggeredAutoDownloadRef = useRef(false);
   const hasTriggeredFailoverRef = useRef(false);
   const autoDownload = searchParams.get("download") === "1";
+
+  const [mirrorInfo, setMirrorInfo] = useState({ url: "https://mangaread.pro", name: "MangaRead.pro" });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      const isMangaread = host.includes("mangaread.pro");
+      const isManireader = host.includes("manireader.online");
+      const targetDomain = isMangaread ? "mangareader.pro" : isManireader ? "mangaread.pro" : "mangaread.pro";
+      const targetName = isMangaread ? "MangaReader.pro" : isManireader ? "MangaRead.pro" : "MangaRead.pro";
+      const mirrorQuery = url
+        ? `?url=${encodeURIComponent(url)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`
+        : window.location.search;
+      setMirrorInfo({
+        url: `https://${targetDomain}/reader/${id}${mirrorQuery}`,
+        name: targetName,
+      });
+    }
+  }, [id]);
 
   // Sync state synchronously during render when navigating across chapters
   if (currentId !== id) {
@@ -1063,6 +1114,8 @@ function ReaderContent({ params }) {
             <span>🚀 Turbo CDN</span>
           </a>
 
+
+
           <div className="rt-sep"></div>
           <button className="rt-btn" onClick={() => setBrightnessPop(!brightnessPop)} aria-label="Adjust brightness">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -1410,6 +1463,55 @@ function ReaderContent({ params }) {
                   ? `Next Chapter (Ch ${parseInt(id) + 1} Offline ⚡) →`
                   : "Next Chapter →"}
               </button>
+            </div>
+
+            {/* SISTER DOMAIN TRAFFIC MIRROR BANNER */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
+                background: "linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)",
+                border: "1px solid rgba(56, 189, 248, 0.2)",
+                borderRadius: "10px",
+                padding: "12px 18px",
+                margin: "20px auto 10px",
+                maxWidth: "700px",
+                width: "100%",
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", textAlign: "left" }}>
+                <span style={{ fontSize: "20px" }}>⚡</span>
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#fff" }}>
+                    Slow images or chapters lagging?
+                  </div>
+                  <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>
+                    Continue reading on high-speed mirror: <strong style={{ color: "#38bdf8" }}>{mirrorInfo.name}</strong>
+                  </div>
+                </div>
+              </div>
+              <a
+                href={mirrorInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "8px 16px",
+                  background: "linear-gradient(135deg, #0284c7 0%, #7c3aed 100%)",
+                  color: "#fff",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 2px 10px rgba(2, 132, 199, 0.3)",
+                }}
+              >
+                Switch to Mirror ➔
+              </a>
             </div>
 
             {/* RECOMMENDED MANGA SECTION AT END OF CHAPTER */}
