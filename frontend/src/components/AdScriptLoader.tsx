@@ -56,8 +56,8 @@ interface AdNetworkConfig {
   inject?: () => HTMLScriptElement;
 }
 
-const HILLTOP_DIRECT_LINK = 'https://purple-text.com/8G1iAw';
-const ADSTERRA_DIRECT_LINK = 'https://auctionr.org/4/d2652ea3fa6d44964e41913563f81ea2';
+const ADSTERRA_DIRECT_LINK_1 = 'https://auctionr.org/4/d2652ea3fa6d44964e41913563f81ea2';
+const ADSTERRA_DIRECT_LINK_2 = 'https://auctionr.org/4/3f3d0bb9f886602d77c8c6f218dd31d5';
 
 const injectHilltop = (): HTMLScriptElement => {
   const s = document.createElement('script');
@@ -81,12 +81,12 @@ const injectAdsterra = (): HTMLScriptElement => {
 };
 
 const NETWORKS: AdNetworkConfig[] = [
-  { name: 'Hilltop',         type: 'script',     inject: injectHilltop },
-  { name: 'Adsterra',        type: 'script',     inject: injectAdsterra },
-  { name: 'Hilltop',         type: 'script',     inject: injectHilltop },
-  { name: 'Adsterra',        type: 'script',     inject: injectAdsterra },
-  { name: 'Hilltop Direct',  type: 'directLink', url: HILLTOP_DIRECT_LINK },
-  { name: 'Adsterra Direct', type: 'directLink', url: ADSTERRA_DIRECT_LINK },
+  { name: 'Hilltop',           type: 'script',     inject: injectHilltop },
+  { name: 'Adsterra',          type: 'script',     inject: injectAdsterra },
+  { name: 'Hilltop',           type: 'script',     inject: injectHilltop },
+  { name: 'Adsterra',          type: 'script',     inject: injectAdsterra },
+  { name: 'Adsterra Direct 1', type: 'directLink', url: ADSTERRA_DIRECT_LINK_1 },
+  { name: 'Adsterra Direct 2', type: 'directLink', url: ADSTERRA_DIRECT_LINK_2 },
 ];
 
 let activeNode: HTMLScriptElement | null = null;
@@ -214,11 +214,7 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
     return true;
   }
 
-  if (target === 'Hilltop Direct') {
-    return urlStr.includes('purple-text.com/8g1iaw') || urlStr.includes('purple-text.com');
-  }
-
-  if (target === 'Adsterra Direct') {
+  if (target?.startsWith('Adsterra Direct')) {
     return urlStr.includes('auctionr.org') || urlStr.includes('araplhn.org');
   }
 
