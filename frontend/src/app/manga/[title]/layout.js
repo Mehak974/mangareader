@@ -11,6 +11,7 @@ async function getRequestDomain() {
   try {
     const headersList = await headers();
     const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+    if (host.includes('mangafire.pro')) return 'mangafire.pro';
     if (host.includes('mangaread.pro')) return 'mangaread.pro';
     if (host.includes('manireader.online') || host.includes('manireader.pro')) return 'manireader.online';
   } catch {}
@@ -63,18 +64,24 @@ export async function generateMetadata({ params }) {
   }
 
   const domain = await getRequestDomain();
-  const siteName = domain.includes('mangaread') ? 'MangaRead' : domain.includes('manireader') ? 'ManiReader' : SITE_NAME;
+  const siteName = domain.includes('mangafire') ? 'MangaFire' : domain.includes('mangaread') ? 'MangaRead' : domain.includes('manireader') ? 'ManiReader' : SITE_NAME;
 
   const m = await getMangaData(titleSlug);
   const isKorean = m?.country === 'KR';
   const displayTitle = m?.title || formatTitle(titleSlug);
-  const pageTitle = domain.includes('mangaread')
+  const pageTitle = domain.includes('mangafire')
+    ? `${displayTitle} Ch. Free English Scans & Online Reader - MangaFire`
+    : domain.includes('mangaread')
     ? `${displayTitle} English Chapters - Read Free on MangaRead`
     : domain.includes('manireader')
     ? `${displayTitle} Webtoon & Manga - Read Online on ManiReader`
     : `Read ${displayTitle} Manga Online Free - All Chapters`;
 
-  const metaDescription = domain.includes('manireader')
+  const metaDescription = domain.includes('mangafire')
+    ? (m?.description
+        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 150).trim()}... Read all chapters of ${displayTitle} online for free with high quality scans on MangaFire.`
+        : `Read ${displayTitle} manga online for free with high quality scans and full chapter list on MangaFire Pro.`)
+    : domain.includes('manireader')
     ? (m?.description 
         ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 150).trim()}... Read ${displayTitle} webtoon scans on ManiReader.`
         : `Read ${displayTitle} webtoon and manga online with high quality chapters and daily updates on ManiReader.`)

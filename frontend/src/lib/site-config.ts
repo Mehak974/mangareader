@@ -77,7 +77,7 @@ export type SiteConfig = {
   /** Public-facing site name */
   name: string;
   /** Domain profile key */
-  profile: 'mangareader.pro' | 'mangaread.pro' | 'manireader.online' | 'dev';
+  profile: 'mangareader.pro' | 'mangaread.pro' | 'manireader.online' | 'mangafire.pro' | 'dev';
   /** Canonical origin (no trailing slash) */
   url: string;
   ads: AdConfig;
@@ -201,6 +201,44 @@ const CONFIGS: Record<string, SiteConfig> = {
       fontFamily:  'Plus Jakarta Sans',
     },
   },
+
+  // ── 4. mangafire.pro — "High Quality Scans & Fast Online Releases" ─────
+  // Fiery, modern, high energy. Flame orange / obsidian palette.
+  // Emphasises: official & scanlation releases, large catalog, instant reading.
+  'mangafire.pro': {
+    name: 'MangaFire',
+    profile: 'mangafire.pro',
+    url: 'https://mangafire.pro',
+    ads: {
+      aadsUnitId:         process.env.NEXT_PUBLIC_AADS_UNIT_ID       || '0000000',
+      aadsFloatUnitId:    process.env.NEXT_PUBLIC_AADS_FLOAT_UNIT_ID || '0000000',
+      aadsBgColor:        process.env.NEXT_PUBLIC_AADS_BG_COLOR       || '0D0E12',
+      aadsTitleColor:     process.env.NEXT_PUBLIC_AADS_TITLE_COLOR    || 'FF5722',
+      googleVerification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
+      bingVerification:   process.env.NEXT_PUBLIC_BING_VERIFICATION   || '',
+      hilltopVerification: process.env.NEXT_PUBLIC_HILLTOP_VERIFICATION || '',
+      hilltopDirectLink:   'https://purple-text.com/8G1iAw',
+      hilltopVastUrl:      'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
+      popunderSrc:         '//purple-text.com/cRDo9.6VbJ2T5ZljSpW-Q/9hNazTMvyGM/DvUUytO-SI0o3MMuzlIUwWNVTWMPzb',
+      umamiSrc:            'https://analytics.mangareader.pro/script.js',
+      umamiWebsiteId:      'mangafire-tracking-id',
+    },
+    seo: {
+      title:       'MangaFire — Read Manga & Manhwa Free Online',
+      tagline:     'High quality manga scans and daily chapter releases',
+      description: 'MangaFire: Read manga, manhwa and manhua free online. High quality scans, instant chapter releases, and clean reader UI on MangaFire Pro.',
+      ogImage:     '/og-mangafire.png',
+      twitterHandle: 'mangafire_pro',
+      keywords:    'mangafire, read manga online free, mangafire to, mangafire alternative, manga reader, manhwa, english scans, latest manga chapters',
+    },
+    theme: {
+      accentColor: '#FF5722',   // deep orange
+      accentHover: '#E64A19',   // orange-700
+      bgDark:      '#0D0E12',
+      bgCard:      '#15171E',
+      fontFamily:  'Inter',
+    },
+  },
 };
 
 // ── Config resolution ────────────────────────────────────────────────────────
@@ -272,6 +310,9 @@ export function getDirectLink(): string {
     }
     if (h.includes('manireader.online') || h.includes('manireader.pro')) {
       return 'https://araplhn.org/4/2304a09d530ff81438de88c046c0c0e8';
+    }
+    if (h.includes('mangafire.pro')) {
+      return 'https://purple-text.com/8G1iAw';
     }
     if (h.includes('mangareader.pro')) {
       return 'https://araplhn.org/4/beb30bc585a19e08828c49f999d6db24';

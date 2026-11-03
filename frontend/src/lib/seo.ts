@@ -50,6 +50,7 @@ export type BuildMetadataInput = {
 
 export function getDomainSiteName(domain?: string): string {
   if (!domain) return SITE_NAME;
+  if (domain.includes("mangafire")) return "MangaFire";
   if (domain.includes("mangaread.")) return "MangaRead";
   if (domain.includes("manireader")) return "ManiReader";
   return "MangaReader";
@@ -83,6 +84,7 @@ export function buildMetadata({
     "en-US": `https://mangareader.pro${cleanPath}`,
     "en-GB": `https://mangaread.pro${cleanPath}`,
     "en-CA": `https://manireader.online${cleanPath}`,
+    "en-AU": `https://mangafire.pro${cleanPath}`,
   };
 
   return {
