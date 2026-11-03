@@ -51,8 +51,13 @@ const STORAGE_STAGE    = 'manga_waterfall_stage';
 
 interface AdNetworkConfig {
   name: string;
-  inject: () => HTMLScriptElement;
+  type: 'script' | 'directLink';
+  url?: string;
+  inject?: () => HTMLScriptElement;
 }
+
+const HILLTOP_DIRECT_LINK = 'https://purple-text.com/8G1iAw';
+const ADSTERRA_DIRECT_LINK = 'https://auctionr.org/4/d2652ea3fa6d44964e41913563f81ea2';
 
 const injectHilltop = (): HTMLScriptElement => {
   const s = document.createElement('script');
@@ -76,18 +81,48 @@ const injectAdsterra = (): HTMLScriptElement => {
 };
 
 const NETWORKS: AdNetworkConfig[] = [
-  { name: 'Hilltop',  inject: injectHilltop },
-  { name: 'Adsterra', inject: injectAdsterra },
-  { name: 'Hilltop',  inject: injectHilltop },
-  { name: 'Adsterra', inject: injectAdsterra },
+  { name: 'Hilltop',         type: 'script',     inject: injectHilltop },
+  { name: 'Adsterra',        type: 'script',     inject: injectAdsterra },
+  { name: 'Hilltop',         type: 'script',     inject: injectHilltop },
+  { name: 'Adsterra',        type: 'script',     inject: injectAdsterra },
+  { name: 'Hilltop Direct',  type: 'directLink', url: HILLTOP_DIRECT_LINK },
+  { name: 'Adsterra Direct', type: 'directLink', url: ADSTERRA_DIRECT_LINK },
 ];
 
 let activeNode: HTMLScriptElement | null = null;
 let currentStageLocked = false;
 let guardInstalled = false;
+let directLinkActive = false;
+let directLinkHandler: ((e: MouseEvent) => void) | null = null;
 const failedStages = new Set<number>();
 let lastSocialBarMountedAt = 0;
 const SOCIAL_BAR_INTERVAL_MS = 90 * 1000; // 90s minimum gap between Social Bar impressions across chapter navigations
+
+function detachDirectLinkListener() {
+  if (directLinkHandler && typeof document !== 'undefined') {
+    document.removeEventListener('click', directLinkHandler, true);
+    directLinkHandler = null;
+  }
+  directLinkActive = false;
+}
+
+function activateDirectLink(targetStage: number, url: string) {
+  detachDirectLinkListener();
+  directLinkActive = true;
+
+  directLinkHandler = (e: MouseEvent) => {
+    if (!directLinkActive) return;
+
+    // Ignore clicks on inputs/textareas to protect forms
+    const target = e.target as HTMLElement;
+    if (target?.closest?.('input, select, textarea')) return;
+
+    detachDirectLinkListener();
+    window.open(url, '_blank');
+  };
+
+  document.addEventListener('click', directLinkHandler, true);
+}
 
 // ── Listener Capturing & Purging ───────────────────────────────────
 // Captures all event listeners attached by an ad network during its turn,
@@ -121,6 +156,7 @@ function startCapturing() {
 
 function purgeCurrentNetworkArtifacts() {
   isCapturing = false;
+  detachDirectLinkListener();
 
   // 1. Detach all in-memory event listeners registered during this stage
   for (const item of capturedListeners) {
@@ -176,6 +212,14 @@ function isCallerMatchingStage(targetStage: number, url: string, stack: string):
       return false;
     }
     return true;
+  }
+
+  if (target === 'Hilltop Direct') {
+    return urlStr.includes('purple-text.com/8g1iaw') || urlStr.includes('purple-text.com');
+  }
+
+  if (target === 'Adsterra Direct') {
+    return urlStr.includes('auctionr.org') || urlStr.includes('araplhn.org');
   }
 
   return true;
@@ -250,6 +294,7 @@ export default function AdScriptLoader() {
         try { activeNode.remove(); } catch {}
         activeNode = null;
       }
+      detachDirectLinkListener();
       const sb = document.querySelector('script[data-socialbar="true"], script[src*="815491afa1ed9cdee8235b34c6f2cf6b"], script[src*="bauval.org"]');
       if (sb) {
         try { sb.remove(); } catch {}
@@ -298,7 +343,9 @@ export default function AdScriptLoader() {
         if (targetStage >= NETWORKS.length) return;
 
         const network = NETWORKS[targetStage];
-        if (network && !activeNode) {
+        if (!network) return;
+
+        if (network.type === 'script' && network.inject && !activeNode) {
           startCapturing();
           activeNode = network.inject();
           activeNode.onerror = () => {
@@ -311,6 +358,8 @@ export default function AdScriptLoader() {
               scheduleInject(500, nextStage);
             }
           };
+        } else if (network.type === 'directLink' && network.url) {
+          activateDirectLink(targetStage, network.url);
         }
       }, Math.max(delayMs, 100));
     };
@@ -373,6 +422,7 @@ export default function AdScriptLoader() {
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      detachDirectLinkListener();
     };
   }, [pathname]);
 
