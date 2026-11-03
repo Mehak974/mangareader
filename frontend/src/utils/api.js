@@ -41,7 +41,16 @@ const formatUrl = (urlStr) => {
   return trimmed;
 };
 
-export const WORKER_URL = formatUrl(process.env.NEXT_PUBLIC_WORKER_URL) || "";
+export const WORKER_URL = (() => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes('mangafire.pro')) return 'https://cdn.mangafire.pro';
+    if (host.includes('readmanhwa.pro')) return 'https://cdn.readmanhwa.pro';
+    if (host.includes('mangastream.pro')) return 'https://cdn.mangastream.pro';
+    if (host.includes('mangaread.pro')) return 'https://cdn.mangaread.pro';
+  }
+  return formatUrl(process.env.NEXT_PUBLIC_WORKER_URL) || "";
+})();
 
 export function isWorkerAvailable() {
   if (!WORKER_URL) return false;

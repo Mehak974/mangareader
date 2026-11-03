@@ -221,7 +221,7 @@ const CONFIGS: Record<string, SiteConfig> = {
       hilltopVastUrl:      'https://purple-text.com/dWmMF-z.d/GbNvvaZ/GUUG/Ge_md9yuMZJUMlUkhPETKc/0gO/TRYj2ANjT/ckt/NHzmQA5hNZjMYf2HMuQB',
       popunderSrc:         '//purple-text.com/cRDo9.6VbJ2T5ZljSpW-Q/9hNazTMvyGM/DvUUytO-SI0o3MMuzlIUwWNVTWMPzb',
       umamiSrc:            'https://analytics.mangareader.pro/script.js',
-      umamiWebsiteId:      'mangafire-tracking-id',
+      umamiWebsiteId:      'f5c502ba-a08d-4dfc-8fb2-51e65748a954',
     },
     seo: {
       title:       'MangaFire — Read Manga & Manhwa Free Online',

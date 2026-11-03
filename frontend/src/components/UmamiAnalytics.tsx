@@ -6,6 +6,7 @@ const UMAMI_MAP: Record<string, string> = {
   'mangareader.pro': 'cd14dced-150c-4379-bfc2-d4d3b856cba8',
   'mangaread.pro': 'b1dd872f-c0bb-4c52-825d-7b4495799626',
   'manireader.online': '6b6b8998-1e5b-4a05-8106-430a310bad28',
+  'mangafire.pro': 'f5c502ba-a08d-4dfc-8fb2-51e65748a954',
 };
 
 export default function UmamiAnalytics() {
