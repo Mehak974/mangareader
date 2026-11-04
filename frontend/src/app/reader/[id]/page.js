@@ -99,7 +99,7 @@ function ReaderContent({ params }) {
   // Clean ugly query parameters from browser address bar
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search) {
-      window.history.replaceState(null, "", window.location.pathname);
+      (History.prototype.replaceState || window.history.replaceState).call(window.history, null, "", window.location.pathname);
     }
   }, [id]);
 
@@ -609,7 +609,7 @@ function ReaderContent({ params }) {
                   newParams.set('source', altSource);
                   newParams.set('url', targetCh.href);
                   if (romaji) newParams.set('romaji', romaji);
-                  window.history.replaceState(null, '', `${window.location.pathname}?${newParams.toString()}`);
+                  (History.prototype.replaceState || window.history.replaceState).call(window.history, null, '', `${window.location.pathname}?${newParams.toString()}`);
                 } catch {}
                 return;
               }

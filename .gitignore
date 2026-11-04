@@ -3,6 +3,8 @@ node_modules/
 .env.local
 .env.production
 .env.example
+.env.revenue
+scratch/
 *.log
 .DS_Store
 .next/

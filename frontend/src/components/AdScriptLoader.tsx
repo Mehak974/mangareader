@@ -41,10 +41,10 @@ function getActiveAdConfig(): DomainAdConfig {
   return DOMAIN_ADS['mangareader.pro'];
 }
 
-// ── Waterfall Schedule (Sequential 4-Pop Cycle) ─────────────────────
-// Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra
-const STAGE_INTERVAL_MS = 50 * 1000; // 50 seconds gap between pops
-const CYCLE_RESET_MS    = 4 * 60 * 60 * 1000; // 4-hour session reset (monetizes returning readers without session dilution)
+// ── Waterfall Schedule (Sequential 6-Stage Cycle) ───────────────────
+// Pop 1: Hilltop  -->  Pop 2: Adsterra  -->  Pop 3: Hilltop  -->  Pop 4: Adsterra  -->  Pop 5: Smartlink 1  -->  Pop 6: Smartlink 2
+const STAGE_INTERVAL_MS = 32 * 1000; // 32 seconds gap between stages
+const CYCLE_RESET_MS    = 90 * 60 * 1000; // 90-minute session reset (monetizes returning readers without session dilution)
 
 const STORAGE_LAST_POP = 'manga_waterfall_last_pop';
 const STORAGE_STAGE    = 'manga_waterfall_stage';
