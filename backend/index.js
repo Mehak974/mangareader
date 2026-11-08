@@ -378,6 +378,8 @@ const BLOCKED_MANGA_TITLES = new Set([
   'juujika-no-rokunin',
   'the-fable-the-third-secret',
   'the-fable',
+  'the-ramparts-of-ice',
+  'i-can-buy-anything',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;

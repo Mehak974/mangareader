@@ -211,6 +211,8 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'the-fable-the-third-secret',
   'the-fable',
   'codename-3a-anastasia',
+  'the-ramparts-of-ice',
+  'i-can-buy-anything',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
