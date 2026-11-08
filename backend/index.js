@@ -1056,6 +1056,7 @@ app.get('/api/chapter/images', rateLimit(60000, 60), async (req, res) => {
       'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
       '2xstorage.com', 'media.mangaka.com', 'sags2mobile.com', 'iconify.design',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org',
+      'mangabuddy1.co.uk', 'mangabuddy.com', 'asurascans.com', 'asura.gg', 'asuracomic.net',
     ];
     if (!ALLOWED_PATTERNS.some(p => parsed.hostname === p || parsed.hostname.endsWith('.' + p))) {
       return res.status(403).json({ error: 'Forbidden: Domain not in allowlist', received: url });
@@ -1376,8 +1377,9 @@ async function proxyImage(url, w, q, cacheKey) {
       'anilist.co', 'myanimelist.net', 'pinimg.com', 'mangaread.org',
       'mangakatana.com', 'mkklcdnv',
       'manganato.com', 'manganato.gg', 'manganato.to', 'chapmanganato.to', 'chapmanganato.org', 'chapmanganato.com', 'mangakakalot.com', 'mangakakalot.gg',
-      '2xstorage.com', 'media.mangaka.com',
+      '2xstorage.com', 'media.mangaka.com', 'sags2mobile.com',
       'waitst.com', 'imgur.com', 'githubusercontent.com', 'consumet.org', 'mangareader.pro',
+      'mangabuddy1.co.uk', 'mangabuddy.com', 'asurascans.com', 'asura.gg', 'asuracomic.net',
     ];
     if (!ALLOWED_PATTERNS.some(p => h === p || h.endsWith('.' + p))) {
       throw fail(403, 'Forbidden: Domain not in allowlist');
@@ -1386,7 +1388,9 @@ async function proxyImage(url, w, q, cacheKey) {
     // ponytail: referer detection by substring — no map to maintain.
     const referer =
       h.includes('mangakatana') || h.includes('mkklcdnv') ? 'https://mangakatana.com/' :
-      h.includes('manganato.gg') || h.includes('waitst') || h.includes('sags2mobile') ? 'https://www.manganato.gg/' :
+      h.includes('asurascans') || h.includes('asura') ? 'https://asurascans.com/' :
+      h.includes('mangabuddy') || h.includes('sags2mobile') ? 'https://mangabuddy1.co.uk/' :
+      h.includes('manganato.gg') || h.includes('waitst') ? 'https://www.manganato.gg/' :
       h.includes('manganato') || h.includes('mangakakalot') || h.includes('2xstorage') ? 'https://mangakakalot.com/' :
       h.includes('mangaread')   ? 'https://mangaread.org/' :
       `${parsed.origin}/`;

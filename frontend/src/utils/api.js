@@ -84,7 +84,7 @@ export function proxyImage(url, width = null, quality = null) {
   if (isSkipped) return url;
 
   const isImageExt = IMAGE_EXTENSIONS.some(ext => cleanUrl.toLowerCase().includes(ext));
-  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co', 'waitst'].some(d => cleanUrl.includes(d));
+  const isKnownImageDomain = ['mkklcdnv', '2xstorage', 'mangakatana', 'xfs', 'uploads', 'media.mangaka', 'anilist.co', 'waitst', 'sags2mobile', 'asurascans'].some(d => cleanUrl.includes(d));
   if (!isImageExt && !isKnownImageDomain) return url;
 
   const isBypassWorkerImage = ['xfs'].some(d => cleanUrl.includes(d)) && !ANILIST_IMAGE_DOMAINS.some(d => cleanUrl.includes(d));
