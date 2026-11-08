@@ -368,10 +368,22 @@ const BLOCKED_MANGA_TITLES = new Set([
   'remina',
   'crimson-hero',
   'the-little-princess-and-her-monster-prince',
+  'codename-anastasia',
+  'codename-3a-anastasia',
+  'marriage-of-inconvenience',
+  'demon-slayer-kimetsu-no-yaiba',
+  'kimetsu-no-yaiba',
+  'demon-slayer',
+  'haikyuu',
+  'juujika-no-rokunin',
+  'the-fable-the-third-secret',
+  'the-fable',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;
-  const n = String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  let raw = String(str);
+  try { raw = decodeURIComponent(raw); } catch {}
+  const n = raw.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return BLOCKED_MANGA_TITLES.has(n);
 }
 

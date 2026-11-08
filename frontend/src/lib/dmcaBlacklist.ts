@@ -202,11 +202,22 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'magi-the-labyrinth-of-magic',
   'vagabond',
   'yarichin-bitch-club',
+  'marriage-of-inconvenience',
+  'demon-slayer-kimetsu-no-yaiba',
+  'kimetsu-no-yaiba',
+  'demon-slayer',
+  'haikyuu',
+  'juujika-no-rokunin',
+  'the-fable-the-third-secret',
+  'the-fable',
+  'codename-3a-anastasia',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
   if (!slugOrTitle) return false;
-  const normalized = slugOrTitle
+  let raw = String(slugOrTitle);
+  try { raw = decodeURIComponent(raw); } catch {}
+  const normalized = raw
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
