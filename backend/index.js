@@ -380,6 +380,9 @@ const BLOCKED_MANGA_TITLES = new Set([
   'the-fable',
   'the-ramparts-of-ice',
   'i-can-buy-anything',
+  'haimiya-is-scary-cute',
+  'red-blue',
+  'betrayal-of-dignity',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;

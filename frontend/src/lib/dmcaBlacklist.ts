@@ -213,6 +213,9 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'codename-3a-anastasia',
   'the-ramparts-of-ice',
   'i-can-buy-anything',
+  'haimiya-is-scary-cute',
+  'red-blue',
+  'betrayal-of-dignity',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
