@@ -216,6 +216,7 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'haimiya-is-scary-cute',
   'red-blue',
   'betrayal-of-dignity',
+  'keeping-you-in-sight',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

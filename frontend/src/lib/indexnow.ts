@@ -3,7 +3,7 @@ import "server-only";
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
 const DEFAULT_KEY = "1579ed26b5169266ae2c3adaac00a2412e507b7cc87cb7f0c8a187f938413045";
 
-export const ALL_DOMAINS = ["mangareader.pro", "mangaread.pro", "manireader.online"];
+export const ALL_DOMAINS = ["mangareader.pro", "mangaread.pro", "manireader.online", "mangafire.pro"];
 
 export async function submitToIndexNow(urls: string[], host?: string): Promise<void> {
   const key = process.env.INDEXNOW_KEY || DEFAULT_KEY;

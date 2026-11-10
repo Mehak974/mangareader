@@ -8,7 +8,7 @@ const axios = require('axios');
 
 const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow';
 const DEFAULT_KEY = process.env.INDEXNOW_KEY || '1579ed26b5169266ae2c3adaac00a2412e507b7cc87cb7f0c8a187f938413045';
-const DOMAINS = ['mangareader.pro', 'mangaread.pro', 'manireader.online'];
+const DOMAINS = ['mangareader.pro', 'mangaread.pro', 'manireader.online', 'mangafire.pro'];
 
 // In-memory queue to batch new manga/chapter updates
 const urlQueue = new Set();

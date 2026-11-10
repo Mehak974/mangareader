@@ -383,6 +383,7 @@ const BLOCKED_MANGA_TITLES = new Set([
   'haimiya-is-scary-cute',
   'red-blue',
   'betrayal-of-dignity',
+  'keeping-you-in-sight',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;
