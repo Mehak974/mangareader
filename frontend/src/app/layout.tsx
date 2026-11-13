@@ -88,6 +88,7 @@ const InkDots         = dynamic(() => import('@/components/InkDots'));
 const AchievementToast= dynamic(() => import('@/components/AchievementToast'));
 const PWAInstall      = dynamic(() => import('@/components/PWAInstall'));
 const LibraryPicker   = dynamic(() => import('@/components/LibraryPicker'));
+const MirrorSpillover = dynamic(() => import('@/components/MirrorSpillover'));
 const AAdsBanner      = dynamic(() => import('@/components/AAdsBanner'));
 const AdScriptLoader  = dynamic(() => import('@/components/AdScriptLoader'));
 
@@ -308,6 +309,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AchievementToast />
             <PWAInstall />
             <LibraryPicker />
+            <MirrorSpillover />
 
             {/* Hilltop script (purple-text.com) — domain-specific */}
             <AdScriptLoader />
