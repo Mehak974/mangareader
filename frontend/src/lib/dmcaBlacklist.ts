@@ -217,6 +217,11 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'red-blue',
   'betrayal-of-dignity',
   'keeping-you-in-sight',
+  'between-fate-and-fortune',
+  'the-legend-of-zelda-twilight-princess',
+  'my-passive-skills-hit-like-a-truck',
+  'though-i-am-an-inept-villainess-tale-of-the-butterfly-rat-body-swap-in-the-maiden-court',
+  'shutline',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

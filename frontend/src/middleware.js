@@ -87,6 +87,11 @@ export function middleware(request) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
 
+  // ── Bare /reader/:id without ?url= query parameter: return 404 ─────
+  if (pathname.startsWith("/reader/") && !request.nextUrl.searchParams.get("url")) {
+    return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
+  }
+
   // Ad script origins. The Hilltop popunder is a three-stage loader: the inline
   // snippet in components/AdScriptLoader.tsx passes CSP via 'unsafe-inline',
   // then inserts a <script src> pointing at purple-text.com (the hub), which in
