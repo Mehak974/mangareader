@@ -226,6 +226,17 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'counts-secret-maid',
   'the-twins-new-life',
   'twins-new-life',
+  'jojos-bizarre-adventure-part-4-diamond-is-unbreakable',
+  'jojos-bizarre-adventure-part-4diamond-is-unbreakable',
+  'magical-buffs-the-support-caster-is-stronger-than-he-realized',
+  'dgray-man',
+  'd-gray-man',
+  '50-ways-to-leave-a-psychopathic-villain',
+  'reeling-in-the-male-lead',
+  'the-duchess-lives-only-for-this-day',
+  'duchess-lives-only-for-this-day',
+  'the-problematic-prince',
+  'problematic-prince',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
