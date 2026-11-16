@@ -222,6 +222,10 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'my-passive-skills-hit-like-a-truck',
   'though-i-am-an-inept-villainess-tale-of-the-butterfly-rat-body-swap-in-the-maiden-court',
   'shutline',
+  'the-counts-secret-maid',
+  'counts-secret-maid',
+  'the-twins-new-life',
+  'twins-new-life',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
