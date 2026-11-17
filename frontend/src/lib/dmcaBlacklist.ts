@@ -237,6 +237,8 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'duchess-lives-only-for-this-day',
   'the-problematic-prince',
   'problematic-prince',
+  'the-messiah-and-his-followers',
+  'messiah-and-his-followers',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
