@@ -148,16 +148,16 @@ export default async function Home() {
           </div>
           <div className="stat-strip">
             <div className="stat-item">
-              <b>52,000+</b>
+              <b>1,000,000+</b>
               <span>Chapters</span>
             </div>
             <div className="stat-item">
-              <b>3,400+</b>
+              <b>27,000+</b>
               <span>Titles</span>
             </div>
             <div className="stat-item">
-              <b>128K</b>
-              <span>Online now</span>
+              <b>250K+</b>
+              <span>Active Readers</span>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ const STATIC_ROUTES = [
   { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-09-01' },
 ];
 
-const SITEMAP_TOP_MANGA = 500;
+const SITEMAP_TOP_MANGA = 5000;
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   Promise.race([
@@ -82,12 +82,10 @@ export async function GET(request: NextRequest) {
       >`
         SELECT d.slug, d.last_viewed_at AS "lastViewedAt", d.view_count AS "viewCount"
         FROM discovered_manga d
-        LEFT JOIN manga m ON m.id = d.slug
-        WHERE (m.country IS NULL OR m.country != 'KR')
         ORDER BY d.view_count DESC, d.last_viewed_at DESC
         LIMIT ${SITEMAP_TOP_MANGA}
       `,
-      3000
+      5000
     );
 
     const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
@@ -103,9 +101,9 @@ export async function GET(request: NextRequest) {
       xml += `  </url>\n`;
     });
 
-    // Auto-ping IndexNow in background to trigger fast search crawler indexing
+    // Auto-ping IndexNow in background to trigger fast search crawler indexing (top 1,000 URLs)
     if (validManga.length > 0) {
-      const topPaths = validManga.slice(0, 100).map((m) => `/manga/${m.slug}`);
+      const topPaths = validManga.slice(0, 1000).map((m) => `/manga/${m.slug}`);
       submitPathsToAllDomains(topPaths).catch(() => {});
     }
   } catch {}
