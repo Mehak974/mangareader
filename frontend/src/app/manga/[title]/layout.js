@@ -64,34 +64,38 @@ export async function generateMetadata({ params }) {
   }
 
   const domain = await getRequestDomain();
-  const siteName = domain.includes('mangafire') ? 'MangaFire' : domain.includes('mangaread') ? 'MangaRead' : domain.includes('manireader') ? 'ManiReader' : SITE_NAME;
+  const siteName = domain.includes('mangafire') ? 'MangaFire' : domain.includes('mangaread.') ? 'MangaRead' : domain.includes('manireader') ? 'ManiReader' : SITE_NAME;
 
   const m = await getMangaData(titleSlug);
   const isKorean = m?.country === 'KR';
   const displayTitle = m?.title || formatTitle(titleSlug);
-  const pageTitle = domain.includes('mangafire')
-    ? `${displayTitle} Ch. Free English Scans & Online Reader - MangaFire`
-    : domain.includes('mangaread')
-    ? `${displayTitle} English Chapters - Read Free on MangaRead`
-    : domain.includes('manireader')
-    ? `${displayTitle} Webtoon & Manga - Read Online on ManiReader`
-    : `Read ${displayTitle} Manga Online Free - All Chapters`;
+  const chCount = m?.total_chapters ? Number(m.total_chapters) : null;
+  const chSnippet = chCount && chCount > 0 ? ` (Ch. 1 - ${chCount})` : '';
 
+  const pageTitle = domain.includes('mangafire')
+    ? `${displayTitle}${chSnippet} Free English Scans & Online Reader`
+    : domain.includes('mangaread.')
+    ? `${displayTitle}${chSnippet} English Chapters - Read Free Online`
+    : domain.includes('manireader')
+    ? `${displayTitle}${chSnippet} Webtoon & Manga - Read Online Free`
+    : `Read ${displayTitle}${chSnippet} Online Free - Latest English Chapters`;
+
+  const chDesc = chCount && chCount > 0 ? `chapters 1 through ${chCount}` : 'latest chapter releases';
   const metaDescription = domain.includes('mangafire')
     ? (m?.description
-        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 150).trim()}... Read all chapters of ${displayTitle} online for free with high quality scans on MangaFire.`
+        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 140).trim()}... Read all chapters of ${displayTitle} (${chDesc}) online for free on MangaFire.`
         : `Read ${displayTitle} manga online for free with high quality scans and full chapter list on MangaFire Pro.`)
     : domain.includes('manireader')
     ? (m?.description 
-        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 150).trim()}... Read ${displayTitle} webtoon scans on ManiReader.`
+        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 140).trim()}... Read ${displayTitle} webtoon scans (${chDesc}) on ManiReader.`
         : `Read ${displayTitle} webtoon and manga online with high quality chapters and daily updates on ManiReader.`)
-    : domain.includes('mangaread')
+    : domain.includes('mangaread.')
     ? (m?.description
-        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 150).trim()}... Read all chapters of ${displayTitle} on MangaRead.`
-        : `Read all English chapters of ${displayTitle} for free on MangaRead with fast page loading.`)
+        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 140).trim()}... Read ${displayTitle} (${chDesc}) free on MangaRead.`
+        : `Read all English chapters of ${displayTitle} (${chDesc}) for free on MangaRead with fast page loading.`)
     : (m?.description
-        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 155).trim()}... Read ${displayTitle} free online on ${siteName}.`
-        : `Read ${displayTitle} manga online for free with high quality scans and full chapter list. Enjoy latest chapter releases, English translations, and updates for ${displayTitle} on ${siteName}.`);
+        ? `${m.description.replace(/<[^>]*>/g, '').slice(0, 140).trim()}... Read ${displayTitle} (${chDesc}) free online with high quality scans on ${siteName}.`
+        : `Read ${displayTitle} manga online for free with high quality scans and full chapter list. Enjoy ${chDesc}, English translations, and daily updates on ${siteName}.`);
 
   return buildMetadata({
     title: pageTitle,
