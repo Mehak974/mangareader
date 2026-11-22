@@ -5,17 +5,19 @@ import { submitPathsToAllDomains } from '@/lib/indexnow';
 
 export const dynamic = 'force-dynamic';
 
+const today = new Date().toISOString().slice(0, 10);
+
 const STATIC_ROUTES = [
-  { path: '',        changeFrequency: 'daily',   priority: '1.0', lastModified: '2026-09-01' },
-  { path: '/browse',  changeFrequency: 'daily',   priority: '0.9', lastModified: '2026-09-01' },
-  { path: '/blog',    changeFrequency: 'daily',   priority: '0.8', lastModified: '2026-09-01' },
-  { path: '/about',   changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-09-01' },
-  { path: '/contact', changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-09-01' },
-  { path: '/faq',     changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-09-01' },
-  { path: '/cookies', changeFrequency: 'monthly', priority: '0.4', lastModified: '2026-09-01' },
-  { path: '/privacy', changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-09-01' },
-  { path: '/terms',   changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-09-01' },
-  { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-09-01' },
+  { path: '',        changeFrequency: 'daily',   priority: '1.0', lastModified: today },
+  { path: '/browse',  changeFrequency: 'daily',   priority: '0.9', lastModified: today },
+  { path: '/blog',    changeFrequency: 'daily',   priority: '0.8', lastModified: today },
+  { path: '/about',   changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-11-20' },
+  { path: '/contact', changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-11-20' },
+  { path: '/faq',     changeFrequency: 'monthly', priority: '0.5', lastModified: '2026-11-20' },
+  { path: '/cookies', changeFrequency: 'monthly', priority: '0.4', lastModified: '2026-11-20' },
+  { path: '/privacy', changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-11-20' },
+  { path: '/terms',   changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-11-20' },
+  { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-11-20' },
 ];
 
 const SITEMAP_TOP_MANGA = 5000;

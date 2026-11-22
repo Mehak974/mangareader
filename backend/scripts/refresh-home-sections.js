@@ -2,7 +2,7 @@
  * Refresh all 4 homepage sections from AniList and store in DB.
  * 
  * Usage:
- *   ADMIN_TOKEN="65e831db1096581739ee721291a306554a2ee5b984c010ecc96dfbb2ebdfef5f" API_URL="https://api.mangareader.pro" node scripts/refresh-home-sections.js
+ *   ADMIN_TOKEN="<your-admin-token>" API_URL="https://api.mangareader.pro" node scripts/refresh-home-sections.js
  */
 
 const axios = require('axios');

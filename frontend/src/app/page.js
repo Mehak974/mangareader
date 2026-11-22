@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ALL_GENRES, abbr } from "@/data/mockData";
 import { slugify } from "@/utils/slugify";
-import { getMangaHref } from "@/lib/dmcaBlacklist";
+import { getMangaHref, isBlockedManga } from "@/lib/dmcaBlacklist";
 import { proxyImage, fetchHomeSection } from "@/utils/api";
 import { getMangaList, getRecentMangaList } from "@/utils/anilist";
 import MangaCard from "@/components/MangaCard";
@@ -64,9 +64,33 @@ export default async function Home() {
     }
   }
 
+  // Filter out any DMCA-reported titles so they never appear on the public homepage
+  const filterSafe = (list) => (list || []).filter(item => {
+    const title = item.t || item.title?.english || item.title?.romaji || (typeof item.title === 'string' ? item.title : '');
+    return !isBlockedManga(title);
+  });
+
+  popularNow = filterSafe(popularNow);
+  trending = filterSafe(trending);
+  popularOverall = filterSafe(popularOverall);
+  recentlyAdded = filterSafe(recentlyAdded);
+
+  // Guarantee Readers Also Love always has 11 safe entries by backfilling from other safe pools
+  if (popularOverall.length < 11) {
+    const seenIds = new Set(popularOverall.map(m => m.id || m.slug || m.t));
+    for (const item of [...trending, ...popularNow]) {
+      if (popularOverall.length >= 11) break;
+      const key = item.id || item.slug || item.t;
+      if (!seenIds.has(key)) {
+        seenIds.add(key);
+        popularOverall.push(item);
+      }
+    }
+  }
+
   let finalPopularNow = popularNow.slice(0, 9);
   let finalTrending = trending.slice(0, 12);
-  let finalPopularOverall = popularOverall.slice(0, 12);
+  let finalPopularOverall = popularOverall.slice(0, 11);
   const finalRecentlyAdded = recentlyAdded.slice(0, 5);
 
   const featuredHero = finalPopularNow[0];
@@ -261,19 +285,6 @@ export default async function Home() {
       )}
 
       {finalTrending.length > 0 && <div className="divider"></div>}
-
-      {/* DONATE SECTION */}
-      <div className="nudge" style={{ margin: "40px 20px" }}>
-        <div>
-          <h2>Love MangaReader? Buy us a coffee! ☕</h2>
-          <p>Your support helps us keep the servers running and manga updates flowing.</p>
-        </div>
-        <Link href="https://www.paypal.com/paypalme/manireader" target="_blank" rel="noopener noreferrer" className="nudge-btn" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          Donate via PayPal
-        </Link>
-      </div>
-
-      <div className="divider"></div>
 
       <HomeGenreFilter />
 

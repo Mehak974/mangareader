@@ -454,6 +454,9 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'yu-yu-hakusho-ghost-files',
   'yuyu-hakusho',
   'zombiepowder',
+  // Marq Vision / Contents First Inc. takedowns
+  'necromancer-the-ultimate-scourge',
+  'devoured-the-serpent-and-the-pomegranate',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
@@ -477,5 +480,5 @@ export function getMangaHref(slugOrTitle?: string | null, cover?: string | null,
   if (!slugOrTitle) return '/';
   const slug = slugify(slugOrTitle);
   const base = (isBlockedManga(slug) || isKorean) ? `/manga/series/${slug}` : `/manga/${slug}`;
-  return cover ? `${base}?cover=${encodeURIComponent(cover)}` : base;
+  return base;
 }

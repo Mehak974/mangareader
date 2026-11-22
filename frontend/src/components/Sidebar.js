@@ -438,17 +438,6 @@ export default function Sidebar() {
           </svg>
           Contact Us
         </Link>
-        <Link href="/support" className="sb-item" onClick={handleLinkClick}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Support Us
-        </Link>
         <Link href="/faq" className="sb-item" onClick={handleLinkClick}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />

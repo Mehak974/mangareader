@@ -7,7 +7,6 @@ export default function LegalNav() {
   
   const links = [
     { name: "About", path: "/about" },
-    { name: "Support", path: "/support" },
     { name: "Contact", path: "/contact" },
     { name: "Messages", path: "/messages" },
     { name: "FAQ", path: "/faq" },

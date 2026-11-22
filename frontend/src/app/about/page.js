@@ -64,16 +64,6 @@ export default function AboutPage() {
             If you see similar domain names or branding, those are separate entities. We maintain our own infrastructure, content aggregation, and reading experience.
           </p>
         </section>
-
-        <section style={{ marginTop: "2rem", padding: "1.5rem", background: "var(--bg2)", borderRadius: "12px", textAlign: "center" }}>
-          <h2 style={{ borderBottom: "none", paddingBottom: 0, marginTop: 0 }}>Support The Project</h2>
-          <p>
-            Running a site of this scale is incredibly expensive due to server costs. If you love what I'm doing and want to help keep the site alive, consider supporting me! Even $1 means the world to me and helps keep the servers running.
-          </p>
-          <Link href="/support" className="btn btn-p" style={{ display: "inline-block", marginTop: "1rem", color: "black", textDecoration: "none" }}>
-            Learn How to Support
-          </Link>
-        </section>
       </div>
     </div>
   );

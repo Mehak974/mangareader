@@ -31,6 +31,33 @@ import { isBlockedManga } from "./lib/dmcaBlacklist";
  */
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
+
+  // ── Scraper & DMCA Bot Blocker (Application Layer) ─────────────────
+  const isSearchEngine = /googlebot|bingbot|yandexbot|duckduckbot|slurp|baiduspider|applebot/i.test(userAgent);
+  if (!isSearchEngine) {
+    const BLOCKED_BOT_SIGNATURES = [
+      "marqvision",
+      "removeyourmedia",
+      "link-busters",
+      "markmonitor",
+      "corsearch",
+      "python-requests",
+      "aiohttp",
+      "go-http-client",
+      "scrapy",
+      "headlesschrome",
+      "puppeteer",
+      "playwright",
+      "wget",
+      "bytespider",
+      "megaindex",
+    ];
+    if (BLOCKED_BOT_SIGNATURES.some((sig) => userAgent.includes(sig))) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+  }
+
   // Canonical domain redirect: www.* -> root domain (unifies Umami analytics & SEO rank)
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1");

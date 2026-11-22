@@ -103,23 +103,6 @@ export default function BlogSidebar({ body, relatedBlogs = [] }) {
           </div>
         )}
 
-        {/* Support Us */}
-        <div>
-          <div className="blog-sidebar-title">💖 Support Us</div>
-          <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5, marginBottom: '12px' }}>
-            We rely on readers like you to keep MangaReader ad-free and lightning fast. 
-          </div>
-          <a 
-            href="https://www.paypal.com/paypalme/manireader" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="btn btn-m"
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            Buy us a coffee ☕
-          </a>
-        </div>
-
         {/* Related Blogs */}
         {relatedBlogs.length > 0 && (
           <div>
