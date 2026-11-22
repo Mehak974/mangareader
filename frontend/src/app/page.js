@@ -160,7 +160,7 @@ export default async function Home() {
             anywhere.
           </h1>
           <p className="hero-sub">
-            Sync reading across devices. Bookmark chapters, track progress, discover new series — without ads.
+            Sync reading across devices. Bookmark chapters, track progress, and discover new series with fast updates.
           </p>
           <div className="hero-btns">
             <Link href="/browse" className="btn btn-p" style={{ textDecoration: 'none' }}>

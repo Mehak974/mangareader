@@ -29,7 +29,6 @@ export default function Footer() {
           <Link href="/history">History</Link>
           <Link href="/settings">Settings</Link>
           <Link href="/messages">Support Messages</Link>
-          <Link href="/about?tab=support">Support Us</Link>
         </div>
         <div>
           <h2>Stay Updated</h2>

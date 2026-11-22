@@ -15,7 +15,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: SITE_NAME,
     short_name: SITE_NAME,
     description:
-      'Sync reading across devices. Bookmark chapters, track progress, discover new series — without ads.',
+      'Sync reading across devices. Bookmark chapters, track progress, and discover new series with fast updates.',
     start_url: '/',
     scope: '/',
     display: 'standalone',
