@@ -457,6 +457,13 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   // Marq Vision / Contents First Inc. takedowns
   'necromancer-the-ultimate-scourge',
   'devoured-the-serpent-and-the-pomegranate',
+  // Remove Your Media LLC (22 Nov 2026)
+  'angel-sanctuary',
+  'daytime-shooting-star',
+  'beet-the-vandel-buster',
+  'beet-vandel-buster',
+  'the-legend-of-zelda-the-minish-cap',
+  'legend-of-zelda-the-minish-cap',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
