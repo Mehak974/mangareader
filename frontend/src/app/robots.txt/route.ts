@@ -5,9 +5,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'mangareader.pro';
   let domain = 'mangareader.pro';
-  if (host.includes('mangafire.pro')) {
-    domain = 'mangafire.pro';
-  } else if (host.includes('mangaread.pro')) {
+  if (host.includes('mangaread.pro')) {
     domain = 'mangaread.pro';
   } else if (host.includes('manireader.online') || host.includes('manireader.pro')) {
     domain = 'manireader.online';
@@ -32,7 +30,7 @@ Disallow: /history
 Disallow: /reader/
 Disallow: /series/
 Disallow: /manga/series/
-Crawl-delay: 2
+Crawl-delay: 10
 
 Sitemap: ${siteUrl}/sitemap.xml
 Host: ${siteUrl}

@@ -20,7 +20,7 @@ const STATIC_ROUTES = [
   { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-11-20' },
 ];
 
-const SITEMAP_TOP_MANGA = 500;
+const SITEMAP_TOP_MANGA = 150;
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   Promise.race([
@@ -101,11 +101,8 @@ export async function GET(request: NextRequest) {
       xml += `  </url>\n`;
     });
 
-    // Auto-ping IndexNow in background to trigger fast search crawler indexing (top 100 URLs)
-    if (validManga.length > 0) {
-      const topPaths = validManga.slice(0, 100).map((m) => `/manga/${m.slug}`);
-      submitPathsToAllDomains(topPaths).catch(() => {});
-    }
+    // IndexNow auto-pings disabled to prevent triggering aggressive crawler sweeps
+    // Crawlers will discover and index pages naturally at a slow, safe pace.
   } catch {}
 
   xml += `</urlset>`;
