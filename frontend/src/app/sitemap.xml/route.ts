@@ -20,7 +20,7 @@ const STATIC_ROUTES = [
   { path: '/dmca',    changeFrequency: 'yearly',  priority: '0.3', lastModified: '2026-11-20' },
 ];
 
-const SITEMAP_TOP_MANGA = 5000;
+const SITEMAP_TOP_MANGA = 500;
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   Promise.race([
@@ -33,9 +33,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
 export async function GET(request: NextRequest) {
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'mangareader.pro';
   let domain = 'mangareader.pro';
-  if (host.includes('mangafire.pro')) {
-    domain = 'mangafire.pro';
-  } else if (host.includes('mangaread.pro')) {
+  if (host.includes('mangaread.pro')) {
     domain = 'mangaread.pro';
   } else if (host.includes('manireader.online') || host.includes('manireader.pro')) {
     domain = 'manireader.online';
@@ -103,9 +101,9 @@ export async function GET(request: NextRequest) {
       xml += `  </url>\n`;
     });
 
-    // Auto-ping IndexNow in background to trigger fast search crawler indexing (top 1,000 URLs)
+    // Auto-ping IndexNow in background to trigger fast search crawler indexing (top 100 URLs)
     if (validManga.length > 0) {
-      const topPaths = validManga.slice(0, 1000).map((m) => `/manga/${m.slug}`);
+      const topPaths = validManga.slice(0, 100).map((m) => `/manga/${m.slug}`);
       submitPathsToAllDomains(topPaths).catch(() => {});
     }
   } catch {}

@@ -39,7 +39,7 @@ import { organizationSchema, websiteSchema } from '@/lib/seo';
 // ── hreflang alternates between the 3 domains ──────────────────────────────────
 // All three serve identical content; without these tags Google treats them as
 // duplicates. x-default points to the primary (mangareader.pro).
-const HREFLANG_PROFILES = ['mangareader.pro', 'mangaread.pro', 'manireader.online', 'mangafire.pro'];
+const HREFLANG_PROFILES = ['mangareader.pro', 'mangaread.pro', 'manireader.online'];
 const HREFLANG_ALTERNATES: Record<string, string> = {
   'x-default': 'https://mangareader.pro',
   'en':       'https://mangareader.pro',
@@ -98,9 +98,7 @@ export async function generateMetadata(): Promise<Metadata> {
   try {
     const headersList = await headers();
     const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-    if (host.includes('mangafire.pro')) {
-      domain = 'mangafire.pro';
-    } else if (host.includes('mangaread.pro')) {
+    if (host.includes('mangaread.pro')) {
       domain = 'mangaread.pro';
     } else if (host.includes('manireader.online') || host.includes('manireader.pro')) {
       domain = 'manireader.online';
@@ -153,7 +151,6 @@ export async function generateMetadata(): Promise<Metadata> {
         'en-US': 'https://mangareader.pro',
         'en-GB': 'https://mangaread.pro',
         'en-CA': 'https://manireader.online',
-        'en-AU': 'https://mangafire.pro',
       },
     },
 

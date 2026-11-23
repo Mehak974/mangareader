@@ -464,6 +464,13 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'beet-vandel-buster',
   'the-legend-of-zelda-the-minish-cap',
   'legend-of-zelda-the-minish-cap',
+  // Marq Vision & Remove Your Media (23 Nov 2026)
+  'a-world-of-stigma',
+  'for-a-thousand-autumns',
+  'jugeo-mattanghan-geotdeul',
+  'to-my-dear-horror',
+  'doberman',
+  'from-weakling-to-nemesis',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
