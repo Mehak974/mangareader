@@ -17,10 +17,16 @@ export default function MirrorSpillover() {
 
     // 1. Only run on mangareader.pro
     const host = window.location.hostname.toLowerCase();
-    if (!host.includes('mangareader.pro')) return;
+    if (!host.includes('mangareader.pro') || host.includes('mangaread.pro')) return;
 
     // 2. Unlogged-in users only — if user is logged in or has session cookie, never redirect
     if (isLoggedIn || user || document.cookie.includes('mr_session=')) return;
+
+    // 2b. Instant Geo-Redirect if user is from India (IN), Guatemala (GT), or UAE (AE)
+    if (/(?:^|;\s*)user_country=(IN|GT|AE)(?:;|$)/i.test(document.cookie)) {
+      window.location.replace(`https://${TARGET_DOMAIN}${window.location.pathname}${window.location.search}`);
+      return;
+    }
 
     // 3. Assign 12% cohort (~1,000 users/day) via localStorage
     let isSpilloverUser = false;

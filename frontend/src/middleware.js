@@ -46,14 +46,34 @@ export function middleware(request) {
     return url;
   };
 
+  const cleanHost = host.replace(/^www\./, "").split(":")[0].toLowerCase();
+
   // ── Canonical domain redirect: www.* -> root domain (301 Permanent) ─
   if (!isLocal && host.startsWith("www.")) {
-    const cleanHost = host.replace(/^www\./, "").split(":")[0];
     const url = new URL(request.url);
     url.protocol = "https:";
     url.hostname = cleanHost;
     url.port = "";
     return NextResponse.redirect(url, { status: 301 });
+  }
+
+  // ── Geo-Redirect for mangareader.pro -> mangaread.pro (India, Guatemala, UAE) ─
+  // Redirects high-opportunity traffic to mangaread.pro where ProfitOn $1.50 fixed CPM applies.
+  const country = (
+    request.headers.get("cf-ipcountry") ||
+    request.headers.get("x-vercel-ip-country") ||
+    request.cookies.get("user_country")?.value ||
+    ""
+  ).toUpperCase();
+
+  const GEO_REDIRECT_COUNTRIES = new Set(["IN", "GT", "AE"]);
+
+  if (!isLocal && cleanHost === "mangareader.pro" && GEO_REDIRECT_COUNTRIES.has(country)) {
+    const url = new URL(request.url);
+    url.protocol = "https:";
+    url.hostname = "mangaread.pro";
+    url.port = "";
+    return NextResponse.redirect(url, { status: 302 });
   }
 
   // ── Redirect legacy URL patterns to current routes ──────────────────
