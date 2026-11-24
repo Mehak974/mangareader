@@ -93,7 +93,6 @@ export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
   const m = await getMangaData(titleSlug);
   const isProtected = m?.country === 'KR' || m?.country === 'JP' || isBlockedManga(titleSlug) || String(m?.genres || '').toLowerCase().includes('manhwa');
-  console.log('[DEBUG LAYOUT METADATA]', titleSlug, 'isProtected:', isProtected, 'country:', m?.country);
 
   // Hard 404 for DMCA-blocked titles, Korean manhwa, and Japanese manga on public /manga/ route
   if (isProtected) {
@@ -146,7 +145,6 @@ export default async function MangaDetailLayout({ children, params }) {
   const { title: titleSlug } = await params;
   const m = await getMangaData(titleSlug);
   const isProtected = m?.country === 'KR' || m?.country === 'JP' || isBlockedManga(titleSlug) || String(m?.genres || '').toLowerCase().includes('manhwa');
-  console.log('[DEBUG LAYOUT COMPONENT]', titleSlug, 'isProtected:', isProtected, 'country:', m?.country);
 
   if (isProtected) {
     notFound();
