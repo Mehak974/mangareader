@@ -164,6 +164,13 @@ export function middleware(request) {
   response.headers.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
 
   // Geo detection: Pass country from Cloudflare/Vercel edge to client for smart ad routing
+  const country = (
+    request.headers.get("cf-ipcountry") ||
+    request.headers.get("x-vercel-ip-country") ||
+    request.cookies.get("user_country")?.value ||
+    ""
+  ).toUpperCase();
+
   if (country && country !== "XX" && country !== "T1") {
     response.cookies.set("user_country", country, {
       path: "/",
