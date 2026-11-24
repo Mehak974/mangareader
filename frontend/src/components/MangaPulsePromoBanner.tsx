@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { X, ArrowRight } from 'lucide-react';
 
-const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v5';
+const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v6';
 const DISMISS_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export default function MangaPulsePromoBanner() {
@@ -41,65 +41,190 @@ export default function MangaPulsePromoBanner() {
 
   return (
     <aside
-      aria-label="MangaPulse Progress Tracker Announcement"
-      className="relative z-40 w-full bg-[#0c0e12] border-b border-[#1e2430] px-2 sm:px-4 py-1.5 select-none"
+      aria-label="MangaPulse Announcement"
+      style={{
+        width: '100%',
+        backgroundColor: '#0c0e12',
+        borderBottom: '1px solid #1e2430',
+        padding: '6px 12px',
+        boxSizing: 'border-box',
+        userSelect: 'none',
+        position: 'relative',
+        zIndex: 50,
+      }}
     >
-      <div className="max-w-6xl mx-auto relative flex items-center justify-center">
-        {/* Banner Card Container */}
-        <div className="relative w-full max-w-5xl">
-          {/* Clickable Banner Card (Matching MangaPulse Theme, No Gradient, AdBlock Immune) */}
-          <a
-            href="https://mangapulse.co?utm_source=mangareader&utm_medium=promo_banner&utm_campaign=progress_tracker"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between gap-3 sm:gap-6 w-full bg-[#141b26] hover:bg-[#1a2332] border border-[#242f42] hover:border-[#3b82f6]/50 rounded-lg px-3 py-2 sm:px-5 sm:py-2.5 transition-colors group text-decoration-none"
+      <div
+        style={{
+          maxWidth: '1100px',
+          margin: '0 auto',
+          position: 'relative',
+        }}
+      >
+        {/* Banner Link Card */}
+        <a
+          href="https://mangapulse.co?utm_source=mangareader&utm_medium=promo_banner&utm_campaign=progress_tracker"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            backgroundColor: '#141b26',
+            border: '1px solid #242f42',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            textDecoration: 'none',
+            color: '#f8fafc',
+            transition: 'border-color 0.2s, background-color 0.2s',
+            boxSizing: 'border-box',
+            width: '100%',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#3b82f6';
+            e.currentTarget.style.backgroundColor = '#182130';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#242f42';
+            e.currentTarget.style.backgroundColor = '#141b26';
+          }}
+        >
+          {/* Left: Brand Identity */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {/* MP Badge */}
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                backgroundColor: '#ffffff',
+                color: '#0c0e12',
+                fontWeight: 900,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                letterSpacing: '-0.5px',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                flexShrink: 0,
+              }}
+            >
+              MP
+            </div>
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: '14px',
+                letterSpacing: '0.2px',
+                color: '#ffffff',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
+              MANGAPULSE
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div
+            style={{
+              width: '1px',
+              height: '22px',
+              backgroundColor: '#242f42',
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Center Message */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              flex: 1,
+              minWidth: 0,
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              flexWrap: 'wrap',
+            }}
           >
-            {/* Left: Brand Identity */}
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              {/* White MP Badge */}
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white text-[#0c0e12] font-black text-xs sm:text-sm flex items-center justify-center tracking-tighter shadow-sm flex-shrink-0">
-                MP
-              </div>
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white group-hover:text-neutral-200 transition-colors">
-                MANGAPULSE
-              </span>
-            </div>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: '13px',
+                color: '#f8fafc',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Progress gone with manga site?
+            </span>
+            <span
+              style={{
+                fontSize: '12px',
+                color: '#94a3b8',
+              }}
+            >
+              Track &amp; backup reading progress on{' '}
+              <strong style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline' }}>
+                MangaPulse.co
+              </strong>
+            </span>
+          </div>
 
-            {/* Divider */}
-            <div className="h-6 w-px bg-[#242f42] hidden md:block flex-shrink-0" />
+          {/* Right: CTA Button */}
+          <div style={{ flexShrink: 0, marginRight: '24px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 700,
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }}
+            >
+              <span>Track Progress</span>
+              <ArrowRight style={{ width: '13px', height: '13px' }} />
+            </span>
+          </div>
+        </a>
 
-            {/* Center: Message */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 flex-1 min-w-0 pr-6 sm:pr-0">
-              <span className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">
-                Progress gone with manga site?
-              </span>
-              <span className="text-[11px] sm:text-xs text-[#94a3b8] truncate">
-                Don&apos;t worry — track &amp; backup reading progress on{' '}
-                <strong className="text-blue-400 font-semibold underline decoration-blue-500/40 underline-offset-2">
-                  MangaPulse.co
-                </strong>
-              </span>
-            </div>
-
-            {/* Right: CTA Button */}
-            <div className="hidden sm:flex items-center flex-shrink-0">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#2563eb] group-hover:bg-[#1d4ed8] text-white text-xs font-bold transition-colors shadow-sm">
-                <span>Track Progress</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </a>
-
-          {/* Cross Button on Top Right Corner OVER the Banner */}
-          <button
-            onClick={handleDismiss}
-            className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-50 p-1 rounded-md bg-[#1b2433] hover:bg-[#242f42] text-[#94a3b8] hover:text-[#f8fafc] border border-[#303e56] shadow-sm transition-colors cursor-pointer"
-            aria-label="Dismiss banner"
-            title="Dismiss"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {/* Cross Button: Top Right Corner OVER the Banner */}
+        <button
+          onClick={handleDismiss}
+          aria-label="Dismiss banner"
+          title="Dismiss"
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            zIndex: 10,
+            padding: '4px',
+            borderRadius: '4px',
+            backgroundColor: '#1b2433',
+            border: '1px solid #303e56',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1,
+            transition: 'background-color 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#242f42';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#1b2433';
+            e.currentTarget.style.color = '#94a3b8';
+          }}
+        >
+          <X style={{ width: '14px', height: '14px' }} />
+        </button>
       </div>
     </aside>
   );
