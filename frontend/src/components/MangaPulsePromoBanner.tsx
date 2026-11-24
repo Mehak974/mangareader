@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 
-const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v3';
+const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v4';
 const DISMISS_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export default function MangaPulsePromoBanner() {
@@ -55,9 +55,9 @@ export default function MangaPulsePromoBanner() {
             className="block w-full rounded-lg overflow-hidden border border-[#242f42] hover:border-[#3b82f6]/50 bg-[#141b26] transition-colors group"
           >
             <picture className="block w-full">
-              <source media="(max-width: 640px)" srcSet="/banners/mangapulse-promo-mobile.svg" />
+              <source media="(max-width: 640px)" srcSet="/banners/mangapulse-banner-v2-mobile.svg" />
               <img
-                src="/banners/mangapulse-promo-desktop.svg"
+                src="/banners/mangapulse-banner-v2-desktop.svg"
                 alt="Lost progress with down manga sites? Track and backup your reading safely on MangaPulse.co"
                 className="w-full h-auto max-h-[64px] object-contain group-hover:opacity-95 transition-opacity"
                 loading="eager"
