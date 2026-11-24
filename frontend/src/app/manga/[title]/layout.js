@@ -26,6 +26,7 @@ function formatTitle(slug) {
 }
 
 async function getMangaData(titleSlug) {
+  let m = null;
   try {
     const rows = await prisma.$queryRaw`
       SELECT id, title, country, cover, description, status, rating, popularity, total_chapters
@@ -35,52 +36,57 @@ async function getMangaData(titleSlug) {
       LIMIT 1
     `;
     if (Array.isArray(rows) && rows.length > 0) {
-      return rows[0];
+      m = rows[0];
     }
   } catch {}
 
-  try {
-    const dRows = await prisma.$queryRaw`
-      SELECT slug, title, chapter_count
-      FROM discovered_manga 
-      WHERE slug = ${titleSlug}
-      LIMIT 1
-    `;
-    if (Array.isArray(dRows) && dRows.length > 0) {
-      return {
-        title: dRows[0].title,
-        total_chapters: dRows[0].chapter_count,
-      };
-    }
-  } catch {}
-
-  // 3. Fallback: Query AniList directly if not found in local DB
-  try {
-    const cleanTitle = decodeURIComponent(titleSlug).replace(/-/g, ' ');
-    const res = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({
-        query: `query ($search: String) { Media(search: $search, type: MANGA) { id countryOfOrigin genres title { english romaji userPreferred } } }`,
-        variables: { search: cleanTitle }
-      }),
-      next: { revalidate: 86400 }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const media = data?.data?.Media;
-      if (media) {
-        return {
-          id: String(media.id),
-          title: media.title?.english || media.title?.romaji || media.title?.userPreferred || cleanTitle,
-          country: media.countryOfOrigin,
-          genres: media.genres || []
+  if (!m) {
+    try {
+      const dRows = await prisma.$queryRaw`
+        SELECT slug, title, chapter_count
+        FROM discovered_manga 
+        WHERE slug = ${titleSlug}
+        LIMIT 1
+      `;
+      if (Array.isArray(dRows) && dRows.length > 0) {
+        m = {
+          title: dRows[0].title,
+          total_chapters: dRows[0].chapter_count,
         };
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
-  return null;
+  // 3. Fallback: Query AniList directly if country is unknown
+  if (!m?.country) {
+    try {
+      const cleanTitle = (m?.title || decodeURIComponent(titleSlug)).replace(/-/g, ' ');
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+        body: JSON.stringify({
+          query: `query ($search: String) { Media(search: $search, type: MANGA) { id countryOfOrigin genres title { english romaji userPreferred } } }`,
+          variables: { search: cleanTitle }
+        }),
+        next: { revalidate: 86400 }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const media = data?.data?.Media;
+        if (media) {
+          m = {
+            ...(m || {}),
+            id: String(media.id),
+            title: m?.title || media.title?.english || media.title?.romaji || media.title?.userPreferred || cleanTitle,
+            country: media.countryOfOrigin,
+            genres: media.genres || []
+          };
+        }
+      }
+    } catch {}
+  }
+
+  return m;
 }
 
 export async function generateMetadata({ params }) {
@@ -130,7 +136,7 @@ export async function generateMetadata({ params }) {
     path: `/manga/${titleSlug}`,
     type: "article",
     image: m?.cover,
-    noIndex: isKorean,
+    noIndex: isProtected,
     domain,
   });
 }
