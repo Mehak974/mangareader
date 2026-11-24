@@ -54,6 +54,32 @@ async function getMangaData(titleSlug) {
     }
   } catch {}
 
+  // 3. Fallback: Query AniList directly if not found in local DB
+  try {
+    const cleanTitle = decodeURIComponent(titleSlug).replace(/-/g, ' ');
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({
+        query: `query ($search: String) { Media(search: $search, type: MANGA) { id countryOfOrigin genres title { english romaji userPreferred } } }`,
+        variables: { search: cleanTitle }
+      }),
+      next: { revalidate: 86400 }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const media = data?.data?.Media;
+      if (media) {
+        return {
+          id: String(media.id),
+          title: media.title?.english || media.title?.romaji || media.title?.userPreferred || cleanTitle,
+          country: media.countryOfOrigin,
+          genres: media.genres || []
+        };
+      }
+    }
+  } catch {}
+
   return null;
 }
 

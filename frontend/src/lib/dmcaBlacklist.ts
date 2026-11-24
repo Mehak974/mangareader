@@ -516,6 +516,8 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'swordmaster-youngest-son',
   'youngest-son-of-the-sword-master',
   'the-youngest-son-of-the-sword-master',
+  'trapped-together',
+  'milsillamnyeo',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {

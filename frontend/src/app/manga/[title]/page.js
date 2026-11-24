@@ -160,7 +160,11 @@ export default function MangaDetail({ params }) {
 
   useEffect(() => {
     if (isBlocked) {
-      router.replace(`/manga/series/${titleSlug}`);
+      if (typeof window !== "undefined") {
+        window.location.replace(`/manga/series/${titleSlug}`);
+      } else {
+        router.replace(`/manga/series/${titleSlug}`);
+      }
     }
   }, [isBlocked, titleSlug, router]);
   const {
@@ -338,7 +342,11 @@ export default function MangaDetail({ params }) {
         setCoverAlt(readCover(titleSlug));
         const isKorean = currentManga?.countryOfOrigin === "KR" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
         if (!isSeriesRoute && isKorean) {
-          router.replace(`/manga/series/${titleSlug}`);
+          if (typeof window !== "undefined") {
+            window.location.replace(`/manga/series/${titleSlug}`);
+          } else {
+            router.replace(`/manga/series/${titleSlug}`);
+          }
           return;
         }
         if (isFresh(cached)) return; // recent enough — no revalidation needed
@@ -420,7 +428,11 @@ export default function MangaDetail({ params }) {
 
           const isKoreanManhwa = media.countryOfOrigin === "KR" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
           if (!isSeriesRoute && isKoreanManhwa) {
-            router.replace(`/manga/series/${titleSlug}`);
+            if (typeof window !== "undefined") {
+              window.location.replace(`/manga/series/${titleSlug}`);
+            } else {
+              router.replace(`/manga/series/${titleSlug}`);
+            }
             return;
           }
 
