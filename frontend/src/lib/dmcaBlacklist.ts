@@ -508,6 +508,14 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'bad-thinking-diary',
   'close-as-neighbors',
   'merry-marbling',
+  'the-youngest-son-of-a-master-swordsman',
+  'youngest-son-of-a-master-swordsman',
+  'the-youngest-son-of-a-swordsmaster',
+  'swordmasters-youngest-son',
+  'the-swordmasters-youngest-son',
+  'swordmaster-youngest-son',
+  'youngest-son-of-the-sword-master',
+  'the-youngest-son-of-the-sword-master',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
