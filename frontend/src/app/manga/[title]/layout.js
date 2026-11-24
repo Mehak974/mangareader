@@ -59,15 +59,16 @@ async function getMangaData(titleSlug) {
 
 export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
-  if (isBlockedManga(titleSlug)) {
+  const m = await getMangaData(titleSlug);
+  const isKorean = m?.country === 'KR' || String(m?.genres || '').toLowerCase().includes('manhwa');
+
+  // Hard 404 for DMCA-blocked titles and all Korean manhwa on public /manga/ route
+  if (isBlockedManga(titleSlug) || isKorean) {
     notFound();
   }
 
   const domain = await getRequestDomain();
   const siteName = domain.includes('mangafire') ? 'MangaFire' : domain.includes('mangaread.') ? 'MangaRead' : domain.includes('manireader') ? 'ManiReader' : SITE_NAME;
-
-  const m = await getMangaData(titleSlug);
-  const isKorean = m?.country === 'KR';
   const displayTitle = m?.title || formatTitle(titleSlug);
   const chCount = m?.total_chapters ? Number(m.total_chapters) : null;
   const chSnippet = chCount && chCount > 0 ? ` (Ch. 1 - ${chCount})` : '';
@@ -110,11 +111,13 @@ export async function generateMetadata({ params }) {
 
 export default async function MangaDetailLayout({ children, params }) {
   const { title: titleSlug } = await params;
-  if (isBlockedManga(titleSlug)) {
+  const m = await getMangaData(titleSlug);
+  const isKorean = m?.country === 'KR' || String(m?.genres || '').toLowerCase().includes('manhwa');
+
+  if (isBlockedManga(titleSlug) || isKorean) {
     notFound();
   }
   const domain = await getRequestDomain();
-  const m = await getMangaData(titleSlug);
   const name = m?.title || formatTitle(titleSlug);
   const chaptersCount = m?.total_chapters ? Number(m.total_chapters) : undefined;
   const ratingValue = m?.rating ? Number(m.rating) : 4.8;
