@@ -156,17 +156,9 @@ export default function MangaDetail({ params }) {
   const searchParams = useSearchParams();
   const queryCover = searchParams ? searchParams.get("cover") || "" : "";
   const isSeriesRoute = pathname?.startsWith("/series") || pathname?.startsWith("/manga/series");
-  const isBlocked = !isSeriesRoute && isBlockedManga(titleSlug);
-
-  useEffect(() => {
-    if (isBlocked) {
-      if (typeof window !== "undefined") {
-        window.location.replace(`/manga/series/${titleSlug}`);
-      } else {
-        router.replace(`/manga/series/${titleSlug}`);
-      }
-    }
-  }, [isBlocked, titleSlug, router]);
+  if (!isSeriesRoute && isBlockedManga(titleSlug)) {
+    notFound();
+  }
   const {
     isBookmarked,
     toggleBookmark,
@@ -342,11 +334,7 @@ export default function MangaDetail({ params }) {
         setCoverAlt(readCover(titleSlug));
         const isProtected = currentManga?.countryOfOrigin === "KR" || currentManga?.countryOfOrigin === "JP" || currentManga?.country === "KR" || currentManga?.country === "JP" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
         if (!isSeriesRoute && isProtected) {
-          if (typeof window !== "undefined") {
-            window.location.replace(`/manga/series/${titleSlug}`);
-          } else {
-            router.replace(`/manga/series/${titleSlug}`);
-          }
+          notFound();
           return;
         }
         if (isFresh(cached)) return; // recent enough — no revalidation needed
@@ -428,11 +416,7 @@ export default function MangaDetail({ params }) {
 
           const isProtected = media.countryOfOrigin === "KR" || media.countryOfOrigin === "JP" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
           if (!isSeriesRoute && isProtected) {
-            if (typeof window !== "undefined") {
-              window.location.replace(`/manga/series/${titleSlug}`);
-            } else {
-              router.replace(`/manga/series/${titleSlug}`);
-            }
+            notFound();
             return;
           }
 

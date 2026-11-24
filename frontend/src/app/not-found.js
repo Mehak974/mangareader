@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 
 export default function NotFound() {
-  useEffect(() => {
-    // If a human visits an old bookmarked or shared /manga/:slug URL, seamlessly route to /manga/series/:slug
-    if (typeof window !== 'undefined') {
-      const match = window.location.pathname.match(/^\/manga\/([^/]+)\/?$/);
-      if (match && match[1] && match[1] !== 'series') {
-        window.location.replace(`/manga/series/${match[1]}`);
-      }
-    }
-  }, []);
-
   return (
     <div style={{
       display: 'flex',
