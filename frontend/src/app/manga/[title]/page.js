@@ -650,10 +650,6 @@ export default function MangaDetail({ params }) {
     setLoadingChapters(false);
   };
 
-  if (isBlocked) {
-    return null;
-  }
-
   if (loading) {
     return (
       <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
