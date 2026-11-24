@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { X, ArrowRight } from 'lucide-react';
+import { X, ArrowRight, ShieldCheck } from 'lucide-react';
 
-const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v6';
+const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v7';
 const DISMISS_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export default function MangaPulsePromoBanner() {
@@ -134,7 +134,7 @@ export default function MangaPulsePromoBanner() {
             }}
           />
 
-          {/* Center Message */}
+          {/* Center Message: Punchy, Relatable Copy */}
           <div
             style={{
               display: 'flex',
@@ -146,23 +146,30 @@ export default function MangaPulsePromoBanner() {
               flexWrap: 'wrap',
             }}
           >
+            {/* Catchy Hook */}
             <span
               style={{
-                fontWeight: 700,
+                fontWeight: 800,
                 fontSize: '13px',
                 color: '#f8fafc',
                 whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              Progress gone with manga site?
+              <ShieldCheck style={{ width: '14px', height: '14px', color: '#10b981' }} />
+              Manga sites go down. Your reading history shouldn&apos;t.
             </span>
+
+            {/* Value Proposition */}
             <span
               style={{
                 fontSize: '12px',
                 color: '#94a3b8',
               }}
             >
-              Track &amp; backup reading progress on{' '}
+              Backup bookmarks &amp; track upcoming chapter drops on{' '}
               <strong style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline' }}>
                 MangaPulse.co
               </strong>
@@ -186,7 +193,7 @@ export default function MangaPulsePromoBanner() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
               }}
             >
-              <span>Track Progress</span>
+              <span>Track Free</span>
               <ArrowRight style={{ width: '13px', height: '13px' }} />
             </span>
           </div>
