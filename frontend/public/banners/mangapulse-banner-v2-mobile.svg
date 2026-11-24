@@ -31,7 +31,7 @@
   <g transform="translate(435, 27)">
     <rect width="115" height="34" rx="6" fill="#2563eb"/>
     <text x="57" y="22" text-anchor="middle" class="b-btn" font-size="12" fill="#ffffff">
-      Track Free &rarr;
+      Track Free &#8594;
     </text>
   </g>
 </svg>
