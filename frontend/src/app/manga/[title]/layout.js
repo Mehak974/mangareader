@@ -86,10 +86,10 @@ async function getMangaData(titleSlug) {
 export async function generateMetadata({ params }) {
   const { title: titleSlug } = await params;
   const m = await getMangaData(titleSlug);
-  const isKorean = m?.country === 'KR' || String(m?.genres || '').toLowerCase().includes('manhwa');
+  const isProtected = m?.country === 'KR' || m?.country === 'JP' || isBlockedManga(titleSlug) || String(m?.genres || '').toLowerCase().includes('manhwa');
 
-  // Hard 404 for DMCA-blocked titles and all Korean manhwa on public /manga/ route
-  if (isBlockedManga(titleSlug) || isKorean) {
+  // Hard 404 for DMCA-blocked titles, Korean manhwa, and Japanese manga on public /manga/ route
+  if (isProtected) {
     notFound();
   }
 
@@ -138,9 +138,9 @@ export async function generateMetadata({ params }) {
 export default async function MangaDetailLayout({ children, params }) {
   const { title: titleSlug } = await params;
   const m = await getMangaData(titleSlug);
-  const isKorean = m?.country === 'KR' || String(m?.genres || '').toLowerCase().includes('manhwa');
+  const isProtected = m?.country === 'KR' || m?.country === 'JP' || isBlockedManga(titleSlug) || String(m?.genres || '').toLowerCase().includes('manhwa');
 
-  if (isBlockedManga(titleSlug) || isKorean) {
+  if (isProtected) {
     notFound();
   }
   const domain = await getRequestDomain();

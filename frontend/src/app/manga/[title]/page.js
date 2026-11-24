@@ -340,8 +340,8 @@ export default function MangaDetail({ params }) {
         setSourceUrl(cached.sourceUrl || "");
         setLoading(false);
         setCoverAlt(readCover(titleSlug));
-        const isKorean = currentManga?.countryOfOrigin === "KR" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
-        if (!isSeriesRoute && isKorean) {
+        const isProtected = currentManga?.countryOfOrigin === "KR" || currentManga?.countryOfOrigin === "JP" || currentManga?.country === "KR" || currentManga?.country === "JP" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
+        if (!isSeriesRoute && isProtected) {
           if (typeof window !== "undefined") {
             window.location.replace(`/manga/series/${titleSlug}`);
           } else {
@@ -426,8 +426,8 @@ export default function MangaDetail({ params }) {
           };
           resolvedId = String(media.id);
 
-          const isKoreanManhwa = media.countryOfOrigin === "KR" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
-          if (!isSeriesRoute && isKoreanManhwa) {
+          const isProtected = media.countryOfOrigin === "KR" || media.countryOfOrigin === "JP" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
+          if (!isSeriesRoute && isProtected) {
             if (typeof window !== "undefined") {
               window.location.replace(`/manga/series/${titleSlug}`);
             } else {
