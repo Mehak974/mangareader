@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 130" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a071b"/>
+      <stop offset="35%" stop-color="#120b2e"/>
+      <stop offset="70%" stop-color="#0d1127"/>
+      <stop offset="100%" stop-color="#080716"/>
+    </linearGradient>
+
+    <!-- Vibrant Accents -->
+    <linearGradient id="accentPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ec4899"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+
+    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9333ea"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+
+    <!-- Radial Glows -->
+    <radialGradient id="glowLeft" cx="12%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#9333ea" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#0a071b" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glowRight" cx="88%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#080716" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Drop Shadows & Filters -->
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#7c3aed" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <style>
+    .font-title { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 800; }
+    .font-sub { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500; }
+    .font-btn { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 700; }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  </style>
+
+  <!-- Background Base -->
+  <rect width="1200" height="130" fill="url(#bgGrad)"/>
+  <rect width="1200" height="130" fill="url(#glowLeft)"/>
+  <rect width="1200" height="130" fill="url(#glowRight)"/>
+
+  <!-- Cyber Grid Lines -->
+  <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1">
+    <line x1="0" y1="26" x2="1200" y2="26"/>
+    <line x1="0" y1="52" x2="1200" y2="52"/>
+    <line x1="0" y1="78" x2="1200" y2="78"/>
+    <line x1="0" y1="104" x2="1200" y2="104"/>
+    <line x1="150" y1="0" x2="150" y2="130"/>
+    <line x1="300" y1="0" x2="300" y2="130"/>
+    <line x1="950" y1="0" x2="950" y2="130"/>
+    <line x1="1080" y1="0" x2="1080" y2="130"/>
+  </g>
+
+  <!-- Ambient Stars & Sparkles -->
+  <g fill="#c084fc" opacity="0.7">
+    <circle cx="160" cy="24" r="1.5"/>
+    <circle cx="280" cy="100" r="1"/>
+    <circle cx="560" cy="18" r="1.5"/>
+    <circle cx="890" cy="22" r="1.5"/>
+    <circle cx="920" cy="108" r="2"/>
+    <polygon points="175,85 178,90 183,93 178,96 175,101 172,96 167,93 172,90" fill="#38bdf8" opacity="0.6"/>
+    <polygon points="850,92 852,95 856,97 852,99 850,103 848,99 844,97 848,95" fill="#f472b6" opacity="0.7"/>
+  </g>
+
+  <!-- LEFT GRAPHIC: Holographic Manga Book & Pulse Waves -->
+  <g transform="translate(42, 18)">
+    <!-- Glowing Halo -->
+    <circle cx="48" cy="46" r="42" fill="#8b5cf6" opacity="0.2" filter="url(#glow)"/>
+
+    <!-- Outer Pulse Ring -->
+    <circle cx="48" cy="46" r="40" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.5"/>
+    
+    <!-- Manga Book Open Shape -->
+    <path d="M48 30 C40 24 22 25 18 27 C15 28 14 30 14 62 C22 60 38 58 48 64 C58 58 74 60 82 62 C82 30 81 28 78 27 C74 25 56 24 48 30 Z" 
+          fill="#1e153b" stroke="#c084fc" stroke-width="2"/>
+    
+    <!-- Spine center -->
+    <line x1="48" y1="30" x2="48" y2="64" stroke="#e879f9" stroke-width="2"/>
+
+    <!-- Floating Chapter Lines inside Manga -->
+    <line x1="22" y1="38" x2="42" y2="36" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="22" y1="44" x2="38" y2="42" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="22" y1="50" x2="40" y2="48" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+
+    <line x1="54" y1="36" x2="74" y2="38" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="58" y1="42" x2="74" y2="44" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="54" y1="48" x2="72" y2="50" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+
+    <!-- Bookmark Ribbon Hanging Out -->
+    <path d="M44 32 L44 72 L48 68 L52 72 L52 32 Z" fill="#ec4899" filter="url(#shadow)"/>
+
+    <!-- Pulse Heartbeat Wave Underneath -->
+    <path d="M6 82 L28 82 L34 76 L40 90 L46 72 L52 86 L58 82 L90 82" 
+          fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  </g>
+
+  <!-- CENTER CONTENT: Headline, Subtitle & Badges -->
+  <g transform="translate(162, 0)">
+    <!-- Small Category / Status Pill -->
+    <g transform="translate(0, 20)">
+      <rect width="158" height="20" rx="10" fill="#a855f7" fill-opacity="0.2" stroke="#a855f7" stroke-width="1"/>
+      <circle cx="10" cy="10" r="3.5" fill="#22c55e"/>
+      <text x="20" y="14" fill="#e9d5ff" font-size="10" class="font-mono" font-weight="700" letter-spacing="0.5">MANGA PROGRESS SHIELD</text>
+    </g>
+
+    <g transform="translate(168, 20)">
+      <rect width="138" height="20" rx="10" fill="#38bdf8" fill-opacity="0.15" stroke="#38bdf8" stroke-width="0.8"/>
+      <text x="10" y="14" fill="#7dd3fc" font-size="10" class="font-mono" font-weight="700">✦ 100% FREE FOREVER</text>
+    </g>
+
+    <!-- Main Eye-Catching Headline -->
+    <text x="0" y="66" class="font-title" font-size="24" fill="#ffffff" letter-spacing="-0.3">
+      PROGRESS GONE WITH DOWN MANGA SITES?
+    </text>
+
+    <!-- Sub-headline Copy -->
+    <text x="0" y="93" class="font-sub" font-size="13.5" fill="#cbd5e1">
+      Never start over again. Backup, track &amp; sync your entire reading library safely on <tspan fill="#38bdf8" font-weight="700">MangaPulse.co</tspan>
+    </text>
+
+    <!-- Feature Bullet Badges -->
+    <g transform="translate(0, 107)" opacity="0.9">
+      <text x="0" y="11" font-size="11" class="font-sub" fill="#94a3b8">
+        <tspan fill="#a855f7" font-weight="700">✓</tspan> Auto Chapter Tracker
+        <tspan fill="#475569" dx="8">•</tspan> 
+        <tspan fill="#a855f7" font-weight="700" dx="8">✓</tspan> Multi-Site Sync
+        <tspan fill="#475569" dx="8">•</tspan> 
+        <tspan fill="#a855f7" font-weight="700" dx="8">✓</tspan> Instant 1-Click Restore
+      </text>
+    </g>
+  </g>
+
+  <!-- RIGHT ACTION: High-Converting CTA Button & Pulse Tag -->
+  <g transform="translate(940, 24)">
+    <!-- Glowing Underlay for Button -->
+    <rect x="0" y="16" width="220" height="48" rx="24" fill="#7c3aed" opacity="0.4" filter="url(#glow)"/>
+
+    <!-- Main CTA Pill Button -->
+    <rect x="0" y="16" width="220" height="48" rx="24" fill="url(#btnGrad)" stroke="#c084fc" stroke-width="1.5" filter="url(#shadow)"/>
+
+    <!-- Button Text -->
+    <text x="96" y="46" text-anchor="middle" fill="#ffffff" font-size="14.5" class="font-btn" letter-spacing="0.2">
+      START TRACKING
+    </text>
+    
+    <!-- Arrow Graphic inside Button -->
+    <g transform="translate(178, 33)">
+      <circle cx="8" cy="8" r="11" fill="#ffffff" fill-opacity="0.2"/>
+      <path d="M5 8 L11 8 M9 5 L12 8 L9 11" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Micro Copy Below CTA -->
+    <text x="110" y="80" text-anchor="middle" fill="#94a3b8" font-size="10.5" class="font-sub">
+      ⚡ Takes 10 seconds • No card needed
+    </text>
+  </g>
+
+  <!-- Border Gradient Stroke around the entire banner -->
+  <rect x="0.5" y="0.5" width="1199" height="129" fill="none" stroke="url(#accentPurple)" stroke-opacity="0.3" stroke-width="1"/>
+</svg>

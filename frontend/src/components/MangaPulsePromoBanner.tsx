@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { BookmarkCheck, ArrowRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
-const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v1';
-const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // Re-show after 7 days if dismissed
+const STORAGE_KEY = 'mr_mangapulse_banner_dismissed_v2';
+const DISMISS_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export default function MangaPulsePromoBanner() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(true);
 
-  // Keep reading view 100% clean and distraction-free
+  // Keep reader view 100% clean and distraction-free
   const isReaderPage = pathname?.startsWith('/reader/');
 
   useEffect(() => {
@@ -41,57 +41,36 @@ export default function MangaPulsePromoBanner() {
 
   return (
     <aside
-      aria-label="MangaPulse Progress Tracker"
-      className="relative z-40 bg-gradient-to-r from-[#150d2a] via-[#0d1222] to-[#120e29] border-b border-purple-500/25 text-white px-3 sm:px-4 py-2 sm:py-2.5 shadow-md backdrop-blur-md transition-all select-none"
+      aria-label="MangaPulse Progress Tracker Announcement"
+      className="relative z-40 w-full bg-[#070512] border-b border-purple-500/20 px-2 sm:px-4 py-1.5 sm:py-2 select-none"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2.5 sm:gap-4 text-xs sm:text-sm">
-        {/* Banner Content */}
+      <div className="max-w-6xl mx-auto relative flex items-center justify-center">
+        {/* Clickable Image Banner */}
         <a
-          href="https://mangapulse.co?utm_source=mangareader&utm_medium=top_banner&utm_campaign=progress_tracker"
+          href="https://mangapulse.co?utm_source=mangareader&utm_medium=image_banner&utm_campaign=progress_tracker"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 group text-decoration-none text-inherit cursor-pointer"
+          className="block w-full max-w-5xl rounded-lg overflow-hidden border border-purple-500/30 hover:border-purple-400/60 shadow-[0_4px_20px_rgba(124,58,237,0.18)] hover:shadow-[0_6px_25px_rgba(124,58,237,0.3)] transition-all duration-200 group"
         >
-          {/* Pulsing Icon */}
-          <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 group-hover:scale-105 transition-transform">
-            <BookmarkCheck className="w-3.5 h-3.5 text-purple-300" />
-          </span>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-            {/* Tag badge */}
-            <span className="text-[10px] font-bold font-mono tracking-wide uppercase px-1.5 py-0.5 rounded bg-purple-500/25 text-purple-200 border border-purple-400/30">
-              Never Lose Progress
-            </span>
-
-            {/* Desktop text */}
-            <span className="hidden md:inline text-neutral-200">
-              Manga sites get taken down, but your reading history shouldn&apos;t.
-            </span>
-
-            {/* Hook question & solution */}
-            <span className="text-white font-medium group-hover:text-purple-200 transition-colors">
-              <span className="hidden sm:inline text-neutral-400">Lost your chapters before?</span> Track safely on{' '}
-              <strong className="text-purple-300 font-bold underline decoration-purple-400/50 decoration-2 underline-offset-2">
-                MangaPulse.co
-              </strong>
-            </span>
-          </div>
-
-          {/* CTA Pill button */}
-          <span className="hidden lg:inline-flex items-center gap-1 ml-auto flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-600/80 hover:bg-purple-600 text-white border border-purple-400/40 shadow-sm transition-all group-hover:translate-x-0.5">
-            <span>Track Free</span>
-            <ArrowRight className="w-3 h-3" />
-          </span>
+          <picture className="block w-full">
+            <source media="(max-width: 640px)" srcSet="/banners/mangapulse-promo-mobile.svg" />
+            <img
+              src="/banners/mangapulse-promo-desktop.svg"
+              alt="Lost progress with down manga sites? Track and backup your reading safely on MangaPulse.co"
+              className="w-full h-auto max-h-[105px] object-cover sm:object-contain group-hover:brightness-105 transition-all duration-200"
+              loading="eager"
+            />
+          </picture>
         </a>
 
-        {/* Dismiss Button */}
+        {/* Floating Dismiss Button */}
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 p-1 -mr-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="absolute -top-1 right-0 sm:top-1 sm:right-2 z-50 p-1.5 rounded-full bg-black/70 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 shadow-md backdrop-blur-md transition-all cursor-pointer"
           aria-label="Dismiss banner"
-          title="Dismiss for 7 days"
+          title="Dismiss"
         >
-          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
     </aside>
