@@ -507,6 +507,7 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'her-toy-shop',
   'bad-thinking-diary',
   'close-as-neighbors',
+  'merry-marbling',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
