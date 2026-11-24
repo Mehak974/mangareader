@@ -450,6 +450,7 @@ export const AppProvider = ({ children }) => {
         ongoing: manga.ongoing ?? true,
         rating: manga.rating || null,
         genre: manga.g || manga.genre || "",
+        country: manga.country || manga.countryOfOrigin || "",
         addedAt: new Date().toISOString(),
       };
       const updated = libraries.map((lib) => {

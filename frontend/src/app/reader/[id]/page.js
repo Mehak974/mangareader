@@ -786,7 +786,7 @@ function ReaderContent({ params }) {
     let targetPrevNum = currentChNum - 1;
 
     if (targetPrevNum < 1) {
-      router.push(getMangaHref(title));
+      router.push(getMangaHref(title, cover, true));
       return;
     }
 
@@ -811,7 +811,7 @@ function ReaderContent({ params }) {
     if (prevHref || prevIsOffline || savedOfflineChapters.has(targetPrevNum)) {
       router.push(`/reader/${targetPrevNum}?url=${encodeURIComponent(prevHref)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}&romaji=${encodeURIComponent(romaji)}`);
     } else {
-      router.push(getMangaHref(title));
+      router.push(getMangaHref(title, cover, true));
     }
   };
 

@@ -308,7 +308,7 @@ export default function LibraryContent() {
                 >
                   {/* Manga Cover */}
                   <Link
-                    href={getMangaHref(g.mangaTitle, g.cover)}
+                    href={getMangaHref(g.mangaTitle, g.cover, true)}
                     style={{
                       position: "relative",
                       width: "74px",
@@ -358,7 +358,7 @@ export default function LibraryContent() {
                     >
                       <div>
                         <Link
-                          href={getMangaHref(g.mangaTitle, g.cover)}
+                          href={getMangaHref(g.mangaTitle, g.cover, true)}
                           style={{
                             fontSize: "16px",
                             fontWeight: 700,
