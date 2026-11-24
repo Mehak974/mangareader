@@ -471,6 +471,7 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'to-my-dear-horror',
   'doberman',
   'from-weakling-to-nemesis',
+  'high-school-salty-heart',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
