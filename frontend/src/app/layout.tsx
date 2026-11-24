@@ -24,7 +24,7 @@ import { AppProvider }       from '@/context/AppContext';
 import AnalyticsProvider   from '@/components/AnalyticsProvider';
 import { Toaster }          from 'react-hot-toast';
 import Header               from '@/components/Header';
-import DowntimeApologyBanner from '@/components/DowntimeApologyBanner';
+import MangaPulsePromoBanner from '@/components/MangaPulsePromoBanner';
 import JsonLd               from '@/components/JsonLd';
 import MaintenanceGuard     from '@/components/MaintenanceGuard';
 import UmamiAnalytics       from '@/components/UmamiAnalytics';
@@ -298,7 +298,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <AppProvider>
           <MaintenanceGuard>
-            <DowntimeApologyBanner />
+            <MangaPulsePromoBanner />
             <Header />
             <Sidebar />
             <MobileNav />
