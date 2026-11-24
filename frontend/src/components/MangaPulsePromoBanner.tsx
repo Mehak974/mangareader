@@ -9,26 +9,21 @@ const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // Re-show after 7 days if 
 
 export default function MangaPulsePromoBanner() {
   const pathname = usePathname();
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   // Keep reading view 100% clean and distraction-free
   const isReaderPage = pathname?.startsWith('/reader/');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
     try {
       const dismissedAt = localStorage.getItem(STORAGE_KEY);
       if (dismissedAt) {
         const elapsed = Date.now() - parseInt(dismissedAt, 10);
         if (elapsed < DISMISS_DURATION_MS) {
-          return;
+          setVisible(false);
         }
       }
-      setVisible(true);
-    } catch {
-      setVisible(true);
-    }
+    } catch {}
   }, []);
 
   const handleDismiss = (e: React.MouseEvent) => {
