@@ -321,19 +321,6 @@ export default function AdScriptLoader() {
       }
     }
 
-    // ── Dedicated ProfitOn Zone for mangaread.pro ($1.50 Fixed CPM) ──
-    // Replaces popunders only on mangaread.pro. Frequency (6 ads, 32s, 90m cap) is handled natively.
-    if (typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('mangaread.pro')) {
-      if (!document.querySelector('script[src*="recidemelian.com"]')) {
-        const pScript = document.createElement('script');
-        pScript.src = '//pv.recidemelian.com/rFZpzXiiX5v8/161746';
-        pScript.async = true;
-        pScript.setAttribute('data-cfasync', 'false');
-        pScript.type = 'text/javascript';
-        document.head.appendChild(pScript);
-      }
-      return;
-    }
 
     const scheduleInject = (delayMs: number, targetStage: number) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

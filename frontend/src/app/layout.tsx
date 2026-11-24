@@ -185,8 +185,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head suppressHydrationWarning>
         {/* Ad network preconnects to eliminate popunder initialization delay (<5-10s) */}
-        <link rel="dns-prefetch" href="//pv.recidemelian.com" />
-        <link rel="preconnect" href="https://pv.recidemelian.com" />
         <link rel="dns-prefetch" href="//purple-text.com" />
         <link rel="preconnect" href="https://purple-text.com" />
         <link rel="dns-prefetch" href="//untimely-promotion.com" />

@@ -57,25 +57,6 @@ export function middleware(request) {
     return NextResponse.redirect(url, { status: 301 });
   }
 
-  // ── Geo-Redirect for mangareader.pro -> mangaread.pro (India, Guatemala, UAE) ─
-  // Redirects high-opportunity traffic to mangaread.pro where ProfitOn $1.50 fixed CPM applies.
-  const country = (
-    request.headers.get("cf-ipcountry") ||
-    request.headers.get("x-vercel-ip-country") ||
-    request.cookies.get("user_country")?.value ||
-    ""
-  ).toUpperCase();
-
-  const GEO_REDIRECT_COUNTRIES = new Set(["IN", "GT", "AE"]);
-
-  if (!isLocal && cleanHost === "mangareader.pro" && GEO_REDIRECT_COUNTRIES.has(country)) {
-    const url = new URL(request.url);
-    url.protocol = "https:";
-    url.hostname = "mangaread.pro";
-    url.port = "";
-    return NextResponse.redirect(url, { status: 302 });
-  }
-
   // ── Redirect legacy URL patterns to current routes ──────────────────
   // Old genre/platform/origin filter URLs that no longer exist as routes
   // (they were 404-ing → contributing to 4xx crawl errors in GSC).
