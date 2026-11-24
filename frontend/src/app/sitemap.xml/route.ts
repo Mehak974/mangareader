@@ -74,36 +74,8 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Top discovered manga (optimized indexed join)
-  try {
-    const discovered = await withTimeout(
-      prisma.$queryRaw<
-        { slug: string; lastViewedAt: Date; viewCount: number }[]
-      >`
-        SELECT d.slug, d.last_viewed_at AS "lastViewedAt", d.view_count AS "viewCount"
-        FROM discovered_manga d
-        ORDER BY d.view_count DESC, d.last_viewed_at DESC
-        LIMIT ${SITEMAP_TOP_MANGA}
-      `,
-      5000
-    );
-
-    const step = 0.4 / Math.max(1, SITEMAP_TOP_MANGA - 1);
-    const validManga = discovered.filter((m) => !isBlockedManga(m.slug));
-
-    validManga.forEach((m, i) => {
-      const priority = Number((0.9 - i * step).toFixed(2));
-      xml += `  <url>\n`;
-      xml += `    <loc>${siteUrl}/manga/${m.slug}</loc>\n`;
-      xml += `    <lastmod>${new Date(m.lastViewedAt).toISOString()}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>${priority}</priority>\n`;
-      xml += `  </url>\n`;
-    });
-
-    // IndexNow auto-pings disabled to prevent triggering aggressive crawler sweeps
-    // Crawlers will discover and index pages naturally at a slow, safe pace.
-  } catch {}
+  // 3. Manga URLs intentionally excluded from XML sitemap to prevent copyright scraper bots (MarqVision, RemoveYourMedia, Toomics)
+  // from mass-harvesting URLs via search engine indexes. Users navigate via on-site search, browse, and trending.
 
   xml += `</urlset>`;
 
