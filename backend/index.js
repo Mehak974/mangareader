@@ -389,6 +389,11 @@ const BLOCKED_MANGA_TITLES = new Set([
   'my-passive-skills-hit-like-a-truck',
   'though-i-am-an-inept-villainess-tale-of-the-butterfly-rat-body-swap-in-the-maiden-court',
   'shutline',
+  'synced-for-pleasure',
+  'stay-alive',
+  'codename-march',
+  'hunks-harems-and-hardcore-habits',
+  'melting-flirting-cookie',
 ]);
 function isBlockedManga(str) {
   if (!str) return false;

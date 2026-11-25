@@ -520,6 +520,11 @@ export const BLOCKED_MANGA_SLUGS = new Set<string>([
   'milsillamnyeo',
   'blue-lock',
   'blue-lock-episode-nagi',
+  'synced-for-pleasure',
+  'stay-alive',
+  'codename-march',
+  'hunks-harems-and-hardcore-habits',
+  'melting-flirting-cookie',
 ]);
 
 export function isBlockedManga(slugOrTitle?: string | null): boolean {
