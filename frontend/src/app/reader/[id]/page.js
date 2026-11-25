@@ -139,14 +139,13 @@ function ReaderContent({ params }) {
   const hasTriggeredFailoverRef = useRef(false);
   const autoDownload = searchParams.get("download") === "1";
 
-  const [mirrorInfo, setMirrorInfo] = useState({ url: "https://mangaread.pro", name: "MangaRead.pro" });
+  const [mirrorInfo, setMirrorInfo] = useState({ url: "https://manireader.online", name: "ManiReader.online" });
   useEffect(() => {
     if (typeof window !== "undefined") {
       const host = window.location.hostname;
-      const isMangaread = host.includes("mangaread.pro");
       const isManireader = host.includes("manireader.online");
-      const targetDomain = isMangaread ? "mangareader.pro" : isManireader ? "mangaread.pro" : "mangaread.pro";
-      const targetName = isMangaread ? "MangaReader.pro" : isManireader ? "MangaRead.pro" : "MangaRead.pro";
+      const targetDomain = isManireader ? "mangareader.pro" : "manireader.online";
+      const targetName = isManireader ? "MangaReader.pro" : "ManiReader.online";
       const mirrorQuery = url
         ? `?url=${encodeURIComponent(url)}&source=${source}&title=${encodeURIComponent(title)}&mangaId=${encodeURIComponent(mangaId)}&cover=${encodeURIComponent(cover)}`
         : window.location.search;

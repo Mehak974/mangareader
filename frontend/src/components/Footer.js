@@ -58,10 +58,6 @@ export default function Footer() {
           MangaReader.pro
         </a>
         <span>•</span>
-        <a href="https://mangaread.pro" style={{ color: "#38bdf8", textDecoration: "none", fontWeight: 500 }} title="Fast MangaRead Mirror">
-          MangaRead.pro
-        </a>
-        <span>•</span>
         <a href="https://manireader.online" style={{ color: "#f97316", textDecoration: "none", fontWeight: 500 }} title="ManiReader Discovery Mirror">
           ManiReader.online
         </a>
