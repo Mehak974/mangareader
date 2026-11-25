@@ -74,17 +74,28 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Top Popular Manga & Manhwa (JP, KR, CN) for search engine indexing
+  // 3. Top Popular Manga, Manhwa, and Chinese Martial Arts/Cultivation for search engine indexing
   try {
     const topManga = await withTimeout(
       prisma.$queryRawUnsafe<Array<{ title: string }>>(`
-        SELECT title 
-        FROM manga 
-        WHERE title IS NOT NULL 
-        ORDER BY popularity DESC NULLS LAST 
-        LIMIT 400
+        SELECT DISTINCT title FROM (
+          -- 1. All Chinese manga in manga table
+          SELECT title FROM manga WHERE country = 'CN' AND title IS NOT NULL
+          UNION
+          -- 2. Martial arts / Cultivation / Wuxia / Xianxia in manga table
+          SELECT title FROM manga WHERE (title ILIKE '%martial%' OR title ILIKE '%cultivat%' OR title ILIKE '%wuxia%' OR title ILIKE '%xianxia%' OR title ILIKE '%immortal%' OR title ILIKE '%peerless%' OR title ILIKE '%invincible%' OR title ILIKE '%alchemist%' OR title ILIKE '%sect%') AND title IS NOT NULL
+          UNION
+          -- 3. All Discovered Chinese / Martial / Cultivation titles
+          SELECT title FROM discovered_manga WHERE (slug ILIKE '%martial%' OR slug ILIKE '%cultivat%' OR slug ILIKE '%wuxia%' OR slug ILIKE '%xianxia%' OR slug ILIKE '%immortal%' OR slug ILIKE '%peerless%' OR slug ILIKE '%invincible%' OR slug ILIKE '%alchemist%' OR slug ILIKE '%sect%') AND title IS NOT NULL
+          UNION
+          -- 4. Top 400 popular manga overall
+          SELECT title FROM (
+            SELECT title FROM manga WHERE title IS NOT NULL ORDER BY popularity DESC NULLS LAST LIMIT 400
+          ) sub
+        ) combined
+        ORDER BY title ASC
       `),
-      5000
+      6000
     );
 
     if (topManga && Array.isArray(topManga)) {
