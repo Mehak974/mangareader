@@ -542,6 +542,6 @@ export function isBlockedManga(slugOrTitle?: string | null): boolean {
 export function getMangaHref(slugOrTitle?: string | null, cover?: string | null, isKorean?: boolean): string {
   if (!slugOrTitle) return '/';
   const slug = slugify(slugOrTitle);
-  const base = (isBlockedManga(slug) || isKorean) ? `/manga/series/${slug}` : `/manga/${slug}`;
+  const base = isBlockedManga(slug) ? `/manga/series/${slug}` : `/manga/${slug}`;
   return base;
 }

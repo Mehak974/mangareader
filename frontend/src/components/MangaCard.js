@@ -34,7 +34,7 @@ const MangaCard = React.memo(function MangaCard({ manga, index, priority = false
   const bookmarked = isBookmarked(manga.id);
   const bg = COVER_GRADS[index % COVER_GRADS.length];
   const isChinese = manga.country === 'CN' || manga.countryOfOrigin === 'CN' || manga.g === 'Manhua';
-  const isProtected = manga.forceSeries || !isChinese;
+  const isProtected = !!manga.forceSeries;
   const handleCardClick = () => {
     if (!isHidden && !shouldBlur) {
       router.push(getMangaHref(manga.t || manga.title, manga.cover, isProtected));

@@ -74,8 +74,36 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Manga URLs intentionally excluded from XML sitemap to prevent copyright scraper bots (MarqVision, RemoveYourMedia, Toomics)
-  // from mass-harvesting URLs via search engine indexes. Users navigate via on-site search, browse, and trending.
+  // 3. Chinese Martial Arts & Cultivation Manhua URLs for search indexing
+  try {
+    const chineseManga = await withTimeout(
+      prisma.$queryRawUnsafe<Array<{ title: string }>>(`
+        SELECT title 
+        FROM manga 
+        WHERE country = 'CN' 
+        ORDER BY popularity DESC NULLS LAST 
+        LIMIT 500
+      `),
+      2500
+    );
+
+    if (chineseManga && Array.isArray(chineseManga)) {
+      for (const m of chineseManga) {
+        if (!m.title) continue;
+        const slug = m.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (isBlockedManga(slug)) continue;
+
+        xml += `  <url>\n`;
+        xml += `    <loc>${siteUrl}/manga/${slug}</loc>\n`;
+        xml += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
+        xml += `    <changefreq>daily</changefreq>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `  </url>\n`;
+      }
+    }
+  } catch (err) {
+    console.error('Error adding Chinese manga to sitemap:', err);
+  }
 
   xml += `</urlset>`;
 

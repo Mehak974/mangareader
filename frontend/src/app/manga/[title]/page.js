@@ -332,8 +332,8 @@ export default function MangaDetail({ params }) {
         setSourceUrl(cached.sourceUrl || "");
         setLoading(false);
         setCoverAlt(readCover(titleSlug));
-        const isProtected = currentManga?.countryOfOrigin === "KR" || currentManga?.countryOfOrigin === "JP" || currentManga?.country === "KR" || currentManga?.country === "JP" || currentManga?.genres?.some(g => String(g).toLowerCase() === "manhwa");
-        if (!isSeriesRoute && isProtected) {
+        const isProtected = isBlockedManga(titleSlug);
+        if (isProtected) {
           notFound();
           return;
         }
@@ -414,8 +414,8 @@ export default function MangaDetail({ params }) {
           };
           resolvedId = String(media.id);
 
-          const isProtected = media.countryOfOrigin === "KR" || media.countryOfOrigin === "JP" || media.genres?.some(g => String(g).toLowerCase() === "manhwa");
-          if (!isSeriesRoute && isProtected) {
+          const isProtected = isBlockedManga(titleSlug);
+          if (isProtected) {
             notFound();
             return;
           }

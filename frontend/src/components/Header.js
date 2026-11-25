@@ -280,8 +280,7 @@ return () => document.removeEventListener("keydown", handleKeyDown);
                     className="sr-item"
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      const isProtected = m.country === 'KR' || m.country === 'JP' || m.countryOfOrigin === 'KR' || m.countryOfOrigin === 'JP' || m.isKorean;
-                      router.push(getMangaHref(m.t, m.cover, isProtected));
+                      router.push(getMangaHref(m.t, m.cover));
                       setSearchQuery("");
                     }}
                   >
