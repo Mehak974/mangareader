@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         ORDER BY popularity DESC NULLS LAST 
         LIMIT 500
       `),
-      2500
+      5000
     );
 
     if (chineseManga && Array.isArray(chineseManga)) {
