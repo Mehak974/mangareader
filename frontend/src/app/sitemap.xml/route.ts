@@ -74,21 +74,21 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Chinese Martial Arts & Cultivation Manhua URLs for search indexing
+  // 3. Top Popular Manga & Manhwa (JP, KR, CN) for search engine indexing
   try {
-    const chineseManga = await withTimeout(
+    const topManga = await withTimeout(
       prisma.$queryRawUnsafe<Array<{ title: string }>>(`
         SELECT title 
         FROM manga 
-        WHERE country = 'CN' 
+        WHERE title IS NOT NULL 
         ORDER BY popularity DESC NULLS LAST 
-        LIMIT 500
+        LIMIT 400
       `),
       5000
     );
 
-    if (chineseManga && Array.isArray(chineseManga)) {
-      for (const m of chineseManga) {
+    if (topManga && Array.isArray(topManga)) {
+      for (const m of topManga) {
         if (!m.title) continue;
         const slug = m.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
         if (isBlockedManga(slug)) continue;
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch (err) {
-    console.error('Error adding Chinese manga to sitemap:', err);
+    console.error('Error adding top manga to sitemap:', err);
   }
 
   xml += `</urlset>`;
