@@ -29,6 +29,7 @@ function rateLimit(windowMs = 60000, maxRequests = 60) {
     standardHeaders: true,
     legacyHeaders: false,
     passOnStoreError: true,
+    keyGenerator: (req) => req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.ip,
     store: redisClient ? new RedisStore({
       sendCommand: (...args) => {
         if (redisClient.status !== 'ready') return Promise.reject(new Error('Redis not ready'));

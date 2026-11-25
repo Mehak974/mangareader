@@ -81,7 +81,7 @@ const anilistClient = require('./utils/anilistClient');
 const indexnow = require('./utils/indexnow');
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 8080;
 
 // ── SECURITY HEADERS ──────────────────────────────────────────────────────────
@@ -677,7 +677,7 @@ app.get('/api/home', rateLimit(60000, 30), async (req, res) => {
   res.json({ data: sections, cached: false });
 });
 
-app.get('/api/home/sections/:key', rateLimit(60000, 30), async (req, res) => {
+app.get('/api/home/sections/:key', rateLimit(60000, 300), async (req, res) => {
   const { key } = req.params;
   try {
     const redisKey = `home_section:${key}`;
