@@ -977,19 +977,19 @@ app.post('/api/admin/home/sections/:key/refresh', requireAdmin, async (req, res)
   switch (key) {
     case 'popular_now':
       query = ANILIST_MANGA_QUERY;
-      variables = { perPage: 12, countryOfOrigin: 'CN', sort: ['POPULARITY_DESC'] };
+      variables = { perPage: 12, genre: 'Fantasy', countryOfOrigin: 'KR', sort: ['POPULARITY_DESC'] };
       break;
     case 'readers_also_love':
       query = ANILIST_MANGA_QUERY;
-      variables = { perPage: 12, countryOfOrigin: 'CN', sort: ['POPULARITY_DESC'] };
+      variables = { perPage: 12, sort: ['POPULARITY_DESC'] };
       break;
     case 'trending':
       query = ANILIST_MANGA_QUERY;
-      variables = { perPage: 16, countryOfOrigin: 'CN', sort: ['TRENDING_DESC', 'POPULARITY_DESC'] };
+      variables = { perPage: 16, sort: ['TRENDING_DESC', 'POPULARITY_DESC'] };
       break;
     case 'recently_added':
       query = ANILIST_MANGA_QUERY;
-      variables = { perPage: 5, countryOfOrigin: 'CN', sort: ['ID_DESC'] };
+      variables = { perPage: 5, genre_in: ['Adventure', 'Fantasy'], countryOfOrigin: 'KR', sort: ['ID_DESC'] };
       break;
     default:
       return res.status(400).json({ error: 'Unknown section key' });

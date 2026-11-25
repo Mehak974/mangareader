@@ -30,23 +30,24 @@ export default async function Home() {
   let popularOverall = [];
   let recentlyAdded = [];
 
-  // Populate homepage with 100% Chinese Manhua (Cultivation/Wuxia) — high-binge, zero DMCA risk
   try {
-    const [trendData, popData, topData, recentData] = await Promise.all([
-      getMangaList({ countryOfOrigin: "CN", perPage: 15, sort: ["TRENDING_DESC", "POPULARITY_DESC"] }),
-      getMangaList({ countryOfOrigin: "CN", perPage: 15, sort: ["POPULARITY_DESC", "SCORE_DESC"] }),
-      getMangaList({ countryOfOrigin: "CN", perPage: 15, sort: ["POPULARITY_DESC"] }),
-      getMangaList({ countryOfOrigin: "CN", perPage: 6, sort: ["ID_DESC"] }),
-    ]);
-    popularNow = popData?.media || [];
-    trending = trendData?.media || [];
-    popularOverall = topData?.media || [];
-    recentlyAdded = recentData?.media?.slice(0, 5) || [];
-  } catch (e) {
-    console.warn("Chinese manhua fetch for home failed, fallback:", e);
+    const [popularNowData, readersAlsoLoveData, trendingRes, recentRes] =
+      await Promise.all([
+        fetchHomeSection('popular_now').catch(() => ({ data: [] })),
+        fetchHomeSection('readers_also_love').catch(() => ({ data: [] })),
+        fetchHomeSection('trending').catch(() => ({ data: [] })),
+        fetchHomeSection('recently_added').catch(() => ({ data: [] })),
+      ]);
+
+    popularNow = popularNowData?.data?.length > 0 ? popularNowData.data : [];
+    popularOverall = readersAlsoLoveData?.data?.length > 0 ? readersAlsoLoveData.data : [];
+    trending = trendingRes?.data?.length > 0 ? trendingRes.data : [];
+    recentlyAdded = recentRes?.data?.length > 0 ? recentRes.data.slice(0, 5) : [];
+  } catch {
+    // leave empty — fallback below handles it
   }
 
-  // Fallback: If Chinese query returned empty, try standard AniList call
+  // If backend is unreachable or returned empty, populate directly from AniList!
   if (popularNow.length === 0 || trending.length === 0) {
     try {
       const [trendData, popData, recentData] = await Promise.all([
