@@ -27,6 +27,10 @@ export default function LibraryContent() {
   const [newCollectionName, setNewCollectionName] = useState("");
   const [creatingCollection, setCreatingCollection] = useState(false);
 
+  // Search & genre filter state for collections
+  const [collectionSearch, setCollectionSearch] = useState("");
+  const [collectionGenre, setCollectionGenre] = useState("ALL");
+
   // Offline downloads state
   const [downloadedChapters, setDownloadedChapters] = useState([]);
   const [loadingDownloads, setLoadingDownloads] = useState(true);
@@ -87,6 +91,51 @@ export default function LibraryContent() {
   const selectedLibrary = selectedLibraryId
     ? libraries.find((l) => l.id === selectedLibraryId)
     : null;
+
+  // Extract unique genres from the current collection
+  const availableGenres = useMemo(() => {
+    if (!selectedLibrary?.manga) return [];
+    const set = new Set();
+    selectedLibrary.manga.forEach((m) => {
+      const raw = m.genre || m.g;
+      if (Array.isArray(raw)) {
+        raw.forEach((g) => {
+          if (typeof g === "string" && g.trim()) set.add(g.trim());
+        });
+      } else if (typeof raw === "string" && raw.trim()) {
+        raw.split(/[,/]/).forEach((g) => {
+          const trimmed = g.trim();
+          if (trimmed) set.add(trimmed);
+        });
+      }
+    });
+    return Array.from(set).sort();
+  }, [selectedLibrary]);
+
+  // Filter manga in the collection by search query and genre
+  const filteredCollectionManga = useMemo(() => {
+    if (!selectedLibrary?.manga) return [];
+    const q = (collectionSearch || "").toLowerCase().trim();
+    return selectedLibrary.manga.filter((m) => {
+      const title = (m.title || m.t || "").toLowerCase();
+      const matchesSearch = !q || title.includes(q);
+
+      let matchesGenre = true;
+      if (collectionGenre && collectionGenre !== "ALL") {
+        const raw = m.genre || m.g;
+        if (Array.isArray(raw)) {
+          matchesGenre = raw.some(
+            (g) => typeof g === "string" && g.toLowerCase().trim() === collectionGenre.toLowerCase().trim()
+          );
+        } else if (typeof raw === "string") {
+          matchesGenre = raw.toLowerCase().includes(collectionGenre.toLowerCase().trim());
+        } else {
+          matchesGenre = false;
+        }
+      }
+      return matchesSearch && matchesGenre;
+    });
+  }, [selectedLibrary, collectionSearch, collectionGenre]);
 
   // Series the user marked read
   const completedManga = useMemo(() => {
@@ -609,7 +658,11 @@ export default function LibraryContent() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "18px", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <button
-                    onClick={() => setSelectedLibraryId(null)}
+                    onClick={() => {
+                      setSelectedLibraryId(null);
+                      setCollectionSearch("");
+                      setCollectionGenre("ALL");
+                    }}
                     className="btn"
                     style={{
                       padding: "6px 12px",
@@ -633,6 +686,8 @@ export default function LibraryContent() {
                       if (confirm(`Delete the collection "${selectedLibrary.name}"?`)) {
                         await deleteLibrary(selectedLibrary.id);
                         setSelectedLibraryId(null);
+                        setCollectionSearch("");
+                        setCollectionGenre("ALL");
                       }
                     }}
                     className="btn"
@@ -650,12 +705,161 @@ export default function LibraryContent() {
                   </button>
                 )}
               </div>
-              {selectedLibrary.manga && selectedLibrary.manga.length > 0 ? (
-                <div className="lib-manga-grid">
-                  {selectedLibrary.manga.map((m) => (
-                    <MangaCard key={m.id || m.mangaId} manga={m} />
-                  ))}
+
+              {/* Search & Genre Filter Bar */}
+              {selectedLibrary.manga && selectedLibrary.manga.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginBottom: "20px",
+                    flexWrap: "wrap",
+                    background: "var(--surface)",
+                    padding: "10px 14px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {/* Search Input */}
+                  <div style={{ flex: 1, minWidth: "220px", position: "relative", display: "flex", alignItems: "center" }}>
+                    <span style={{ position: "absolute", left: "12px", color: "var(--text3)", pointerEvents: "none", fontSize: "14px" }}>
+                      🔍
+                    </span>
+                    <input
+                      type="text"
+                      value={collectionSearch}
+                      onChange={(e) => setCollectionSearch(e.target.value)}
+                      placeholder="Search title in this collection..."
+                      style={{
+                        width: "100%",
+                        padding: "8px 32px 8px 36px",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        color: "var(--text, #ffffff)",
+                        fontSize: "13px",
+                        outline: "none",
+                      }}
+                    />
+                    {collectionSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setCollectionSearch("")}
+                        style={{
+                          position: "absolute",
+                          right: "8px",
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--text3)",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          padding: "2px 6px",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Genre Filter Dropdown */}
+                  {availableGenres.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--text3)", fontWeight: 600 }}>Genre:</span>
+                      <select
+                        value={collectionGenre}
+                        onChange={(e) => setCollectionGenre(e.target.value)}
+                        style={{
+                          padding: "8px 12px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "8px",
+                          color: "var(--text, #ffffff)",
+                          fontSize: "13px",
+                          outline: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="ALL">All Genres ({selectedLibrary.manga.length})</option>
+                        {availableGenres.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Reset Filter Button */}
+                  {(collectionSearch || collectionGenre !== "ALL") && (
+                    <button
+                      onClick={() => {
+                        setCollectionSearch("");
+                        setCollectionGenre("ALL");
+                      }}
+                      style={{
+                        background: "rgba(168, 85, 247, 0.12)",
+                        border: "1px solid rgba(168, 85, 247, 0.3)",
+                        color: "var(--accent2, #c084fc)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        padding: "7px 12px",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
                 </div>
+              )}
+
+              {/* Filter Results Info */}
+              {selectedLibrary.manga && selectedLibrary.manga.length > 0 && (collectionSearch || collectionGenre !== "ALL") && (
+                <div style={{ fontSize: "12px", color: "var(--text3)", marginBottom: "14px" }}>
+                  Showing {filteredCollectionManga.length} of {selectedLibrary.manga.length} titles
+                </div>
+              )}
+
+              {/* Manga Grid or Empty State */}
+              {selectedLibrary.manga && selectedLibrary.manga.length > 0 ? (
+                filteredCollectionManga.length > 0 ? (
+                  <div className="lib-manga-grid">
+                    {filteredCollectionManga.map((m) => (
+                      <MangaCard key={m.id || m.mangaId} manga={m} />
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "40px 20px",
+                      background: "var(--surface)",
+                      borderRadius: "12px",
+                      border: "1px dashed var(--border)",
+                    }}
+                  >
+                    <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 6px 0", color: "#ffffff" }}>
+                      No Matching Manga Found
+                    </h3>
+                    <p style={{ fontSize: "13px", color: "var(--text3)", margin: "0 0 16px 0" }}>
+                      No series found matching {collectionSearch ? `"${collectionSearch}"` : ""}{" "}
+                      {collectionGenre !== "ALL" ? `in genre "${collectionGenre}"` : ""}.
+                    </p>
+                    <button
+                      className="btn btn-p"
+                      onClick={() => {
+                        setCollectionSearch("");
+                        setCollectionGenre("ALL");
+                      }}
+                      style={{ fontSize: "12px", padding: "6px 14px" }}
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                )
               ) : (
                 <div style={{ textAlign: "center", padding: "40px", color: "var(--text3)" }}>
                   This collection is empty.
