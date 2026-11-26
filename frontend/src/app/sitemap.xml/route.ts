@@ -74,28 +74,68 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // 3. Top Popular Manga, Manhwa, and Chinese Martial Arts/Cultivation for search engine indexing
+  // 3. Balanced 1,000+ Manga Sitemap with large quota for Niche, Manhwa, Cultivation & Hidden Gems
   try {
     const topManga = await withTimeout(
       prisma.$queryRawUnsafe<Array<{ title: string }>>(`
-        SELECT DISTINCT title FROM (
-          -- 1. All Chinese manga in manga table
-          SELECT title FROM manga WHERE country = 'CN' AND title IS NOT NULL
-          UNION
-          -- 2. Martial arts / Cultivation / Wuxia / Xianxia in manga table
-          SELECT title FROM manga WHERE (title ILIKE '%martial%' OR title ILIKE '%cultivat%' OR title ILIKE '%wuxia%' OR title ILIKE '%xianxia%' OR title ILIKE '%immortal%' OR title ILIKE '%peerless%' OR title ILIKE '%invincible%' OR title ILIKE '%alchemist%' OR title ILIKE '%sect%') AND title IS NOT NULL
-          UNION
-          -- 3. All Discovered Chinese / Martial / Cultivation titles
-          SELECT title FROM discovered_manga WHERE (slug ILIKE '%martial%' OR slug ILIKE '%cultivat%' OR slug ILIKE '%wuxia%' OR slug ILIKE '%xianxia%' OR slug ILIKE '%immortal%' OR slug ILIKE '%peerless%' OR slug ILIKE '%invincible%' OR slug ILIKE '%alchemist%' OR slug ILIKE '%sect%') AND title IS NOT NULL
-          UNION
-          -- 4. Top 400 popular manga overall
-          SELECT title FROM (
-            SELECT title FROM manga WHERE title IS NOT NULL ORDER BY popularity DESC NULLS LAST LIMIT 400
-          ) sub
-        ) combined
+        WITH sitemap_pool AS (
+          -- 1. All Chinese Cultivation / Martial Arts / Wuxia / Xianxia (Safe & High Search Intent)
+          (
+            SELECT title
+            FROM manga 
+            WHERE country = 'CN' AND title IS NOT NULL
+            LIMIT 150
+          )
+          UNION ALL
+          (
+            SELECT title
+            FROM discovered_manga
+            WHERE (slug ILIKE '%martial%' OR slug ILIKE '%cultivat%' OR slug ILIKE '%wuxia%' OR slug ILIKE '%xianxia%' OR slug ILIKE '%immortal%' OR slug ILIKE '%peerless%' OR slug ILIKE '%invincible%' OR slug ILIKE '%alchemist%' OR slug ILIKE '%sect%')
+              AND title IS NOT NULL
+            LIMIT 200
+          )
+          UNION ALL
+          -- 2. Korean Manhwa (Dungeon, Reincarnation, System, Webtoons, Fantasy)
+          (
+            SELECT title
+            FROM manga 
+            WHERE country = 'KR' AND title IS NOT NULL
+            ORDER BY popularity DESC NULLS LAST
+            LIMIT 350
+          )
+          UNION ALL
+          -- 3. Niche & Mid-Tier Hidden Gems (Isekai, Romance, Fantasy, Comedy: Popularity 20 to 600)
+          (
+            SELECT title
+            FROM manga 
+            WHERE title IS NOT NULL 
+              AND (popularity BETWEEN 20 AND 600 OR popularity IS NULL)
+              AND (
+                title ILIKE '%isekai%' OR title ILIKE '%reincarnat%' OR title ILIKE '%villainess%' 
+                OR title ILIKE '%level%' OR title ILIKE '%dungeon%' OR title ILIKE '%sword%' 
+                OR title ILIKE '%magic%' OR title ILIKE '%knight%' OR title ILIKE '%prince%' 
+                OR title ILIKE '%demon%' OR title ILIKE '%hero%' OR title ILIKE '%monster%'
+                OR title ILIKE '%academy%' OR title ILIKE '%hunter%' OR title ILIKE '%tower%'
+                OR title ILIKE '%love%' OR title ILIKE '%sweet%' OR title ILIKE '%heart%'
+                OR popularity BETWEEN 50 AND 350
+              )
+            ORDER BY popularity DESC NULLS LAST
+            LIMIT 400
+          )
+          UNION ALL
+          -- 4. Clean Top Mainstream Manga (Non-struck high popularity)
+          (
+            SELECT title
+            FROM manga 
+            WHERE title IS NOT NULL AND country NOT IN ('CN', 'KR')
+            ORDER BY popularity DESC NULLS LAST
+            LIMIT 200
+          )
+        )
+        SELECT DISTINCT title FROM sitemap_pool
         ORDER BY title ASC
       `),
-      6000
+      8000
     );
 
     if (topManga && Array.isArray(topManga)) {
